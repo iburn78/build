@@ -15,18 +15,26 @@ cd_ = os.path.dirname(os.path.abspath(__file__))
 PROFILES_DIR = os.path.join(cd_, 'data/profiles')
 os.makedirs(PROFILES_DIR, exist_ok=True)
 
+BIZ_SUMMARY_REFRESH_PERIOD = 60 # days
+MAX_BUSINESS_AREAS = 3
+MAX_PRODUCTS = 3
+MAX_COMPETITORS = 3
+
 @dataclass
 class CompanyProfile:
     code: str
     name: str
-    source_date: str
-    updated: str
 
+    # crawled from fnguide
     key_theme: str
+    business_summary: str
+    updated: str  # date for key_theme and business_summary
+
+    # LLM generated with pydantic
     business_segments: list[str]
     key_products: list[str]
     competitors: list[str]
-    # reviewed: bool # to be implemented later
+    reviewed: bool = False # if true, do not regenerate LLM part
 
     def save_to_file(self):
         """Save profile as {code}.json."""
@@ -39,31 +47,32 @@ class CompanyProfile:
                 ensure_ascii=False,
                 indent=2,
             )
+    
+    def needs_refresh(self):
+        updated = datetime.fromisoformat(self.updated)
+        return datetime.now() - updated > timedelta(days=BIZ_SUMMARY_REFRESH_PERIOD)
+
 
 class CompanyAttributes(BaseModel):
-    key_theme: str 
-
     business_segments: list[str] = Field(
-        description="Core business areas of the company (NOT competitors or products)",
-        max_length=3
+        description="Core business areas of the company (NOT products or competitors)",
+        max_length=MAX_BUSINESS_AREAS
     )
 
     key_products: list[str] = Field(
         description="Actual products or services offered by the company",
-        max_length=3
+        max_length=MAX_PRODUCTS
     )
 
     competitors: list[str] = Field(
         description="Direct competing companies in the same industry",
-        max_length=2
+        max_length=MAX_COMPETITORS
     )
-
-    # valuechain: list[str] # to be designed and implemented later
 
 class CompanyScraper:
     def __init__(self):
         # Basic parameters 
-        self.crawl_max_results = 3        
+        self.crawl_max_results = 3
 
         self.client = AsyncOpenAI(
             base_url='http://localhost:11434/v1',
@@ -83,75 +92,77 @@ class CompanyScraper:
         self._profile_dict = {} 
         self.load_profiles()
     
-    def load_profiles(self, threshold_to_renew=120):
+    def load_profiles(self):
         for path in Path(PROFILES_DIR).glob("*.json"):
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            updated = datetime.fromisoformat(data["updated"])
-
-            if datetime.now() - updated < timedelta(days=threshold_to_renew):
-                profile = CompanyProfile(**data)
-                self._profile_dict[profile.code] = profile
-            else: 
-                # may revise logic here, as profiles can be manually adjusted and then not renewing them might be better
-                print(f"existing profile for {data['code']} is outdated (threshold: {threshold_to_renew} days) - ignored")
+            profile = CompanyProfile(**data)
+            self._profile_dict[profile.code] = profile
 
     def get_profile(self, code):
-        cp = self._profile_dict.get(code)
+        cp: CompanyProfile | None = self._profile_dict.get(code)
 
         if cp is None:
-            print(f"creating profile for code {code}")
-            info = get_business_summary(code) # scrapping from fnguide
-
-            request_text = f"""
-Extract company profile.
-
-Current theme: {info["title"]}
-
-Refer to the recent business summary:
-{info["summary"]}
-
-Rules:
-- key_theme: summarize "Current Theme" to 3-5 words
-- business_segments: extract 1–3 core business areas 
-- key_products: extract 1–3 representative products/services 
-- competitors: at most 2 competitors (only specific company names) 
-- Keep answers concise and structured.
-- Use Korean terminology when it is standard in Korea; otherwise use English.
-"""
-
-            attrs = self.agent.run_sync(request_text).output
-
-            name = get_name(code)
-            source_date = str(info['date'])
-            updated = datetime.today().strftime("%Y-%m-%d")
+            print(f'creating new profile for {code}')
+            info = get_business_summary(code) 
+            attrs = self._get_llm_part(info)
 
             cp = CompanyProfile(
                 code=code,
-                name=name,
-                source_date = source_date,
-                updated = updated,
+                name=get_name(code),
 
-                key_theme=attrs.key_theme,
+                key_theme=str(info['title']),
+                business_summary=str(info['summary']),
+                updated = str(info['date']),
+
                 business_segments=attrs.business_segments,
                 key_products=attrs.key_products,
                 competitors=attrs.competitors,
+                reviewed=False,
             )
+            
+        elif cp.needs_refresh():
+            print(f'updating profile for {code}')
+            info = get_business_summary(code) 
+            cp.key_theme=str(info['title'])
+            cp.business_summary=str(info['summary'])
+            cp.updated = str(info['date'])
+            if not cp.reviewed:
+                attrs = self._get_llm_part(info)
+                cp.business_segments=attrs.business_segments
+                cp.key_products=attrs.key_products
+                cp.competitors=attrs.competitors
 
-            # placement / quality checker ---------------------------------------------------------------------------
-            # may let LLM to check the quality of output, and if not good, fix or rerun until satisfactory
-            # --------------------------------------------------------------------------------------------
-            cp.save_to_file()
-            self._profile_dict[code] = cp
+        cp.save_to_file()
+        self._profile_dict[code] = cp
 
         return cp
     
+    def _get_llm_part(self, info):
+
+#----------------------------------------------------------------------------------------------------
+            request_text = f"""
+Extract a company profile from the recent business summary below.
+
+{info['summary']}
+
+Rules:
+- business_segments: extract 1 to {MAX_BUSINESS_AREAS} core business areas.
+- key_products: extract 1 to {MAX_PRODUCTS} representative products or services.
+- competitors: list up to {MAX_COMPETITORS} direct competitors. Use company names only.
+- Keep answers concise and structured.
+- Use Korean terminology when it is standard in Korean business language; otherwise use English.
+"""
+#----------------------------------------------------------------------------------------------------
+
+            attrs = self.agent.run_sync(request_text).output
+            return attrs
+
     def generate_news(self, code):
         profile = self.get_profile(code)
 
         # USE FORMAL KEYWORDS 
         search_set = [profile.key_theme, '실적']
-
 
         # under company code as dir name: subdirs are ...
         dir_name_set = ['overall', 'performance']
