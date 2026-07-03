@@ -11,11 +11,16 @@ CUTOFF_MONTHS=6
 MAX_RESULT=10 
 SHOW_RES=True
 
-cd_ = os.path.dirname(os.path.abspath(__file__)) # .   
+cd_ = os.path.dirname(os.path.abspath(__file__)) 
 CRAWL_NEWS_DIR = os.path.join(cd_, 'data')
+
+# if destination is None:
 GENERAL_DEST = os.path.join(CRAWL_NEWS_DIR, 'general')
 
-def _set_dir_path(destination=None):
+# fix once
+_exctime = datetime.now().strftime('%Y-%m-%d_%H%M%S_')[:-4] 
+
+def _set_dir_path(destination=None): # and create dirs
     if destination:
         _dest = os.path.join(CRAWL_NEWS_DIR, destination)
     else: 
@@ -23,16 +28,16 @@ def _set_dir_path(destination=None):
     os.makedirs(_dest, exist_ok=True)
     return _dest
 
-def _set_filename(keywords=None):
-    exctime = datetime.now().strftime('%Y-%m-%d_%H%M%S_%f')[:-2] 
+def _set_filename(no, keywords=None):
+    prefix = _exctime+f"[{no}]"
     if keywords:
         safe_keywords = re.sub(r'[\\/*?:"<>|]', "_", keywords)
-        filename = f"{exctime}_{'_'.join(safe_keywords.split()[:3])}.md"
+        filename = f"{prefix}_{'_'.join(safe_keywords.split()[:3])}.md"
     else: 
-        filename = f"{exctime}_untitled.md"
+        filename = f"{prefix}_untitled.md"
     return filename
 
-async def _crawl_url_and_save(crawler, url, title=None, published=None, destination=None):
+async def _crawl_url_and_save(crawler, url, no, title=None, published=None, destination=None):
     prune_filter = PruningContentFilter(
         # higher for more content pruned [0, 1]
         threshold=0.99,
@@ -52,7 +57,7 @@ async def _crawl_url_and_save(crawler, url, title=None, published=None, destinat
 
     title_ = title or result.metadata.get("title") 
     dirname = _set_dir_path(destination=destination)
-    filename = _set_filename(title_)
+    filename = _set_filename(no, title_)
     _file = os.path.join(dirname, filename)
 
     if published: 
@@ -68,7 +73,7 @@ async def _crawl_url_and_save(crawler, url, title=None, published=None, destinat
         f.write(result.markdown.fit_markdown)
         print(f'{filename} is written')
 
-async def _crawl_news(query, kr, cutoff_months, max_result, show_res):
+async def _crawl_news(query, kr, cutoff_months, max_result, show_res, destination=None):
     items = await get_google_news_feed(
         query,
         kr_title=kr,
@@ -79,7 +84,7 @@ async def _crawl_news(query, kr, cutoff_months, max_result, show_res):
 
     async with AsyncWebCrawler() as crawler:
         tasks = [
-            _crawl_url_and_save(crawler, i['url'], i['title'], i['published'])
+            _crawl_url_and_save(crawler, i['url'], i['no'], i['title'], i['published'], destination)
             for i in items
             if items
         ]
@@ -92,5 +97,6 @@ def crawl_news(
         cutoff_months=CUTOFF_MONTHS, 
         max_result=MAX_RESULT, 
         show_res=SHOW_RES,
+        destination=None,
     ):
-    asyncio.run(_crawl_news(query, kr=kr, cutoff_months=cutoff_months, max_result=max_result, show_res=show_res))
+    asyncio.run(_crawl_news(query, kr=kr, cutoff_months=cutoff_months, max_result=max_result, show_res=show_res, destination=destination))

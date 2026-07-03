@@ -13,9 +13,10 @@ BANNED_DOMAINS = {
     "bing.com",
     "daum.net",
     "naver.com",
+    "sbs.co.kr",
 }
 
-DEDUPLICATE_THRESHOLD = 92 # close enough
+DEDUPLICATE_THRESHOLD = 75 # close enough / not too close
 MIN_DATES_TO_PASS = 3 # mimimum date difference not to compare titles
 
 async def get_google_news_feed(
@@ -99,18 +100,21 @@ async def get_google_news_feed(
             ]
         )
 
+        i = 0
         for e, url in zip(batch, urls):
 
             if url is None:
                 continue
 
             items.append({
+                "no": i+1,
                 "title": e["title"],
                 "url": url,
                 "published": e["published"],
             })
+            i += 1
 
-            if len(items) >= max_result:
+            if i >= max_result:
                 finished = True
                 break
 
@@ -126,6 +130,17 @@ async def get_google_news_feed(
             print(f'[{i+1}] {item["published"]}')
 
     return items
+
+def _is_valid_url(url: str) -> bool:
+    """Return True if the URL is supported by Crawl4AI."""
+    return url.startswith(("http://", "https://", "file://", "raw:"))
+
+def _is_banned(url: str) -> bool:
+    try:
+        domain = urlparse(url).netloc.lower()
+        return any(b in domain for b in BANNED_DOMAINS)
+    except:
+        return True
 
 async def _resolve_google_news_url(link):
     async with async_playwright() as p:
@@ -148,19 +163,15 @@ async def _resolve_google_news_url(link):
             except:
                 return None
 
+            if not _is_valid_url(page.url):
+                return None
+
             if not _is_banned(page.url):
                 return page.url
         finally:
             await browser.close()
 
         return None
-
-def _is_banned(url: str) -> bool:
-    try:
-        domain = urlparse(url).netloc.lower()
-        return any(b in domain for b in BANNED_DOMAINS)
-    except:
-        return True
 
 def _deduplicate_titles(
     entries,

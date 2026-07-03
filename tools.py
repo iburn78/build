@@ -4,7 +4,7 @@ from openai import OpenAI
 import requests
 from bs4 import BeautifulSoup
 
-pd_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # .   
+pd_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
 df_krx = pd.read_feather(os.path.join(pd_, "trader/data_collect/data/df_krx.feather"))
 
 client = OpenAI(
@@ -29,7 +29,7 @@ def get_LLM_response(prompt):
     return response
 
 def get_name(code): 
-    return df_krx.loc[code,'Name']
+    return str(df_krx.loc[code,'Name'])
 
 def get_business_summary(code: str): 
 
