@@ -13,6 +13,9 @@
     "NAND",
     "HBM"
   ],
-  "competitors": ["삼성전자", "Micron Technology"],
+  "competitors": [
+    "삼성전자",
+    "Micron Technology"
+  ],
   "reviewed": true
 }

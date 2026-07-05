@@ -161,13 +161,16 @@ Rules:
         # USE FORMAL KEYWORDS 
         search_set = [profile.key_theme, '실적']
 
-        # under company code as dir name: subdirs are ...
-        dir_name_set = ['overall', 'performance']
+        # Dest Dir: code as dir name
+        _dest = profile.code
 
-        for k, d in zip(search_set, dir_name_set):        
+        # under company code as dir name: subdirs are ...
+        subdir_set = ['overall', 'performance']
+
+        for k, d in zip(search_set, subdir_set):        
             _request = profile.name + ' ' + k
-            _dest = os.path.join(profile.code, d)
-            crawl_news(_request, max_result=self.crawl_max_results, destination=_dest)
+            _dest_dir = os.path.join(_dest, d)
+            crawl_news(_request, max_result=self.crawl_max_results, dest_dir=_dest_dir)
 
         # If not satisfactory, then may refine search using keywords
         pass

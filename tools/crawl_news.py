@@ -15,9 +15,9 @@ SHOW_RES=True
 # fix once to express download time
 _exetime = datetime.now().strftime('%y%m%d_%H%M') 
 
-def _set_dir_path(destination=None): # and create dirs
-    if destination:
-        _dest = os.path.join(COMPANYS_DIR, destination)
+def _set_dir_path(dest_dir=None): # and create dirs
+    if dest_dir:
+        _dest = os.path.join(COMPANYS_DIR, dest_dir)
     else: 
         _dest = GENERAL_DIR
     os.makedirs(_dest, exist_ok=True)
@@ -33,7 +33,7 @@ def _set_filename(no, timestamp, keywords=None):
         filename = f"{prefix}_untitled.md"
     return filename
 
-async def _crawl_url_and_save(crawler, url, no, title=None, published=None, destination=None):
+async def _crawl_url_and_save(crawler, url, no, title=None, published=None, dest_dir=None):
     prune_filter = PruningContentFilter(
         # higher for more content pruned [0, 1]
         threshold=0.99,
@@ -52,7 +52,7 @@ async def _crawl_url_and_save(crawler, url, no, title=None, published=None, dest
         return None
 
     title_ = title or result.metadata.get("title") 
-    dirname = _set_dir_path(destination=destination)
+    dirname = _set_dir_path(dest_dir=dest_dir)
 
     if published: 
         pdate = published.strftime("%Y-%m-%d") 
@@ -70,7 +70,7 @@ async def _crawl_url_and_save(crawler, url, no, title=None, published=None, dest
         f.write(result.markdown.fit_markdown)
         print(f'{filename} is written')
 
-async def _crawl_news(query, kr, cutoff_months, max_result, show_res, destination=None):
+async def _crawl_news(query, kr, cutoff_months, max_result, show_res, dest_dir=None):
     items = await get_google_news_feed(
         query,
         kr_title=kr,
@@ -81,7 +81,7 @@ async def _crawl_news(query, kr, cutoff_months, max_result, show_res, destinatio
 
     async with AsyncWebCrawler() as crawler:
         tasks = [
-            _crawl_url_and_save(crawler, i['url'], i['no'], i['title'], i['published'], destination)
+            _crawl_url_and_save(crawler, i['url'], i['no'], i['title'], i['published'], dest_dir)
             for i in items
             if items
         ]
@@ -94,6 +94,6 @@ def crawl_news(
         cutoff_months=CUTOFF_MONTHS, 
         max_result=MAX_RESULT, 
         show_res=SHOW_RES,
-        destination=None,
+        dest_dir=None,
     ):
-    asyncio.run(_crawl_news(query, kr=kr, cutoff_months=cutoff_months, max_result=max_result, show_res=show_res, destination=destination))
+    asyncio.run(_crawl_news(query, kr=kr, cutoff_months=cutoff_months, max_result=max_result, show_res=show_res, dest_dir=dest_dir))
