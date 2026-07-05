@@ -5,15 +5,12 @@ from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from openai import AsyncOpenAI
-from scraper.tools import get_name, get_business_summary, df_krx
-from crawl_news import crawl_news
+from scraper.tools.tools import get_name, get_business_summary
+from scraper.tools.crawl_news import crawl_news
+from scraper.tools.tools import PROFILES_DIR
 from datetime import datetime, timedelta
 import os, json
 from pathlib import Path
-
-cd_ = os.path.dirname(os.path.abspath(__file__))
-PROFILES_DIR = os.path.join(cd_, 'data/profiles')
-os.makedirs(PROFILES_DIR, exist_ok=True)
 
 BIZ_SUMMARY_REFRESH_PERIOD = 60 # days
 MAX_BUSINESS_AREAS = 3

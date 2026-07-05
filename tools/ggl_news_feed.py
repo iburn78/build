@@ -14,6 +14,7 @@ BANNED_DOMAINS = {
     "daum.net",
     "naver.com",
     "sbs.co.kr",
+    "nate.com",
 }
 
 DEDUPLICATE_THRESHOLD = 75 # close enough / not too close

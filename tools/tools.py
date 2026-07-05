@@ -5,7 +5,15 @@ import requests
 from bs4 import BeautifulSoup
 
 pd_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
-df_krx = pd.read_feather(os.path.join(pd_, "trader/data_collect/data/df_krx.feather"))
+ppd_ = os.path.dirname(pd_) 
+df_krx = pd.read_feather(os.path.join(ppd_, "trader/data_collect/data/df_krx.feather"))
+BASE_DATA_DIR = os.path.join(pd_, 'data')
+PROFILES_DIR = os.path.join(BASE_DATA_DIR, 'profiles')
+COMPANYS_DIR = os.path.join(BASE_DATA_DIR, 'companies')
+GENERAL_DIR = os.path.join(BASE_DATA_DIR, 'general') # to be created when needed
+os.makedirs(BASE_DATA_DIR, exist_ok=True)
+os.makedirs(PROFILES_DIR, exist_ok=True)
+os.makedirs(COMPANYS_DIR, exist_ok=True)
 
 client = OpenAI(
     base_url="http://localhost:11434/v1", # ollama

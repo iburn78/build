@@ -5,34 +5,30 @@ from datetime import datetime
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
 from crawl4ai.content_filter_strategy import PruningContentFilter
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
-from ggl_news_feed import get_google_news_feed
+from scraper.tools.ggl_news_feed import get_google_news_feed
+from scraper.tools.tools import COMPANYS_DIR, GENERAL_DIR
 
 CUTOFF_MONTHS=6 
 MAX_RESULT=10 
 SHOW_RES=True
 
-cd_ = os.path.dirname(os.path.abspath(__file__)) 
-CRAWL_NEWS_DIR = os.path.join(cd_, 'data')
-
-# if destination is None:
-GENERAL_DEST = os.path.join(CRAWL_NEWS_DIR, 'general')
-
-# fix once
-_exctime = datetime.now().strftime('%Y-%m-%d_%H%M%S_')[:-4] 
+# fix once to express download time
+_exetime = datetime.now().strftime('%y%m%d_%H%M') 
 
 def _set_dir_path(destination=None): # and create dirs
     if destination:
-        _dest = os.path.join(CRAWL_NEWS_DIR, destination)
+        _dest = os.path.join(COMPANYS_DIR, destination)
     else: 
-        _dest = GENERAL_DEST
+        _dest = GENERAL_DIR
     os.makedirs(_dest, exist_ok=True)
     return _dest
 
-def _set_filename(no, keywords=None):
-    prefix = _exctime+f"[{no}]"
+def _set_filename(no, timestamp, keywords=None):
+    prefix = timestamp+f"_({_exetime}[{no}])"
+
     if keywords:
-        safe_keywords = re.sub(r'[\\/*?:"<>|]', "_", keywords)
-        filename = f"{prefix}_{'_'.join(safe_keywords.split()[:3])}.md"
+        _keywords = re.sub(r'[\\/*?:"<>|]', "_", keywords)
+        filename = f"{prefix}_{'_'.join(_keywords.split()[:3])}.md"
     else: 
         filename = f"{prefix}_untitled.md"
     return filename
@@ -57,13 +53,14 @@ async def _crawl_url_and_save(crawler, url, no, title=None, published=None, dest
 
     title_ = title or result.metadata.get("title") 
     dirname = _set_dir_path(destination=destination)
-    filename = _set_filename(no, title_)
-    _file = os.path.join(dirname, filename)
 
     if published: 
         pdate = published.strftime("%Y-%m-%d") 
     else: 
-        pdate = "-----"
+        pdate = '_'
+
+    filename = _set_filename(no, pdate, title_)
+    _file = os.path.join(dirname, filename)
 
     with open(_file, "w", encoding="utf-8") as f:
         if title_:
