@@ -13,7 +13,7 @@ MAX_RESULT=10
 SHOW_RES=True
 
 # fix once to express download time
-_exetime = datetime.now().strftime('%y%m%d_%H%M') 
+_exetime = datetime.now().strftime('%y%m%d%H%M') 
 
 def _set_dir_path(dest_dir=None): # and create dirs
     if dest_dir:
@@ -24,11 +24,11 @@ def _set_dir_path(dest_dir=None): # and create dirs
     return _dest
 
 def _set_filename(no, timestamp, keywords=None):
-    prefix = timestamp+f"_({_exetime}[{no}])"
+    prefix = timestamp+f"_{_exetime}[{no}]"
 
     if keywords:
         _keywords = re.sub(r'[\\/*?:"<>|]', "_", keywords)
-        filename = f"{prefix}_{'_'.join(_keywords.split()[:3])}.md"
+        filename = f"{prefix}_{'_'.join(_keywords.split()[:10])}.md"
     else: 
         filename = f"{prefix}_untitled.md"
     return filename
