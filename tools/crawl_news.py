@@ -23,17 +23,24 @@ def _set_dir_path(dest_dir=None): # and create dirs
     os.makedirs(_dest, exist_ok=True)
     return _dest
 
-def _set_filename(no, timestamp, keywords=None):
-    prefix = timestamp+f"_{_exetime}[{no}]"
+def _set_filename(timestamp, title=None):
 
-    if keywords:
-        _keywords = re.sub(r'[\\/*?:"<>|]', "_", keywords)
-        filename = f"{prefix}_{'_'.join(_keywords.split()[:10])}.md"
+    if title:
+        title = re.sub(r"""['"`‘’“”,]""", "", title)
+
+        _titles = title.split('-')
+        if len(_titles) > 1: 
+            _media = _titles[-1].strip()
+        else: 
+            _media = ""
+        _title = "-".join(_titles[:-1])
+        
+        filename = f"{timestamp}_[{''.join(_media.split()[:3])}]_{'_'.join(_title.split()[:10])}.md"
     else: 
-        filename = f"{prefix}_untitled.md"
+        filename = f"{timestamp}_untitled.md"
     return filename
 
-async def _crawl_url_and_save(crawler, url, no, title=None, published=None, dest_dir=None):
+async def _crawl_url_and_save(crawler, url, title=None, published=None, dest_dir=None):
     prune_filter = PruningContentFilter(
         # higher for more content pruned [0, 1]
         threshold=0.99,
@@ -59,15 +66,17 @@ async def _crawl_url_and_save(crawler, url, no, title=None, published=None, dest
     else: 
         pdate = '_'
 
-    filename = _set_filename(no, pdate, title_)
+    filename = _set_filename(pdate, title_)
     _file = os.path.join(dirname, filename)
 
-    with open(_file, "w", encoding="utf-8") as f:
+    with open(_file, "a", encoding="utf-8") as f:
         if title_:
             f.write(f"# {title_}\n\n")
         f.write(f"source: {url}\n")
-        f.write(f"published: {pdate}\n\n")
+        f.write(f"published: {pdate}\n")
+        f.write(f"scrapped: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n")
         f.write(result.markdown.fit_markdown)
+        f.write("\n")
         print(f'{filename} is written')
 
 async def _crawl_news(query, kr, cutoff_months, max_result, show_res, dest_dir=None):
@@ -81,7 +90,7 @@ async def _crawl_news(query, kr, cutoff_months, max_result, show_res, dest_dir=N
 
     async with AsyncWebCrawler() as crawler:
         tasks = [
-            _crawl_url_and_save(crawler, i['url'], i['no'], i['title'], i['published'], dest_dir)
+            _crawl_url_and_save(crawler, i['url'], i['title'], i['published'], dest_dir)
             for i in items
             if items
         ]

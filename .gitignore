@@ -217,6 +217,10 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+
+# Etc
+.DS_Store
+
 # Scrapped data
 # profiles/ # may keep profiles as this is manually adjusted
 companies/

@@ -3,6 +3,7 @@ import pandas as pd
 from openai import OpenAI
 import requests
 from bs4 import BeautifulSoup
+import json
 
 pd_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
 ppd_ = os.path.dirname(pd_) 
@@ -15,12 +16,40 @@ os.makedirs(BASE_DATA_DIR, exist_ok=True)
 os.makedirs(PROFILES_DIR, exist_ok=True)
 os.makedirs(COMPANYS_DIR, exist_ok=True)
 
+OPENAI_CONF = os.path.join(ppd_, 'config/openai_api.json')
+with open(OPENAI_CONF, 'r') as json_file:
+    config = json.load(json_file)
+OPENAI_API_KEY = config['openai_api_key']
+OLLAMA_API_KEY = config['ollama_api_key']
+
 client = OpenAI(
     base_url="http://localhost:11434/v1", # ollama
     api_key= "-", 
 )
 
-def get_LLM_response(prompt):
+def llm_selector(mode='local'):
+    if mode == 'ollama':
+        base_url='http://localhost:11434/v1'
+        api_key = OLLAMA_API_KEY
+        model = "gemma4:31b-cloud"
+
+    elif mode == 'openai':
+        base_url = f"https://api.openai.com/v1"
+        api_key = OPENAI_API_KEY
+        model = "gpt-5-mini"
+
+    elif mode == 'local':
+        base_url='http://localhost:11434/v1'
+        api_key = '-'
+        model = "gemma4"
+
+    else: 
+        print('mode is not available')
+        return ["", "", ""]
+    
+    return [base_url, api_key, model]
+
+def get_local_LLM_response(prompt):
     chat_completion = client.chat.completions.create(
         model="gemma4", 
         messages=[
@@ -40,7 +69,6 @@ def get_name(code):
     return str(df_krx.loc[code,'Name'])
 
 def get_business_summary(code: str): 
-
     url = (
         "https://wcomp.fnguide.com/CompanyInfo/Snapshot"
         f"?c_id=AA&menu_type=01&cmp_cd={code}"

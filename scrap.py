@@ -7,7 +7,7 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from openai import AsyncOpenAI
 from scraper.tools.tools import get_name, get_business_summary
 from scraper.tools.crawl_news import crawl_news
-from scraper.tools.tools import PROFILES_DIR
+from scraper.tools.tools import PROFILES_DIR, llm_selector
 from datetime import datetime, timedelta
 import os, json
 from pathlib import Path
@@ -67,23 +67,26 @@ class CompanyAttributes(BaseModel):
     )
 
 class CompanyScraper:
-    def __init__(self):
+    def __init__(self, mode='local'):
         # Basic parameters 
         self.crawl_max_results = 3
+        self.retires = 3
+        u, k, m = llm_selector(mode)
 
         self.client = AsyncOpenAI(
-            base_url='http://localhost:11434/v1',
-            api_key='-'
+            base_url=u,
+            api_key=k,
         )
 
         self.model = OpenAIChatModel(
-            model_name='gemma4',
+            model_name=m,
             provider=OpenAIProvider(openai_client=self.client),
         )
 
         self.agent = Agent(
             model=self.model,
             output_type=CompanyAttributes,
+            retries=self.retires,
         )
 
         self._profile_dict = {} 

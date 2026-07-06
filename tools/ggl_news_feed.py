@@ -101,21 +101,18 @@ async def get_google_news_feed(
             ]
         )
 
-        i = 0
         for e, url in zip(batch, urls):
 
             if url is None:
                 continue
 
             items.append({
-                "no": i+1,
                 "title": e["title"],
                 "url": url,
                 "published": e["published"],
             })
-            i += 1
 
-            if i >= max_result:
+            if len(items) >= max_result:
                 finished = True
                 break
 
