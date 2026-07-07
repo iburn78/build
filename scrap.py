@@ -162,7 +162,7 @@ Rules:
         profile = self.get_profile(code)
 
         # USE FORMAL KEYWORDS 
-        search_set = [profile.key_theme, '실적']
+        search_set = [profile.key_theme, '실적']  ###_ key theme is too broad... 
 
         # Dest Dir: code as dir name
         _dest = profile.code
