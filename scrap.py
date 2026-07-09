@@ -17,6 +17,7 @@ MAX_BUSINESS_AREAS = 3
 MAX_PRODUCTS = 3
 MAX_COMPETITORS = 3
 
+###_ should redeine the strcuture
 @dataclass
 class CompanyProfile:
     code: str
