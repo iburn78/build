@@ -6,9 +6,9 @@ from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
 from crawl4ai.content_filter_strategy import PruningContentFilter
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
 from scraper.tools.ggl_news_feed import get_google_news_feed
-from scraper.tools.tools import COMPANYS_DIR, GENERAL_DIR
+from scraper.tools.tools import NEWS_DIR, GENERAL_DIR
 
-CUTOFF_MONTHS=6 
+CUTOFF_MONTHS=3 
 MAX_RESULT=10 
 SHOW_RES=True
 
@@ -17,16 +17,15 @@ _exetime = datetime.now().strftime('%y%m%d%H%M')
 
 def _set_dir_path(dest_dir=None): # and create dirs
     if dest_dir:
-        _dest = os.path.join(COMPANYS_DIR, dest_dir)
+        _dest = os.path.join(NEWS_DIR, dest_dir)
     else: 
         _dest = GENERAL_DIR
     os.makedirs(_dest, exist_ok=True)
     return _dest
 
 def _set_filename(timestamp, title=None):
-
     if title:
-        title = re.sub(r"""['"`‘’“”,]""", "", title)
+        title = re.sub(r'[<>:"/\\|?*\'`‘’“”,]+', '', title)
 
         _titles = title.split('-')
         if len(_titles) > 1: 
@@ -69,7 +68,7 @@ async def _crawl_url_and_save(crawler, url, title=None, published=None, dest_dir
     filename = _set_filename(pdate, title_)
     _file = os.path.join(dirname, filename)
 
-    with open(_file, "a", encoding="utf-8") as f:
+    with open(_file, "w", encoding="utf-8") as f:
         if title_:
             f.write(f"# {title_}\n\n")
         f.write(f"source: {url}\n")

@@ -7,7 +7,7 @@ import feedparser
 from playwright.async_api import async_playwright 
 from rapidfuzz import fuzz
 
-# sites that detect crawling
+# sites that detect crawling, etc 
 BANNED_DOMAINS = {
     "msn.com",
     "bing.com",
@@ -15,6 +15,8 @@ BANNED_DOMAINS = {
     "naver.com",
     "sbs.co.kr",
     "nate.com",
+    "investing.com",
+    "judal.co.kr",
 }
 
 DEDUPLICATE_THRESHOLD = 75 # close enough / not too close

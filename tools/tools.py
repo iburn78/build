@@ -10,11 +10,11 @@ ppd_ = os.path.dirname(pd_)
 df_krx = pd.read_feather(os.path.join(ppd_, "trader/data_collect/data/df_krx.feather"))
 BASE_DATA_DIR = os.path.join(pd_, 'data')
 PROFILES_DIR = os.path.join(BASE_DATA_DIR, 'profiles')
-COMPANYS_DIR = os.path.join(BASE_DATA_DIR, 'companies')
+NEWS_DIR = os.path.join(BASE_DATA_DIR, 'news')
 GENERAL_DIR = os.path.join(BASE_DATA_DIR, 'general') # to be created when needed
 os.makedirs(BASE_DATA_DIR, exist_ok=True)
 os.makedirs(PROFILES_DIR, exist_ok=True)
-os.makedirs(COMPANYS_DIR, exist_ok=True)
+os.makedirs(NEWS_DIR, exist_ok=True)
 
 OPENAI_CONF = os.path.join(ppd_, 'config/openai_api.json')
 with open(OPENAI_CONF, 'r') as json_file:
@@ -68,7 +68,7 @@ def get_local_LLM_response(prompt):
 def get_name(code): 
     return str(df_krx.loc[code,'Name'])
 
-def get_business_summary(code: str): 
+def get_overview(code: str): 
     url = (
         "https://wcomp.fnguide.com/CompanyInfo/Snapshot"
         f"?c_id=AA&menu_type=01&cmp_cd={code}"
@@ -103,10 +103,10 @@ def get_business_summary(code: str):
         "#bizSummaryContent"
     )
 
-    summary = None
+    desc = ""
 
     if content:
-        summary = "\n\n".join(
+        desc = "\n\n".join(
             li.get_text(
                 " ",
                 strip=True,
@@ -117,11 +117,11 @@ def get_business_summary(code: str):
     return {
         'title':(
             title.get_text(strip=True)
-            if title else None
+            if title else ""
         ),
         'date':(
             date.get_text(strip=True).strip("[]").replace("/","-")
-            if date else None
+            if date else ""
         ),
-        'summary':summary,
+        'desc':desc,
     }
