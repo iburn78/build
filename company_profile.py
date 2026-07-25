@@ -226,7 +226,7 @@ Articles:
 
 
 if __name__ == "__main__":
-    code = '000660'
-    # code = "950160" # 코티
+    # code = '000660'
+    code = "950160" # 코티
     pm = ProfileManager()
     profile = pm.get_profile(code)
