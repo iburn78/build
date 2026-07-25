@@ -74,7 +74,15 @@ class News(BaseModel):
         description="Single concise synthesis of all articles.",
         max_length=500,
     )
-    updated: str = datetime.now().strftime("%Y-%m-%d")
+    updated: str = ""
+
+    def needs_refresh(self):
+        if self.updated:
+            return (
+                datetime.now() - datetime.fromisoformat(self.updated)
+                >= timedelta(days=NEWS_REFRESH_PERIOD)
+            )
+        return True
 
 class CompanyProfile(BaseModel):
     code: str
@@ -100,7 +108,7 @@ class CompanyProfile(BaseModel):
         path = Path(path)
         return cls.model_validate_json(path.read_text(encoding="utf-8"))
 
-    def scrap_news(self):
+    def scrape_news(self):
         search_set = ['', '실적'] 
         subdir_set = ['general', 'performance']
 
@@ -127,23 +135,26 @@ class ProfileManager:
     def __init__(self, biz_mode='local', news_mode='ollama'): 
         # llm model for biz
         u, k, m = llm_selector(biz_mode) 
-        self.client = AsyncOpenAI(base_url=u, api_key=k) 
-        self.model = OpenAIChatModel(model_name=m, provider=OpenAIProvider(openai_client=self.client)) 
+        biz_client = AsyncOpenAI(base_url=u, api_key=k) 
+        biz_model = OpenAIChatModel(model_name=m, provider=OpenAIProvider(openai_client=biz_client)) 
         # agent
-        self.business_agent = Agent(model=self.model, output_type=Business, retries=AGENT_RETRIES) 
+        self.business_agent = Agent(model=biz_model, output_type=Business, retries=AGENT_RETRIES) 
 
         # llm model for news
         u, k, m = llm_selector(news_mode) 
-        self.client = AsyncOpenAI(base_url=u, api_key=k) 
-        self.model = OpenAIChatModel(model_name=m, provider=OpenAIProvider(openai_client=self.client)) 
+        news_client = AsyncOpenAI(base_url=u, api_key=k) 
+        news_model = OpenAIChatModel(model_name=m, provider=OpenAIProvider(openai_client=news_client)) 
         # agent
-        self.news_agent = Agent(model=self.model, output_type=News, retries=AGENT_RETRIES) 
+        self.news_agent = Agent(model=news_model, output_type=News, retries=AGENT_RETRIES) 
 
-        # profile dict
+        # profile dict - skipping outdated json
         self._profiles = {} 
         for path in Path(PROFILES_DIR).glob("*.json"): 
-            profile = CompanyProfile.load_from_file(path) 
-            self._profiles[profile.code] = profile
+            try:
+                profile = CompanyProfile.load_from_file(path) 
+                self._profiles[profile.code] = profile
+            except Exception as e:
+                print(f"Skipping {path}: {e}")
 
     # returns profile if exists and is not outdated, otherwise creates
     def get_profile(self, code: str) -> CompanyProfile:
@@ -173,7 +184,7 @@ class ProfileManager:
                 cp.business = self._gen_business(cp.overview)
             changed = True
 
-        if not cp.news_summary or datetime.now() - datetime.fromisoformat(cp.news_summary.updated) >= timedelta(days=NEWS_REFRESH_PERIOD):
+        if cp.news_summary is None or cp.news_summary.needs_refresh():
             print(f"Generating news for {code}")
             cp.news_summary = self._gen_news(cp)
             changed = True
@@ -200,10 +211,11 @@ Rules:
 #----------------------------------------------------------------------------------------------------
         # returns Business instance
         bs = self.business_agent.run_sync(request_text).output
+        bs.reviewed = False
         return bs
 
     def _gen_news(self, profile: CompanyProfile):
-        news_collection = profile.scrap_news()
+        news_collection = profile.scrape_news()
 #----------------------------------------------------------------------------------------------------
         request_text = f"""
 Summarize the news articles about the company.
@@ -222,11 +234,18 @@ Articles:
 """
 #----------------------------------------------------------------------------------------------------
         res = self.news_agent.run_sync(request_text).output   # CompanyRecentDevs class instance
+        res.updated = datetime.now().strftime("%Y-%m-%d") 
         return res
 
 
 if __name__ == "__main__":
-    # code = '000660'
-    code = "950160" # 코티
     pm = ProfileManager()
-    profile = pm.get_profile(code)
+
+    # code = '000660'
+    # profile = pm.get_profile(code)
+    # code = '950160'
+
+    codes = ['251970', '020150', '055490', '005930', '021240', '001520', '462980', '011200']
+
+    for c in codes: 
+        pm.get_profile(c)

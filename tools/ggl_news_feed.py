@@ -6,18 +6,45 @@ import re
 import feedparser
 from playwright.async_api import async_playwright 
 from rapidfuzz import fuzz
+from pathlib import Path
 
 # sites that detect crawling, etc 
-BANNED_DOMAINS = {
+BANNED_FILE = Path(__file__).with_name("banned_domains.txt")
+
+DEFAULT_BANNED = {
     "msn.com",
     "bing.com",
     "daum.net",
     "naver.com",
-    "sbs.co.kr",
     "nate.com",
     "investing.com",
-    "judal.co.kr",
+    # "tradingkey.com",
+    # "sbs.co.kr",
+    # "judal.co.kr",
 }
+
+if BANNED_FILE.exists():
+    with open(BANNED_FILE, encoding="utf-8") as f:
+        BANNED_DOMAINS = DEFAULT_BANNED | {
+            line.strip()
+            for line in f
+            if line.strip()
+        }
+else:
+    BANNED_DOMAINS = set(DEFAULT_BANNED)
+
+def add_banned_domain(url: str):
+    domain = urlparse(url).netloc.lower().removeprefix("www.")
+
+    if domain in BANNED_DOMAINS:
+        return
+
+    BANNED_DOMAINS.add(domain)
+
+    with open(BANNED_FILE, "a", encoding="utf-8") as f:
+        f.write(domain + "\n")
+
+    print(f"Added banned domain: {domain}")
 
 DEDUPLICATE_THRESHOLD = 75 # close enough / not too close
 MIN_DATES_TO_PASS = 3 # mimimum date difference not to compare titles
@@ -138,7 +165,10 @@ def _is_valid_url(url: str) -> bool:
 def _is_banned(url: str) -> bool:
     try:
         domain = urlparse(url).netloc.lower()
-        return any(b in domain for b in BANNED_DOMAINS)
+        return any(
+                domain == b or domain.endswith("." + b)
+                for b in BANNED_DOMAINS
+            )
     except:
         return True
 

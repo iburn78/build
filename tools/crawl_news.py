@@ -5,7 +5,7 @@ from datetime import datetime
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
 from crawl4ai.content_filter_strategy import PruningContentFilter
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
-from scraper.tools.ggl_news_feed import get_google_news_feed
+from scraper.tools.ggl_news_feed import get_google_news_feed, add_banned_domain
 from scraper.tools.tools import NEWS_DIR, GENERAL_DIR
 
 CUTOFF_MONTHS=3 
@@ -54,8 +54,24 @@ async def _crawl_url_and_save(crawler, url, title=None, published=None, dest_dir
 
     result = await crawler.arun(url=url, config=config)
     if not result.success:
-        print("Error:", result.error_message)
-        return None
+        err = (result.error_message or "").lower()
+
+        ANTI_BOT_PATTERNS = (
+            "acs-goto",
+            "captcha",
+            "cloudflare",
+            "403",
+            "forbidden",
+            "access denied",
+            "err_http_response_code_failure",
+            "proxy direct failed",
+        )
+
+        if any(p in err for p in ANTI_BOT_PATTERNS):
+            add_banned_domain(url)
+
+        print(result.error_message)
+        return
 
     title_ = title or result.metadata.get("title") 
     dirname = _set_dir_path(dest_dir=dest_dir)
