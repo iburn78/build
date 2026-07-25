@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 
 DESC_REFRESH_PERIOD = 30 # days
+NEWS_REFRESH_PERIOD = 1 # days
 MAX_SEGMENTS = 3
 MAX_PRODUCTS = 3
 MAX_COMPETITORS = 3
@@ -39,7 +40,7 @@ class Overview(BaseModel):
         if self.updated:
             return (
                 datetime.now() - datetime.fromisoformat(self.updated)
-                > timedelta(days=DESC_REFRESH_PERIOD)
+                >= timedelta(days=DESC_REFRESH_PERIOD)
             )
         return True
 
@@ -64,17 +65,16 @@ class News(BaseModel):
         min_length=1,
         max_length=5,
     )
-
     key_issues: list[str] = Field(
         description="Explicitly stated risks, issues, or uncertainties (include resolution only if stated).",
         min_length=1,
         max_length=5,
     )
-
     news_summary: str = Field(
         description="Single concise synthesis of all articles.",
         max_length=500,
     )
+    updated: str = datetime.now().strftime("%Y-%m-%d")
 
 class CompanyProfile(BaseModel):
     code: str
@@ -100,16 +100,43 @@ class CompanyProfile(BaseModel):
         path = Path(path)
         return cls.model_validate_json(path.read_text(encoding="utf-8"))
 
-# master class that has all profiles in data, and creates if necessary 
-class ProfileManager:
-    def __init__(self, mode='local'): 
-        # llm model
-        u, k, m = llm_selector(mode) 
-        self.client = AsyncOpenAI(base_url=u, api_key=k,) 
-        self.model = OpenAIChatModel(model_name=m, provider=OpenAIProvider(openai_client=self.client)) 
+    def scrap_news(self):
+        search_set = ['', '실적'] 
+        subdir_set = ['general', 'performance']
 
-        # agents
+        for k, d in zip(search_set, subdir_set):        
+            _request = self.name + ' ' + k
+            _dest_dir = os.path.join(self.code, d) 
+            crawl_news(_request, dest_dir=_dest_dir, max_result=NUM_TO_CRAWL)
+
+        return self._get_news_collection()
+
+    def _get_news_collection(self, dest='performance'):
+        _dest = Path(os.path.join(NEWS_DIR, self.code, dest))
+
+        # choose latest INPUT_FILE_NUM articles
+        combined = "\n".join(
+            md_file.read_text(encoding="utf-8")
+            for md_file in sorted(_dest.glob("*.md"), reverse=True)[:NUM_TO_FEED_LLM]
+        )
+
+        return combined
+
+# master class that has all profiles in data, and creates profiles if necessary 
+class ProfileManager:
+    def __init__(self, biz_mode='local', news_mode='ollama'): 
+        # llm model for biz
+        u, k, m = llm_selector(biz_mode) 
+        self.client = AsyncOpenAI(base_url=u, api_key=k) 
+        self.model = OpenAIChatModel(model_name=m, provider=OpenAIProvider(openai_client=self.client)) 
+        # agent
         self.business_agent = Agent(model=self.model, output_type=Business, retries=AGENT_RETRIES) 
+
+        # llm model for news
+        u, k, m = llm_selector(news_mode) 
+        self.client = AsyncOpenAI(base_url=u, api_key=k) 
+        self.model = OpenAIChatModel(model_name=m, provider=OpenAIProvider(openai_client=self.client)) 
+        # agent
         self.news_agent = Agent(model=self.model, output_type=News, retries=AGENT_RETRIES) 
 
         # profile dict
@@ -121,6 +148,7 @@ class ProfileManager:
     # returns profile if exists and is not outdated, otherwise creates
     def get_profile(self, code: str) -> CompanyProfile:
         cp: CompanyProfile | None = self._profiles.get(code)
+        changed = False
 
         if cp is None:
             print(f"Creating new profile for {code}")
@@ -135,7 +163,7 @@ class ProfileManager:
                 business=bs,
             )
             self._profiles[code] = cp
-            cp.save_to_file()
+            changed = True
 
         elif cp.overview.needs_refresh():
             print(f"Updating profile for {code}")
@@ -143,12 +171,19 @@ class ProfileManager:
 
             if not cp.business.reviewed:
                 cp.business = self._gen_business(cp.overview)
-            
+            changed = True
+
+        if not cp.news_summary or datetime.now() - datetime.fromisoformat(cp.news_summary.updated) >= timedelta(days=NEWS_REFRESH_PERIOD):
+            print(f"Generating news for {code}")
+            cp.news_summary = self._gen_news(cp)
+            changed = True
+
+        if changed:
             cp.save_to_file()
 
         return cp
 
-    def _gen_business(self, overview):
+    def _gen_business(self, overview: Overview):
 #----------------------------------------------------------------------------------------------------
         request_text = f"""
 Extract a company profile from the recent business summary below.
@@ -167,8 +202,8 @@ Rules:
         bs = self.business_agent.run_sync(request_text).output
         return bs
 
-    def _gen_news(self, profile):
-        news_collection = self._get_news_collection(profile.code)
+    def _gen_news(self, profile: CompanyProfile):
+        news_collection = profile.scrap_news()
 #----------------------------------------------------------------------------------------------------
         request_text = f"""
 Summarize the news articles about the company.
@@ -187,46 +222,11 @@ Articles:
 """
 #----------------------------------------------------------------------------------------------------
         res = self.news_agent.run_sync(request_text).output   # CompanyRecentDevs class instance
+        return res
 
-        ###_
-        self.profile.news_summary = res
-        self.profile.save_to_file()
-
-    def _get_news_collection(self, code, dest='performance'):
-        _dest = Path(os.path.join(NEWS_DIR, code, dest))
-
-        # choose latest INPUT_FILE_NUM articles
-        combined = "\n".join(
-            md_file.read_text(encoding="utf-8")
-            for md_file in sorted(_dest.glob("*.md"), reverse=True)[:NUM_TO_FEED_LLM]
-        )
-
-        return combined
-
-    def scrap_news(self):
-        search_set = ['', '실적'] 
-
-        # Dest Dir: code as dir name
-        _dest = self.profile.code
-
-        # under company code as dir name: subdirs are ...
-        subdir_set = ['general', 'performance']
-
-        for k, d in zip(search_set, subdir_set):        
-            _request = self.profile.name + ' ' + k
-            _dest_dir = os.path.join(_dest, d)
-            crawl_news(_request, dest_dir=_dest_dir, max_result=NUM_TO_CRAWL)
-
-        # If not satisfactory, then may refine search using keywords
-        pass
 
 if __name__ == "__main__":
     code = '000660'
     # code = "950160" # 코티
     pm = ProfileManager()
     profile = pm.get_profile(code)
-
-    nm = NewsManager(profile, mode='ollama')
-    # nm = NewsManager(profile, mode='openai')
-    # nm.scrap_news()
-    nm.get_llm_summary()
