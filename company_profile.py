@@ -8,41 +8,43 @@ from scraper.tools.tools import get_name, get_overview, get_code_name
 from scraper.tools.tools import PROFILES_DIR, NEWS_DIR, llm_selector
 from scraper.tools.crawl_news import crawl_news
 from datetime import datetime, timedelta
-import os
-import re
+import os, sys
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
-DESC_REFRESH_PERIOD = 45 # days
-NEWS_REFRESH_PERIOD = 1 # days
+OVERVIEW_REFRESH_THRES = 60 # days
+NEWS_REFRESH_THRES = 3 # days
 MAX_SEGMENTS = 3
 MAX_PRODUCTS = 3
 MAX_COMPETITORS = 3
 
-NUM_TO_CRAWL = 7 # number of articles to crawl
+DEFAULT_SEARCH_THEME = ['실적', '전망']
+NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
 NUM_TO_FEED_LLM = 5 # number of articles to provide to LLM
+
 AGENT_RETRIES = 3 
+NUM_THREAD_TO_RUN = 4
 
 class Overview(BaseModel):
     # crawled from fnguide
-    key_theme: str 
+    title: str 
     desc: str 
-    updated: str 
+    as_of: str # date fnguide created title/desc; yyyy-mm-dd
 
     @classmethod
     def fetch(cls, code):
         info = get_overview(code)
         return cls(
-            key_theme=info["title"], 
+            title=info["title"], 
             desc=info["desc"],
-            updated=info["date"],
+            as_of=info["date"],
         )
 
     def needs_refresh(self): 
-        if self.updated:
+        if self.as_of:
             return (
-                datetime.now() - datetime.fromisoformat(self.updated)
-                >= timedelta(days=DESC_REFRESH_PERIOD)
+                datetime.now() - datetime.fromisoformat(self.as_of)
+                >= timedelta(days=OVERVIEW_REFRESH_THRES)
             )
         return True
 
@@ -59,6 +61,8 @@ class Business(BaseModel):
         description="Direct competing companies in the same industry",
         max_length=MAX_COMPETITORS
     )
+    search_specifier: str = "" # keyword specific to this company to add in all news search
+    search_theme: list[str] = Field(default_factory=list)
     reviewed: bool = False # if true, do not regenerate LLM part
 
 class News(BaseModel):
@@ -82,7 +86,7 @@ class News(BaseModel):
         if self.updated:
             return (
                 datetime.now() - datetime.fromisoformat(self.updated)
-                >= timedelta(days=NEWS_REFRESH_PERIOD)
+                >= timedelta(days=NEWS_REFRESH_THRES)
             )
         return True
 
@@ -112,20 +116,19 @@ class CompanyProfile(BaseModel):
         return cls.model_validate_json(path.read_text(encoding="utf-8"))
 
     def scrape_news(self):
-        search_set = ['', '실적'] 
-        subdir_set = ['general', 'performance']
-
+        search_set = self.business.search_theme + DEFAULT_SEARCH_THEME
+        search_set = [f"{self.business.search_specifier} {k}" if self.business.search_specifier else k for k in search_set]
         _code_name = get_code_name(self.code, self.name)
-        for k, d in zip(search_set, subdir_set):        
+
+        for k in search_set:
             _request = self.name + ' ' + k
-            _dest_dir = os.path.join(_code_name, d) 
-            crawl_news(_request, dest_dir=_dest_dir, max_result=NUM_TO_CRAWL)
+            crawl_news(_request, dest_dir=_code_name, max_result=NUM_TO_CRAWL)
 
         return self._get_news_collection()
 
-    def _get_news_collection(self, dest='performance'):
+    def _get_news_collection(self):
         _code_name = get_code_name(self.code, self.name)
-        _dest = Path(os.path.join(NEWS_DIR, _code_name, dest))
+        _dest = Path(os.path.join(NEWS_DIR, _code_name))
 
         # choose latest INPUT_FILE_NUM articles
         combined = "\n".join(
@@ -161,6 +164,22 @@ class ProfileManager:
             except Exception as e:
                 print(f"Skipping {path}: {e}")
 
+    # batch processing of profile generation / update
+    def gen_profiles(self, codes, max_workers=NUM_THREAD_TO_RUN):
+        if sys.platform == "win32":
+            print("--------------------------------------------------")
+            print("Generating profiles - sequential on Windows")
+            print("--------------------------------------------------")
+            for code in codes:
+                self.get_profile(code)
+            return
+
+        print("--------------------------------------------------")
+        print(f"Generating profiles - max {max_workers} threads")
+        print("--------------------------------------------------")
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            list(executor.map(self.get_profile, codes))
+        
     # returns profile if exists and is not outdated, otherwise creates
     def get_profile(self, code: str) -> CompanyProfile:
         cp: CompanyProfile | None = self._profiles.get(code)
@@ -216,6 +235,9 @@ Rules:
 #----------------------------------------------------------------------------------------------------
         # returns Business instance
         bs = self.business_agent.run_sync(request_text).output
+        # ensure defaults again
+        bs.search_specifier = ""
+        bs.search_theme = []
         bs.reviewed = False
         return bs
 
@@ -242,13 +264,10 @@ Articles:
         res.updated = datetime.now().strftime("%Y-%m-%d") 
         return res
 
-
 if __name__ == "__main__":
     pm = ProfileManager(biz_mode='ollama', news_mode='ollama')
-    # code = '000660'
-    # profile = pm.get_profile(code)
+    code = '251970'
+    profile = pm.get_profile(code)
 
-    codes = ['950160', '251970', '020150', '055490'] #'000660', '005930', '021240', '001520', '462980', '011200']
-
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        list(executor.map(pm.get_profile, codes))
+    # codes = ['001520', '251970'] #, '020150', '055490', '950160', '000660', '005930', '021240', '462980', '011200']
+    # pm.gen_profiles(codes)
