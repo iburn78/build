@@ -18,9 +18,9 @@ DEFAULT_BANNED = {
     "naver.com",
     "nate.com",
     "investing.com",
+    "judal.co.kr",
     # "tradingkey.com",
     # "sbs.co.kr",
-    # "judal.co.kr",
 }
 
 if BANNED_FILE.exists():

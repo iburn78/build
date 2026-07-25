@@ -4,6 +4,7 @@ from openai import OpenAI
 import requests
 from bs4 import BeautifulSoup
 import json
+import re
 
 pd_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
 ppd_ = os.path.dirname(pd_) 
@@ -67,6 +68,11 @@ def get_local_LLM_response(prompt):
 
 def get_name(code): 
     return str(df_krx.loc[code,'Name'])
+
+def get_code_name(code, name): # santized code_name usable for dir or file
+    name = re.sub(r'[<>:"/\\|?*]+', "", name)
+    name = "_".join(name.split())
+    return f"{code}_{name}"
 
 def get_overview(code: str): 
     url = (

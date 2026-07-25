@@ -4,14 +4,16 @@ from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from openai import AsyncOpenAI
-from scraper.tools.tools import get_name, get_overview
+from scraper.tools.tools import get_name, get_overview, get_code_name
 from scraper.tools.tools import PROFILES_DIR, NEWS_DIR, llm_selector
 from scraper.tools.crawl_news import crawl_news
 from datetime import datetime, timedelta
 import os
+import re
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
-DESC_REFRESH_PERIOD = 30 # days
+DESC_REFRESH_PERIOD = 45 # days
 NEWS_REFRESH_PERIOD = 1 # days
 MAX_SEGMENTS = 3
 MAX_PRODUCTS = 3
@@ -74,7 +76,7 @@ class News(BaseModel):
         description="Single concise synthesis of all articles.",
         max_length=500,
     )
-    updated: str = ""
+    updated: str = "" # give default so LLM not to generate a value for this field
 
     def needs_refresh(self):
         if self.updated:
@@ -93,7 +95,8 @@ class CompanyProfile(BaseModel):
     news_summary: News | None = None
 
     def save_to_file(self): 
-        path = Path(PROFILES_DIR) / f"{self.code}.json"
+        fname = get_code_name(self.code, self.name)
+        path = Path(PROFILES_DIR) / f"{fname}.json"
 
         path.write_text(
             self.model_dump_json(
@@ -112,15 +115,17 @@ class CompanyProfile(BaseModel):
         search_set = ['', '실적'] 
         subdir_set = ['general', 'performance']
 
+        _code_name = get_code_name(self.code, self.name)
         for k, d in zip(search_set, subdir_set):        
             _request = self.name + ' ' + k
-            _dest_dir = os.path.join(self.code, d) 
+            _dest_dir = os.path.join(_code_name, d) 
             crawl_news(_request, dest_dir=_dest_dir, max_result=NUM_TO_CRAWL)
 
         return self._get_news_collection()
 
     def _get_news_collection(self, dest='performance'):
-        _dest = Path(os.path.join(NEWS_DIR, self.code, dest))
+        _code_name = get_code_name(self.code, self.name)
+        _dest = Path(os.path.join(NEWS_DIR, _code_name, dest))
 
         # choose latest INPUT_FILE_NUM articles
         combined = "\n".join(
@@ -239,13 +244,11 @@ Articles:
 
 
 if __name__ == "__main__":
-    pm = ProfileManager()
-
+    pm = ProfileManager(biz_mode='ollama', news_mode='ollama')
     # code = '000660'
     # profile = pm.get_profile(code)
-    # code = '950160'
 
-    codes = ['251970', '020150', '055490', '005930', '021240', '001520', '462980', '011200']
+    codes = ['950160', '251970', '020150', '055490'] #'000660', '005930', '021240', '001520', '462980', '011200']
 
-    for c in codes: 
-        pm.get_profile(c)
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        list(executor.map(pm.get_profile, codes))
