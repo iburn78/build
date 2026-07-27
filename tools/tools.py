@@ -10,12 +10,17 @@ pd_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ppd_ = os.path.dirname(pd_) 
 df_krx = pd.read_feather(os.path.join(ppd_, "trader/data_collect/data/df_krx.feather"))
 BASE_DATA_DIR = os.path.join(pd_, 'data')
-PROFILES_DIR = os.path.join(BASE_DATA_DIR, 'profiles')
-NEWS_DIR = os.path.join(BASE_DATA_DIR, 'news')
 GENERAL_DIR = os.path.join(BASE_DATA_DIR, 'general') # to be created when needed
+NEWS_DIR = os.path.join(BASE_DATA_DIR, 'news')
+PROFILES_DIR = os.path.join(BASE_DATA_DIR, 'profiles')
+COMPONENTS_DIR = os.path.join(BASE_DATA_DIR, 'components')
+VALUECHAIN_DIR = os.path.join(BASE_DATA_DIR, 'valuechains')
+
 os.makedirs(BASE_DATA_DIR, exist_ok=True)
-os.makedirs(PROFILES_DIR, exist_ok=True)
 os.makedirs(NEWS_DIR, exist_ok=True)
+os.makedirs(PROFILES_DIR, exist_ok=True)
+os.makedirs(COMPONENTS_DIR, exist_ok=True)
+os.makedirs(VALUECHAIN_DIR, exist_ok=True)
 
 OPENAI_CONF = os.path.join(ppd_, 'config/openai_api.json')
 with open(OPENAI_CONF, 'r') as json_file:
@@ -70,9 +75,12 @@ def get_name(code):
     return str(df_krx.loc[code,'Name'])
 
 def get_code_name(code, name): # santized code_name usable for dir or file
+    return f"{code}_{sanitized_name(name)}"
+
+def sanitized_name(name): # so that the name can be used as a filename
     name = re.sub(r'[<>:"/\\|?*]+', "", name)
     name = "_".join(name.split())
-    return f"{code}_{name}"
+    return name
 
 def get_overview(code: str): 
     url = (
