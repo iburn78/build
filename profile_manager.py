@@ -4,7 +4,7 @@ from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from openai import AsyncOpenAI
 from scraper.tools.tools import get_name, get_overview, get_code_name
-from scraper.tools.tools import PROFILES_DIR, NEWS_DIR, llm_selector
+from scraper.tools.tools import PROFILES_DIR, NEWS_DIR, llm_selector, JsonModel
 from scraper.tools.crawl_news import crawl_news
 from datetime import datetime, timedelta
 import os, sys
@@ -89,30 +89,20 @@ class News(BaseModel):
             )
         return True
 
-class CompanyProfile(BaseModel):
+class CompanyProfile(JsonModel):
+    DIR = PROFILES_DIR
     code: str
-    name: str 
 
     overview: Overview 
     business: Business 
     news_summary: News | None = None
 
-    def save_to_file(self): 
-        fname = get_code_name(self.code, self.name)
-        path = Path(PROFILES_DIR) / f"{fname}.json"
+    # overriding filename and dict key from JsonModel
+    def filename(self):
+        return get_code_name(self.code, self.name)
 
-        path.write_text(
-            self.model_dump_json(
-                indent=4,
-                exclude_none=True,
-            ),
-            encoding="utf-8",
-        )
-
-    @classmethod
-    def load_from_file(cls, path: str | Path):
-        path = Path(path)
-        return cls.model_validate_json(path.read_text(encoding="utf-8"))
+    def key(self) -> str:
+        return self.code
 
     def scrape_news(self):
         search_set = self.business.search_theme + DEFAULT_SEARCH_THEME
@@ -154,14 +144,8 @@ class ProfileManager:
         # agent
         self.news_agent = Agent(model=news_model, output_type=News, retries=AGENT_RETRIES) 
 
-        # profile dict - skipping outdated json
-        self._profiles = {} 
-        for path in Path(PROFILES_DIR).glob("*.json"): 
-            try:
-                profile = CompanyProfile.load_from_file(path) 
-                self._profiles[profile.code] = profile
-            except Exception as e:
-                print(f"Skipping {path}: {e}")
+        # profile dict 
+        self._profiles = CompanyProfile.load_all() 
 
     # batch processing of profile generation / update
     def gen_profiles(self, codes, max_workers=NUM_THREAD_TO_RUN):
