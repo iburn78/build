@@ -5,11 +5,7 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import re
-from pathlib import Path
-from pydantic import BaseModel 
 from datetime import datetime
-from typing import ClassVar
-
 
 pd_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
 ppd_ = os.path.dirname(pd_) 
@@ -147,107 +143,3 @@ def get_overview(code: str):
         ),
         'desc':desc,
     }
-
-class JsonModel(BaseModel):
-    DIR: ClassVar[str] = "" # overridden by subclasses, and json does not include ClassVars / not validate either
-    name: str
-
-    def filename(self) -> str:
-        return sanitized_name(self.name)
-
-    def save_to_file(self):
-        path = Path(self.DIR) / f"{self.filename()}.json"
-        path.write_text(
-            self.model_dump_json(indent=4, exclude_none=True),
-            encoding="utf-8",
-        )
-
-    @classmethod
-    def load_from_file(cls, path: str | Path):
-        return cls.model_validate_json(
-            Path(path).read_text(encoding="utf-8")
-        )
-
-    def key(self) -> str:
-        return self.name
-
-    @classmethod
-    def load_all(cls): # dict[str, JsonModel]
-        objects_dict = {}
-
-        for path in Path(cls.DIR).glob("*.json"):
-            try:
-                obj = cls.load_from_file(path)
-                objects_dict[obj.key()] = obj
-            except Exception as e:
-                print(f"Skipping {path}: {e}")
-
-        return objects_dict
-
-class Company(BaseModel):
-    name: str
-    code: str
-
-    @classmethod
-    def from_name(cls, name, df_krx=df_krx):
-        # 1. exact match first
-        matched = df_krx[df_krx["Name"] == name]
-
-        if len(matched) == 1:
-            return cls(
-                name=matched.iloc[0]["Name"],
-                code=str(matched.index[0])
-            )
-
-        # 2. fallback to contains
-        matched = df_krx[df_krx["Name"].str.contains(
-            name,
-            case=False,
-            na=False
-        )]
-
-        if len(matched) == 1:
-            return cls(
-                name=matched.iloc[0]["Name"],
-                code=str(matched.index[0])
-            )
-
-        if len(matched) == 0:
-            raise ValueError(
-                f"No company found matching name: '{name}'"
-            )
-
-        raise ValueError(
-            f"Ambiguous company name '{name}': "
-            f"{matched['Name'].tolist()}"
-        )
-
-    @classmethod
-    def from_code(cls, code, df_krx=df_krx):
-        if code not in df_krx.index:
-            raise ValueError(f"Invalid code: {code}")
-
-        return cls(
-            name=str(df_krx.loc[code, "Name"]),
-            code=str(code)
-        )
-
-def cn(name):
-    return Company.from_name(name)
-
-def cc(code):
-    return Company.from_code(code)
-
-class Component(JsonModel): 
-    DIR = COMPONENTS_DIR
-    
-    companies: list[Company] # listed domestic
-    updated: str = ""
-    note: str = "" 
-
-class ValueChain(JsonModel): 
-    DIR = VALUECHAIN_DIR
-
-    components: dict[str, Component] 
-    updated: str = ""
-    note: str = "" 

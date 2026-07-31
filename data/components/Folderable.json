@@ -1,0 +1,19 @@
+{
+    "name": "Folderable",
+    "updated": "2026-07-31",
+    "companies": [
+        {
+            "name": "KH바텍",
+            "code": "060720"
+        },
+        {
+            "name": "세경하이테크",
+            "code": "148150"
+        },
+        {
+            "name": "파인엠텍",
+            "code": "441270"
+        }
+    ],
+    "note": ""
+}

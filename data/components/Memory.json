@@ -1,5 +1,6 @@
 {
-    "name": "HBM",
+    "name": "Memory",
+    "updated": "2026-07-31",
     "companies": [
         {
             "name": "SK하이닉스",
@@ -10,6 +11,5 @@
             "code": "005930"
         }
     ],
-    "updated": "",
-    "note": "good"
+    "note": ""
 }

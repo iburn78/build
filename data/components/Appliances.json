@@ -1,0 +1,15 @@
+{
+    "name": "Appliances",
+    "updated": "2026-07-31",
+    "companies": [
+        {
+            "name": "삼성전자",
+            "code": "005930"
+        },
+        {
+            "name": "LG전자",
+            "code": "066570"
+        }
+    ],
+    "note": ""
+}

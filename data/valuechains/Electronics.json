@@ -1,0 +1,14 @@
+{
+    "name": "Electronics",
+    "updated": "2026-07-31",
+    "components": [
+        "Appliances",
+        "Smart Glass",
+        "Camera Module",
+        "PCB",
+        "MLCC",
+        "Display",
+        "Folderable"
+    ],
+    "note": ""
+}
