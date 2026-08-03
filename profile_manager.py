@@ -3,8 +3,8 @@ from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from openai import AsyncOpenAI
-from scraper.tools.tools import get_name, get_overview, get_code_name
-from scraper.tools.tools import PROFILES_DIR, NEWS_DIR, llm_selector, JsonModel
+from scraper.tools.tools import get_name, get_overview, get_code_name, PROFILES_DIR, NEWS_DIR, llm_selector
+from scraper.tools.models import JsonModel
 from scraper.tools.crawl_news import crawl_news
 from datetime import datetime, timedelta
 import os, sys

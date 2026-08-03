@@ -131,8 +131,12 @@ class CV_Manager:
         self._components[cp.name] = cp
         cp.save_to_file()
 
-    def get_component(self, name) -> Component | None:
-        return self._components.get(name)
+    def get_component(self, name) -> Component:
+        res = self._components.get(name)
+        if res: 
+            return res
+        else:
+            raise ValueError(f"no component exists: {name}")
 
     def add_valuechain(self, vc):
         # check if components are already defined
