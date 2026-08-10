@@ -96,6 +96,7 @@ class CompanyProfile(JsonModel):
     overview: Overview 
     business: Business 
     news_summary: News | None = None
+    financials: dict | None = {}
 
     # overriding filename and dict key from JsonModel
     def filename(self):
@@ -250,6 +251,7 @@ Articles:
 if __name__ == "__main__":
     pm = ProfileManager(biz_mode='ollama', news_mode='ollama')
     code = '251970'
+    code = '011200'
     profile = pm.get_profile(code)
 
     # codes = ['001520', '251970'] #, '020150', '055490', '950160', '000660', '005930', '021240', '462980', '011200']
