@@ -76,9 +76,9 @@ def get_name(code):
     return str(df_krx.loc[code,'Name'])
 
 def get_code_name(code, name): # santized code_name usable for dir or file
-    return f"{code}_{sanitized_name(name)}"
+    return f"{code}_{sanitized_filename(name)}"
 
-def sanitized_name(name): # so that the name can be used as a filename
+def sanitized_filename(name): # so that the name can be used as a filename
     name = re.sub(r'[<>:"/\\|?*]+', "", name)
     name = "_".join(name.split())
     if not name:

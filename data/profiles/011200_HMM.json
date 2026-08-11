@@ -1,6 +1,6 @@
 {
     "name": "HMM",
-    "updated": "2026-08-10",
+    "updated": "2026-08-11",
     "code": "011200",
     "overview": {
         "title": "중동 리스크 속 신규 서비스로 대응",
@@ -20,8 +20,8 @@
         ],
         "competitors": [
             "HMM",
-            "Pan Ocean",
-            "Maersk"
+            "Maersk",
+            "MSC"
         ],
         "search_specifier": "",
         "search_theme": [],
@@ -45,6 +45,66 @@
         "updated": "2026-08-10"
     },
     "financials": {
-        "a": "BB"
+        "meta": {
+            "updated": "2026-08-11 11:11",
+            "name": "HMM",
+            "code": [
+                "011200"
+            ],
+            "unit": 1000000000.0,
+            "start_date": "2024-01-01"
+        },
+        "assess_data": {
+            "updated": "2026-08-11 11:11",
+            "opincome_health": {
+                "positive_last_4qtrs": true,
+                "higher_than_comp": true,
+                "slope": -73.21,
+                "growth_per_qtr": -0.2541
+            },
+            "opmargin_last_4qtrs": [
+                0.1097,
+                0.1172,
+                0.09898,
+                0.09898
+            ],
+            "PER": {
+                "PER_ltm": 17.56,
+                "PER_qx4": 18.8,
+                "PER_fwd": 58.76
+            },
+            "volatility_rolling_pct": {
+                "measure_to_base": 1.075,
+                "slope": -0.0001388
+            },
+            "amount_daily": {
+                "measure_to_base": 1.452,
+                "slope": -0.355
+            },
+            "alpha_beta": {
+                "from_start_date": {
+                    "alpha": 0.0001452,
+                    "beta": 0.6492
+                },
+                "base_duration": {
+                    "alpha": 0.0002074,
+                    "beta": 0.1879
+                },
+                "measure_duration": {
+                    "alpha": 0.005266,
+                    "beta": 0.07664
+                }
+            }
+        },
+        "assess_result": {
+            "basics": false,
+            "financially_sound": false,
+            "PER_level": "H",
+            "volatility_movement": "-",
+            "amount_movement": "D",
+            "alpha_level": "at_market",
+            "market_sentiment": "unchanged",
+            "category": "D"
+        }
     }
 }

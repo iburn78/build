@@ -8,10 +8,11 @@ from scraper.tools.models import JsonModel
 from scraper.tools.crawl_news import crawl_news
 from datetime import datetime, timedelta
 import os, sys
+import json
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
-OVERVIEW_REFRESH_THRES = 60 # days
+OVERVIEW_REFRESH_THRES = 30 # days
 NEWS_REFRESH_THRES = 3 # days
 MAX_SEGMENTS = 3
 MAX_PRODUCTS = 3
@@ -29,6 +30,7 @@ class Overview(BaseModel):
     title: str 
     desc: str 
     as_of: str # date fnguide created title/desc; yyyy-mm-dd
+    updated: str # date current overview is updated: yyyy-mm-dd
 
     @classmethod
     def fetch(cls, code):
@@ -37,15 +39,14 @@ class Overview(BaseModel):
             title=info["title"], 
             desc=info["desc"],
             as_of=info["date"],
+            updated=datetime.now().strftime("%Y-%m-%d"),
         )
 
     def needs_refresh(self): 
-        if self.as_of:
-            return (
-                datetime.now() - datetime.fromisoformat(self.as_of)
-                >= timedelta(days=OVERVIEW_REFRESH_THRES)
-            )
-        return True
+        return (
+            datetime.now() - datetime.fromisoformat(self.updated)
+            >= timedelta(days=OVERVIEW_REFRESH_THRES)
+        )
 
 class Business(BaseModel):
     segments: list[str] = Field(
@@ -62,6 +63,7 @@ class Business(BaseModel):
     )
     search_specifier: str = "" # keyword specific to this company to add in all news search
     search_theme: list[str] = Field(default_factory=list)
+    updated: str # date current business is updated: yyyy-mm-dd
     reviewed: bool = False # if true, do not regenerate LLM part
 
 class News(BaseModel):
@@ -96,12 +98,9 @@ class CompanyProfile(JsonModel):
     overview: Overview 
     business: Business 
     news_summary: News | None = None
-    financials: dict | None = {}
+    financials: dict | None = None
 
-    # overriding filename and dict key from JsonModel
-    def filename(self):
-        return get_code_name(self.code, self.name)
-
+    # over-riding load-all dict key to code
     def key(self) -> str:
         return self.code
 
@@ -146,7 +145,7 @@ class ProfileManager:
         self.news_agent = Agent(model=news_model, output_type=News, retries=AGENT_RETRIES) 
 
         # profile dict 
-        self._profiles = CompanyProfile.load_all() 
+        self._profiles = CompanyProfile.load_all_validated() 
 
     # batch processing of profile generation / update
     def gen_profiles(self, codes, max_workers=NUM_THREAD_TO_RUN):
@@ -170,16 +169,41 @@ class ProfileManager:
         changed = False
 
         if cp is None:
-            print(f"Creating new profile for {code}")
+            CompanyProfile.DIR 
+            # find json that contains info 1) either reviewed info and/or 2) from other sources
+            _files = list(Path(CompanyProfile.DIR).glob(f"{code}*.json"))
+            if len(_files) > 1:
+                raise ValueError(f"Expected 1 file for {code}, found {len(_files)}")
+
+            bs = None
+            fs = None
+            if len(_files) == 1: 
+                print(f"Importing info from other sources for {code} and creating new profile")
+                with open(_files[0], 'r', encoding="utf-8") as f:
+                    existing_json = json.load(f)
+
+                # RETRIEVING 1)
+                business_section = existing_json.get('business')
+                if business_section and business_section.reviewed:
+                    bs = business_section
+
+                # RETRIEVING 2)
+                financials_section = existing_json.get('financials')
+                if financials_section:
+                    fs = financials_section
+            else: 
+                print(f"Creating new profile for {code}")
 
             ov = Overview.fetch(code)
-            bs = self._gen_business(ov)
+            if bs is None: 
+                bs = self._gen_business(ov)
 
             cp = CompanyProfile(
                 code=code,
                 name=get_name(code),
                 overview=ov,
                 business=bs,
+                financials=fs,
             )
             self._profiles[code] = cp
             changed = True
@@ -198,7 +222,7 @@ class ProfileManager:
             changed = True
 
         if changed:
-            cp.save_to_file()
+            cp.save_to_file(prefix=code)
 
         return cp
 
@@ -222,6 +246,7 @@ Rules:
         # ensure defaults again
         bs.search_specifier = ""
         bs.search_theme = []
+        bs.updated = datetime.now().strftime("%Y-%m-%d")
         bs.reviewed = False
         return bs
 
@@ -252,6 +277,9 @@ if __name__ == "__main__":
     pm = ProfileManager(biz_mode='ollama', news_mode='ollama')
     code = '251970'
     code = '011200'
+    code = '020150'
+    code = '021240'
+    code = '009830'
     profile = pm.get_profile(code)
 
     # codes = ['001520', '251970'] #, '020150', '055490', '950160', '000660', '005930', '021240', '462980', '011200']

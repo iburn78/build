@@ -2,7 +2,7 @@ from pathlib import Path
 from pydantic import BaseModel 
 from datetime import datetime
 from typing import Any, ClassVar
-from scraper.tools.tools import sanitized_name, df_krx, COMPONENTS_DIR, VALUECHAIN_DIR
+from scraper.tools.tools import sanitized_filename, df_krx, COMPONENTS_DIR, VALUECHAIN_DIR
 
 class JsonModel(BaseModel):
     DIR: ClassVar[str] = "" # overridden by subclasses, and json does not include ClassVars / not validate either
@@ -13,11 +13,11 @@ class JsonModel(BaseModel):
         self.updated = datetime.now().strftime("%Y-%m-%d")
         return super().model_post_init(context)
 
-    def filename(self) -> str:
-        return sanitized_name(self.name)
-
-    def save_to_file(self):
-        path = Path(self.DIR) / f"{self.filename()}.json"
+    def save_to_file(self, prefix = None):
+        filename = sanitized_filename(self.name)
+        if prefix:
+            filename = prefix+'_'+filename
+        path = Path(self.DIR) / f"{filename}.json"
         path.write_text(
             self.model_dump_json(indent=4, exclude_none=True),
             encoding="utf-8",
@@ -33,7 +33,7 @@ class JsonModel(BaseModel):
         return self.name
 
     @classmethod
-    def load_all(cls): # dict[str, JsonModel]
+    def load_all_validated(cls): # dict[str, JsonModel]
         objects_dict = {}
 
         for path in Path(cls.DIR).glob("*.json"):
@@ -124,8 +124,8 @@ class ValueChain(JsonModel):
 # Component and ValueChain
 class CV_Manager: 
     def __init__(self):
-        self._components = Component.load_all()
-        self._valuechains = ValueChain.load_all()
+        self._components = Component.load_all_validated()
+        self._valuechains = ValueChain.load_all_validated()
 
     def add_component(self, cp):
         self._components[cp.name] = cp
