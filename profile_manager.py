@@ -1,16 +1,10 @@
 from pydantic import BaseModel, Field
-from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.openai import OpenAIProvider
-from openai import AsyncOpenAI
-from scraper.tools.tools import get_name, get_overview, get_code_name, PROFILES_DIR, NEWS_DIR, llm_selector
-from scraper.tools.models import JsonModel
+from scraper.tools.tools import get_name, get_overview, get_code_name, PROFILES_DIR, NEWS_DIR
+from scraper.tools.json_models import JsonModel, JsonModelManager
 from scraper.tools.crawl_news import crawl_news
 from datetime import datetime, timedelta
-import os, sys
-import json
+import os
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor
 
 OVERVIEW_REFRESH_THRES = 30 # days
 NEWS_REFRESH_THRES = 3 # days
@@ -21,9 +15,6 @@ MAX_COMPETITORS = 3
 DEFAULT_SEARCH_THEME = ['실적', '전망']
 NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
 NUM_TO_FEED_LLM = 5 # number of articles to provide to LLM
-
-AGENT_RETRIES = 3 
-NUM_THREAD_TO_RUN = 4
 
 class Overview(BaseModel):
     # crawled from fnguide
@@ -100,6 +91,10 @@ class CompanyProfile(JsonModel):
     news_summary: News | None = None
     financials: dict | None = None
 
+    def save_to_file(self, prefix=None):
+        if prefix is None: prefix = self.code
+        return super().save_to_file(prefix)
+
     # over-riding load-all dict key to code
     def key(self) -> str:
         return self.code
@@ -127,104 +122,72 @@ class CompanyProfile(JsonModel):
 
         return combined
 
-# master class that has all profiles in data, and creates profiles if necessary 
-class ProfileManager:
+class ProfileManager(JsonModelManager):
+    MODEL = CompanyProfile
+
     def __init__(self, biz_mode='local', news_mode='ollama'): 
-        # llm model for biz
-        u, k, m = llm_selector(biz_mode) 
-        biz_client = AsyncOpenAI(base_url=u, api_key=k) 
-        biz_model = OpenAIChatModel(model_name=m, provider=OpenAIProvider(openai_client=biz_client)) 
-        # agent
-        self.business_agent = Agent(model=biz_model, output_type=Business, retries=AGENT_RETRIES) 
+        self.business_agent = self._make_agent(llm_mode=biz_mode, output_type=Business)
+        self.news_agent = self._make_agent(llm_mode=news_mode, output_type=News)
+        super().__init__()
 
-        # llm model for news
-        u, k, m = llm_selector(news_mode) 
-        news_client = AsyncOpenAI(base_url=u, api_key=k) 
-        news_model = OpenAIChatModel(model_name=m, provider=OpenAIProvider(openai_client=news_client)) 
-        # agent
-        self.news_agent = Agent(model=news_model, output_type=News, retries=AGENT_RETRIES) 
+    # key: code
+    def _validate_key(self, key):
+        if len(key) != 6 or not key[0].isdigit():
+            raise ValueError(f"Invalid key: {key}")
 
-        # profile dict 
-        self._profiles = CompanyProfile.load_all_validated() 
+    def _create_new_item(self, key, existing_json: dict | None = None) -> CompanyProfile:
+        bs = None
+        fs = None
 
-    # batch processing of profile generation / update
-    def gen_profiles(self, codes, max_workers=NUM_THREAD_TO_RUN):
-        if sys.platform == "win32":
-            print("--------------------------------------------------")
-            print("Generating profiles - sequential on Windows")
-            print("--------------------------------------------------")
-            for code in codes:
-                self.get_profile(code)
-            return
+        if existing_json:
+            # RETRIEVING 1)
+            business_section = existing_json.get('business')
+            if business_section and business_section['reviewed']:
+                try: 
+                    bs = Business.model_validate(business_section)
+                except Exception as e:
+                    print(f'Invalid business section in existing json for {key} - ignored')
 
-        print("--------------------------------------------------")
-        print(f"Generating profiles - max {max_workers} threads")
-        print("--------------------------------------------------")
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            list(executor.map(self.get_profile, codes))
-        
-    # returns profile if exists and is not outdated, otherwise creates
-    def get_profile(self, code: str) -> CompanyProfile:
-        cp: CompanyProfile | None = self._profiles.get(code)
+            # RETRIEVING 2)
+            financials_section = existing_json.get('financials')
+            if financials_section:
+                fs = financials_section
+
+        ov = Overview.fetch(key)
+        if bs is None: 
+            bs = self._gen_business(ov)
+        else: 
+            bs = Business.va
+
+        profile = CompanyProfile(
+            code=key,
+            name=get_name(key),
+            overview=ov,
+            business=bs,
+            financials=fs,
+        )
+        # news summary is filled after profile creation
+        profile.news_summary = self._gen_news(profile)
+
+        return profile
+
+    def _update(self, item) -> bool:
         changed = False
+        if item.overview.needs_refresh():
+            print(f"Updating overview for {item.code}")
+            item.overview = Overview.fetch(item.code)
 
-        if cp is None:
-            CompanyProfile.DIR 
-            # find json that contains info 1) either reviewed info and/or 2) from other sources
-            _files = list(Path(CompanyProfile.DIR).glob(f"{code}*.json"))
-            if len(_files) > 1:
-                raise ValueError(f"Expected 1 file for {code}, found {len(_files)}")
-
-            bs = None
-            fs = None
-            if len(_files) == 1: 
-                print(f"Importing info from other sources for {code} and creating new profile")
-                with open(_files[0], 'r', encoding="utf-8") as f:
-                    existing_json = json.load(f)
-
-                # RETRIEVING 1)
-                business_section = existing_json.get('business')
-                if business_section and business_section.reviewed:
-                    bs = business_section
-
-                # RETRIEVING 2)
-                financials_section = existing_json.get('financials')
-                if financials_section:
-                    fs = financials_section
-            else: 
-                print(f"Creating new profile for {code}")
-
-            ov = Overview.fetch(code)
-            if bs is None: 
-                bs = self._gen_business(ov)
-
-            cp = CompanyProfile(
-                code=code,
-                name=get_name(code),
-                overview=ov,
-                business=bs,
-                financials=fs,
-            )
-            self._profiles[code] = cp
+            if not item.business.reviewed:
+                item.business = self._gen_business(item.overview)
             changed = True
 
-        elif cp.overview.needs_refresh():
-            print(f"Updating profile for {code}")
-            cp.overview = Overview.fetch(code)
-
-            if not cp.business.reviewed:
-                cp.business = self._gen_business(cp.overview)
+        if item.news_summary is None or item.news_summary.needs_refresh():
+            print(f"Generating news_summary for {item.code}")
+            item.news_summary = self._gen_news(item)
             changed = True
 
-        if cp.news_summary is None or cp.news_summary.needs_refresh():
-            print(f"Generating news for {code}")
-            cp.news_summary = self._gen_news(cp)
-            changed = True
+        return changed
 
-        if changed:
-            cp.save_to_file(prefix=code)
-
-        return cp
 
     def _gen_business(self, overview: Overview):
 #----------------------------------------------------------------------------------------------------
@@ -275,13 +238,14 @@ Articles:
 
 if __name__ == "__main__":
     pm = ProfileManager(biz_mode='ollama', news_mode='ollama')
-    code = '251970'
-    code = '011200'
-    code = '020150'
-    code = '021240'
-    code = '009830'
-    code = '001750'
-    profile = pm.get_profile(code)
+    # code = '251970'
+    # code = '011200'
+    # code = '020150'
+    # code = '021240'
+    # code = '009830'
+    # code = '001750'
+    code = '001570'
+    profile = pm.get_item(code)
 
     # codes = ['001520', '251970'] #, '020150', '055490', '950160', '000660', '005930', '021240', '462980', '011200']
-    # pm.gen_profiles(codes)
+    # pm.batch_process(codes)

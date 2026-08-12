@@ -11,5 +11,69 @@
             "code": "005930"
         }
     ],
-    "note": ""
+    "note": "",
+    "financials": {
+        "meta": {
+            "updated": "2026-08-12 18:13",
+            "name": "Memory",
+            "code": [
+                "000660",
+                "005930"
+            ],
+            "unit": 1000000000.0,
+            "start_date": "2024-01-01"
+        },
+        "assess_data": {
+            "updated": "2026-08-12 18:13",
+            "opincome_health": {
+                "positive_last_4qtrs": true,
+                "higher_than_comp": true,
+                "slope": 8864.0,
+                "growth_per_qtr": 0.1404
+            },
+            "opmargin_last_4qtrs": [
+                0.2131,
+                0.3098,
+                0.5087,
+                0.5087
+            ],
+            "PER": {
+                "PER_ltm": 10.27,
+                "PER_qx4": 6.833,
+                "PER_fwd": 5.539
+            },
+            "volatility_rolling_pct": {
+                "measure_to_base": 1.195,
+                "slope": 0.0002125
+            },
+            "amount_daily": {
+                "measure_to_base": 0.7436,
+                "slope": 117.5
+            },
+            "alpha_beta": {
+                "from_start_date": {
+                    "alpha": 0.0005661,
+                    "beta": 1.258
+                },
+                "base_duration": {
+                    "alpha": 0.002148,
+                    "beta": 1.309
+                },
+                "measure_duration": {
+                    "alpha": -0.001335,
+                    "beta": 1.461
+                }
+            }
+        },
+        "assess_result": {
+            "basics": true,
+            "financially_sound": true,
+            "PER_level": "Mid",
+            "volatility_movement": "-",
+            "amount_movement": "-",
+            "alpha_level": "at_market",
+            "market_sentiment": "unchanged",
+            "category": "B"
+        }
+    }
 }

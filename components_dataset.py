@@ -1,5 +1,6 @@
 #%%
-from tools.models import Component, CV_Manager, cn
+from scraper.tools.json_models import CV_Manager
+from scraper.component_manager import Component, cn
 cvm = CV_Manager()
 
 Component(

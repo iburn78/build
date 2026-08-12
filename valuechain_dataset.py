@@ -1,5 +1,7 @@
 #%%
-from tools.models import ValueChain, CV_Manager
+from scraper.tools.json_models import CV_Manager
+from scraper.valuechain_manager import ValueChain
+
 cvm = CV_Manager()
 
 vc = ValueChain(
