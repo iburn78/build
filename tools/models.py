@@ -93,18 +93,21 @@ class Company(BaseModel):
             code=str(code)
         )
 
+# company from name
 def cn(name):
     return Company.from_name(name)
 
+# company from code
 def cc(code):
     return Company.from_code(code)
 
 class Component(JsonModel): 
     DIR = COMPONENTS_DIR
     companies: list[Company] # listed domestic
+    financials: dict | None = None
     note: str = ""
 
-    def to_cvm(self, cvm: CV_Manager):
+    def to_cvm(self, cvm): # CV_Manager
         cvm.add_component(self)
 
     def get_codelist(self):
@@ -118,7 +121,7 @@ class ValueChain(JsonModel):
     components: list
     note: str = ""
 
-    def to_cvm(self, cvm: CV_Manager):
+    def to_cvm(self, cvm): # CV_Manager
         cvm.add_valuechain(self)
 
 # Component and ValueChain
@@ -128,10 +131,12 @@ class CV_Manager:
         self._valuechains = ValueChain.load_all_validated()
 
     def add_component(self, cp):
+        ###_ this is just replacement, if exists then append necessary
         self._components[cp.name] = cp
         cp.save_to_file()
 
     def get_component(self, name) -> Component:
+        ###_ this is just replacement, if exists then append necessary
         res = self._components.get(name)
         if res: 
             return res
@@ -140,6 +145,7 @@ class CV_Manager:
 
     def add_valuechain(self, vc):
         # check if components are already defined
+        ###_ check this too
         for c in vc.components:
             if c not in self._components.keys():
                 raise ValueError(f"For valuechain '{vc.name}', component '{c}' is not defined in cvm (not found)")
