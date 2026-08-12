@@ -39,5 +39,66 @@
         ],
         "news_summary": "삼성전자는 구글 등 글로벌 빅테크의 AI 투자 확대와 고대역폭메모리(HBM) 수요 급증으로 인해 2028년까지 이어질 메모리 호황의 최대 수혜주가 될 것으로 전망됩니다. 특히 일론 머스크 테슬라 CEO가 공식 석상에서 삼성전자를 포함한 공급망에 감사를 표하며 AI 반도체 의존도를 드러냈고, 구글향 공급 점유율 1위 입지와 알파벳의 설비투자 확대 발표가 맞물리며 3분기 연속 어닝 서프라이즈 및 강력한 실적 성장이 기대되고 있습니다.",
         "updated": "2026-07-25"
+    },
+    "financials": {
+        "meta": {
+            "updated": "2026-08-11 14:33",
+            "name": "삼성전자",
+            "code": "005930",
+            "unit": 1000000000.0,
+            "start_date": "2024-01-01"
+        },
+        "assess_data": {
+            "updated": "2026-08-11 14:33",
+            "opincome_health": {
+                "positive_last_4qtrs": true,
+                "higher_than_comp": true,
+                "slope": 5167.0,
+                "growth_per_qtr": 0.1409
+            },
+            "opmargin_last_4qtrs": [
+                0.1414,
+                0.2139,
+                0.4275,
+                0.4275
+            ],
+            "PER": {
+                "PER_ltm": 9.624,
+                "PER_qx4": 6.167,
+                "PER_fwd": 5.032
+            },
+            "volatility_rolling_pct": {
+                "measure_to_base": 1.153,
+                "slope": 0.0001834
+            },
+            "amount_daily": {
+                "measure_to_base": 0.7903,
+                "slope": 28.43
+            },
+            "alpha_beta": {
+                "from_start_date": {
+                    "alpha": 0.0004392,
+                    "beta": 1.176
+                },
+                "base_duration": {
+                    "alpha": 0.001551,
+                    "beta": 1.206
+                },
+                "measure_duration": {
+                    "alpha": 0.001352,
+                    "beta": 1.336
+                }
+            }
+        },
+        "assess_result": {
+            "basics": true,
+            "financially_sound": true,
+            "PER_level": "Mid",
+            "volatility_movement": "-",
+            "amount_movement": "-",
+            "alpha_level": "at_market",
+            "market_sentiment": "unchanged",
+            "category": "B"
+        }
     }
 }
