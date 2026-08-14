@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from datetime import datetime
 from typing import Any, ClassVar
 from pydantic_ai import Agent
@@ -16,18 +16,18 @@ AGENT_RETRIES = 3
 NUM_THREAD_TO_RUN = 4
 
 class JsonModel(BaseModel, ABC):
-    DIR: ClassVar[str] = "" # overridden by subclasses, and json does not include ClassVars / not validate either
+    DIR: ClassVar[str] # json does not include ClassVars / not validate either
     name: str
     updated: str = ""
 
     def model_post_init(self, context: Any) -> None:
-        self.updated = datetime.now().strftime("%Y-%m-%d") # note this is updated even the content is not revised
-        super().model_post_init(context)
+        self.name = sanitized_filename(self.name)
+        return super().model_post_init(context)
 
     def save_to_file(self, prefix = None):
-        filename = sanitized_filename(self.name)
-        if prefix:
-            filename = prefix+'_'+filename
+        filename = self.name
+        if prefix: filename = prefix+'_'+filename
+
         path = Path(self.DIR) / f"{filename}.json"
         path.write_text(
             self.model_dump_json(indent=4, exclude_none=True),
@@ -57,6 +57,8 @@ class JsonModel(BaseModel, ABC):
 
         return objects_dict
 
+class InfoSection(BaseModel):
+    reviewed: bool = False
 
 class JsonModelManager(ABC): 
     MODEL: type[JsonModel]
@@ -65,48 +67,67 @@ class JsonModelManager(ABC):
         self._items = self.MODEL.load_all_validated()
 
     @abstractmethod
-    def _create_new_item(self, key, existing_json: dict | None = None) -> JsonModel:
+    def _create_new_item(self, key, existing_json: dict | None = None, **kwargs) -> JsonModel:
         # Create a valid MODEL with info from existing json if any
         ...
 
-    @abstractmethod
     def _update(self, item) -> bool:
-        # Return True if item content changed
-        ...
+        # Perform update if content needs refresh
+        # and return True if item content changed
+        return False
 
     # override if needed
     def _validate_key(self, key):
         if key != sanitized_filename(key): 
             raise ValueError(f"Invalid key: {key}")
 
-    def get_item(self, key):
+    def get_item(self, key, **kwargs):
         self._validate_key(key)
         item = self._items.get(key)
 
         # Case 1: if valid json is already loaded, then update and return
-        if item is not None:
+        if item:
             changed = self._update(item)
 
+        # Case 2: json exists but wasn't loaded as valid model, which may contain info from other sources
         else: 
             _files = list(Path(self.MODEL.DIR).glob(f"{key}*.json"))
             if len(_files) > 1:
                 raise ValueError(f"Expected one JSON for {key}, found {len(_files)}")
 
-            # Case 2: json exists but wasn't loaded as valid model, which may contain info from other sources
             existing_json = None
             if _files:
                 print(f"Importing existing json for {key}")
                 existing_json = json.loads(_files[0].read_text(encoding="utf-8"))
 
             print(f"Creating new json for {key}")
-            item = self._create_new_item(key, existing_json)
+            item = self._create_new_item(key, existing_json, **kwargs)
             changed = True
 
         if changed: 
+            item.updated = datetime.now().strftime("%Y-%m-%d") 
             self._items[key] = item
             item.save_to_file()
 
         return item
+
+    def _extract_from_json(self, key, existing_json = None, info_section_key="", validation_class = InfoSection):
+        info_section_instance = None
+        financials_section_data = None
+
+        if existing_json:
+            # RETRIEVING 1)
+            info_section = existing_json.get(info_section_key) 
+            if info_section and info_section.get('reviewed'): 
+                try: 
+                    info_section_instance = validation_class.model_validate(info_section) 
+                except Exception as e:
+                    print(f'Invalid info section in existing json for {key} - ignored: {e}')
+
+            # RETRIEVING 2)
+            financials_section_data = existing_json.get('financials')
+
+        return info_section_instance, financials_section_data
 
     def _make_agent(self, llm_mode, output_type): # llm_selector parameter - local, ollama, openai, etc
         u, k, m = llm_selector(llm_mode)
@@ -136,34 +157,3 @@ class JsonModelManager(ABC):
         print("--------------------------------------------------")
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             list(executor.map(self.get_item, keylist))
-
-
-
-###_ move this ... 
-# Component and ValueChain
-class CV_Manager: 
-    def __init__(self):
-        self._components = Component.load_all_validated()
-        self._valuechains = ValueChain.load_all_validated()
-
-    def add_component(self, cp):
-        ###_ this is just replacement, if exists then append necessary
-        self._components[cp.name] = cp
-        cp.save_to_file()
-
-    def get_component(self, name) -> Component:
-        ###_ this is just replacement, if exists then append necessary
-        res = self._components.get(name)
-        if res: 
-            return res
-        else:
-            raise ValueError(f"no component exists: {name}")
-
-    def add_valuechain(self, vc):
-        # check if components are already defined
-        ###_ check this too
-        for c in vc.components:
-            if c not in self._components.keys():
-                raise ValueError(f"For valuechain '{vc.name}', component '{c}' is not defined in cvm (not found)")
-        self._valuechains[vc.name] = vc
-        vc.save_to_file()

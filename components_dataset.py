@@ -1,7 +1,13 @@
 #%%
-from scraper.tools.json_models import CV_Manager
-from scraper.component_manager import Component, cn
-cvm = CV_Manager()
+from scraper.component_manager import ComponentManager
+
+cm = ComponentManager()
+print(cm._items)
+# cm.get_item('Mem', namelist = ['하이닉스', '삼성전자'])
+cm.get_item('Folderable', namelist = ['하이닉스', '삼성전자'])
+cm.get_item('Smart_Glass', namelist = ['사피엔'])
+#%% 
+
 
 Component(
     name='Memory', # DRAM, NAND, HBM

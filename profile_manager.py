@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
-from scraper.tools.tools import get_name, get_overview, get_code_name, PROFILES_DIR, NEWS_DIR
-from scraper.tools.json_models import JsonModel, JsonModelManager
+from scraper.tools.tools import get_name, get_overview, PROFILES_DIR, NEWS_DIR
+from scraper.tools.json_models import JsonModel, JsonModelManager, InfoSection
 from scraper.tools.crawl_news import crawl_news
 from datetime import datetime, timedelta
 import os
@@ -39,7 +39,7 @@ class Overview(BaseModel):
             >= timedelta(days=OVERVIEW_REFRESH_THRES)
         )
 
-class Business(BaseModel):
+class Business(InfoSection):
     segments: list[str] = Field(
         description="Core business areas of the company (NOT products or competitors)",
         max_length=MAX_SEGMENTS
@@ -55,7 +55,6 @@ class Business(BaseModel):
     search_specifier: str = "" # keyword specific to this company to add in all news search
     search_theme: list[str] = Field(default_factory=list)
     updated: str # date current business is updated: yyyy-mm-dd
-    reviewed: bool = False # if true, do not regenerate LLM part
 
 class News(BaseModel):
     key_facts: list[str] = Field(
@@ -72,7 +71,7 @@ class News(BaseModel):
         description="Single concise synthesis of all articles.",
         max_length=500,
     )
-    updated: str = "" # give default so LLM not to generate a value for this field
+    updated: str = "" # give default so LLM not to generate a value for this field (also reassigned later)
 
     def needs_refresh(self):
         if self.updated:
@@ -102,7 +101,7 @@ class CompanyProfile(JsonModel):
     def scrape_news(self):
         search_set = self.business.search_theme + DEFAULT_SEARCH_THEME
         search_set = [f"{self.business.search_specifier} {k}" if self.business.search_specifier else k for k in search_set]
-        _code_name = get_code_name(self.code, self.name)
+        _code_name = self.code + '_' + self.name
 
         for k in search_set:
             _request = self.name + ' ' + k
@@ -111,7 +110,7 @@ class CompanyProfile(JsonModel):
         return self._get_news_collection()
 
     def _get_news_collection(self):
-        _code_name = get_code_name(self.code, self.name)
+        _code_name = self.code + '_' + self.name
         _dest = Path(os.path.join(NEWS_DIR, _code_name))
 
         # choose latest INPUT_FILE_NUM articles
@@ -135,29 +134,12 @@ class ProfileManager(JsonModelManager):
         if len(key) != 6 or not key[0].isdigit():
             raise ValueError(f"Invalid key: {key}")
 
-    def _create_new_item(self, key, existing_json: dict | None = None) -> CompanyProfile:
-        bs = None
-        fs = None
-
-        if existing_json:
-            # RETRIEVING 1)
-            business_section = existing_json.get('business')
-            if business_section and business_section['reviewed']:
-                try: 
-                    bs = Business.model_validate(business_section)
-                except Exception as e:
-                    print(f'Invalid business section in existing json for {key} - ignored')
-
-            # RETRIEVING 2)
-            financials_section = existing_json.get('financials')
-            if financials_section:
-                fs = financials_section
+    def _create_new_item(self, key, existing_json: dict | None = None, **kwargs) -> CompanyProfile:
+        bs, fs = self._extract_from_json(key, existing_json, 'business', Business)
 
         ov = Overview.fetch(key)
         if bs is None: 
             bs = self._gen_business(ov)
-        else: 
-            bs = Business.va
 
         profile = CompanyProfile(
             code=key,

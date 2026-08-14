@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from scraper.tools.tools import df_krx, COMPONENTS_DIR
-from scraper.tools.json_models import JsonModel, JsonModelManager
+from scraper.tools.json_models import JsonModel, JsonModelManager, InfoSection
 
 class Company(BaseModel):
     # simple vehicle that carries only name and code
@@ -59,8 +59,7 @@ def cn(name):
 def cc(code):
     return Company.from_code(code)
 
-###_ to be implemented
-class Traits(BaseModel):
+class Traits(InfoSection):
     competition: str = "" # m/s, leader, competitive advatages
     key_drivers: str = "" # what drives the growth and determines who wins, technology innovation, demand growth, etc
     notes: str = "" 
@@ -68,12 +67,8 @@ class Traits(BaseModel):
 class Component(JsonModel): 
     DIR = COMPONENTS_DIR
     companies: list[Company] # listed domestic
-    traits: Traits = Field(default_factory=Traits)
+    traits: Traits | None = Field(default_factory=Traits)
     financials: dict | None = None
-
-    ###_ change... 
-    def to_cvm(self, cvm): # CV_Manager
-        cvm.add_component(self)
 
     def get_codelist(self):
         codelist = []
@@ -81,6 +76,41 @@ class Component(JsonModel):
             codelist.append(c.code)
         return codelist
 
-###_
 class ComponentManager(JsonModelManager):
-    pass
+    MODEL = Component
+
+    # to create an component
+    # use .get_item with codelist or namelist given
+    # to completely overwrite, delete existing json file
+
+    def _create_new_item(self, key, existing_json: dict | None = None, **kwargs) -> Component:
+        ts, fs = self._extract_from_json(key, existing_json, 'traits', Traits)
+
+        codelist = kwargs.get("codelist") or []
+        namelist = kwargs.get("namelist") or []
+
+        if len(codelist) != len(set(codelist)) or len(namelist) != len(set(namelist)): 
+            raise ValueError(f'codelist or namelist should not contain any duplications: {codelist}{namelist}')
+
+        if codelist and namelist:
+            print(f'both codelist and namelist is given, using codelist only {codelist}')
+            namelist = []
+
+        companies = [Company.from_code(code) for code in codelist]
+        companies += [Company.from_name(name) for name in namelist]
+
+        component = Component(
+            name = key,
+            companies = companies,
+            traits = ts,
+            financials = None,
+        )
+
+        if fs:
+            if set(component.get_codelist()) == set((fs.get('meta') or {}).get('codelist')):
+                component.financials = fs
+            else: 
+                print(f'Component_Manager: codelist mismatching for {key} in financial section: discarding existing financial section')
+
+        return component
+

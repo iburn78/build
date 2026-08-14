@@ -75,15 +75,10 @@ def get_local_LLM_response(prompt):
 def get_name(code): 
     return str(df_krx.loc[code,'Name'])
 
-def get_code_name(code, name): # santized code_name usable for dir or file
-    return f"{code}_{sanitized_filename(name)}"
-
-def sanitized_filename(name): # so that the name can be used as a filename
+def sanitized_filename(name): 
+    if name is None or "": raise ValueError(f'name should be given: {name}')
     name = re.sub(r'[<>:"/\\|?*]+', "", name)
     name = "_".join(name.split())
-    if not name:
-        ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")[:-2]  
-        name = f"unnamed_{ts}"
     return name
 
 def get_overview(code: str): 
