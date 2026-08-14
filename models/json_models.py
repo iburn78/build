@@ -81,12 +81,12 @@ class JsonModelManager(ABC):
         if key != sanitized_filename(key): 
             raise ValueError(f"Invalid key: {key}")
 
-    def get_item(self, key, **kwargs):
+    def get_item(self, key, replace=False, **kwargs):
         self._validate_key(key)
         item = self._items.get(key)
 
         # Case 1: if valid json is already loaded, then update and return
-        if item:
+        if item and not replace:
             changed = self._update(item)
 
         # Case 2: json exists but wasn't loaded as valid model, which may contain info from other sources

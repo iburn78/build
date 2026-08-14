@@ -1,7 +1,7 @@
 from pydantic import Field
-from scraper.tools.json_models import JsonModel, JsonModelManager, InfoSection
 from scraper.tools.tools import VALUECHAIN_DIR 
-from scraper.component_manager import Component, ComponentManager
+from scraper.models.json_models import JsonModel, JsonModelManager, InfoSection
+from scraper.models.component_manager import Component, ComponentManager
 
 class Landscape(InfoSection):
     dynamics: str = "" # leading component, margin concentration, buyer-seller power dynamics
@@ -10,8 +10,8 @@ class Landscape(InfoSection):
 
 class ValueChain(JsonModel): 
     DIR = VALUECHAIN_DIR
-    components: list[Component]
-    landscape: Landscape = Field(default_factory=Landscape)
+    components: list[str]
+    landscape: Landscape | None = Field(default_factory=Landscape)
     financials: dict | None = None
 
     def get_component_names(self):
@@ -38,12 +38,17 @@ class ValueChainManager(JsonModelManager):
 
         # give component namelist to create new one
         component_namelist = kwargs.get("component_namelist") or []
-    
-        components = [self.component_manager.get_item(cn) for cn in component_namelist]
+
+        # Option 1) get (or create) all components
+        # components = [self.component_manager.get_item(cn) for cn in component_namelist]
+
+        # Option 2) proceed only if all components already exists
+        if any(c not in self.component_manager._items for c in component_namelist):
+            raise ValueError(f"VC_Manager: for {key} given components not already created")
 
         vc = ValueChain(
             name = key,
-            components = components,
+            components = component_namelist,
             landscape = ls,
             financials = None,
         )

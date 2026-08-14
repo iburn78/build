@@ -1,14 +1,13 @@
 {
     "name": "Electronics",
-    "updated": "2026-08-03",
+    "updated": "2026-08-14",
     "components": [
         "Appliances",
-        "Smart Glass",
-        "Camera Module",
+        "Smart_glass",
+        "Camera_module",
         "PCB",
         "MLCC",
         "Display",
         "Folderable"
-    ],
-    "note": ""
+    ]
 }

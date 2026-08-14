@@ -1,12 +1,10 @@
 #%%
-from scraper.tools.json_models import CV_Manager
-from scraper.valuechain_manager import ValueChain
+from scraper.models.valuechain_manager import ValueChainManager
 
-cvm = CV_Manager()
+vcm = ValueChainManager()
 
-vc = ValueChain(
-    name='Electronics',
-    components=['Appliances', 'Smart Glass', 'Camera Module', 'PCB', 'MLCC', 'Display', 'Folderable'],
-).to_cvm(cvm)
-
-print(cvm.get_component('Appliances'))
+vcm.get_item(
+    key = "Electronics",
+    component_namelist=['Appliances', 'Smart_glass', 'Camera_module', 'PCB', 'MLCC', 'Display', 'Folderable'],
+    replace=True,
+)

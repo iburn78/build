@@ -1,6 +1,6 @@
 {
-    "name": "Camera Module",
-    "updated": "2026-08-12",
+    "name": "Camera_module",
+    "updated": "2026-08-14",
     "companies": [
         {
             "name": "LG이노텍",
@@ -18,6 +18,5 @@
             "name": "세코닉스",
             "code": "053450"
         }
-    ],
-    "note": ""
+    ]
 }

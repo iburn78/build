@@ -1,6 +1,6 @@
 {
     "name": "Display",
-    "updated": "2026-08-12",
+    "updated": "2026-08-14",
     "companies": [
         {
             "name": "덕산네오룩스",
@@ -22,6 +22,5 @@
             "name": "LX세미콘",
             "code": "108320"
         }
-    ],
-    "note": ""
+    ]
 }

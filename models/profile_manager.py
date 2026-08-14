@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
-from scraper.tools.tools import get_name, get_overview, PROFILES_DIR, NEWS_DIR
-from scraper.tools.json_models import JsonModel, JsonModelManager, InfoSection
 from scraper.tools.crawl_news import crawl_news
+from scraper.tools.tools import get_name, get_overview, PROFILES_DIR, NEWS_DIR
+from scraper.models.json_models import JsonModel, JsonModelManager, InfoSection
 from datetime import datetime, timedelta
 import os
 from pathlib import Path
@@ -220,14 +220,15 @@ Articles:
 
 if __name__ == "__main__":
     pm = ProfileManager(biz_mode='ollama', news_mode='ollama')
-    # code = '251970'
-    # code = '011200'
-    # code = '020150'
-    # code = '021240'
-    # code = '009830'
-    # code = '001750'
+    # single code
     code = '001570'
     profile = pm.get_item(code)
 
-    # codes = ['001520', '251970'] #, '020150', '055490', '950160', '000660', '005930', '021240', '462980', '011200']
-    # pm.batch_process(codes)
+    # multiple codes
+    codelist = ['001520', '251970', '020150', '055490', '950160', '000660', '005930', '021240', '462980', '011200']
+    pm.batch_process(codelist)
+
+    # from component
+    # cm = ComponentManager()
+    # codelist = cm.get_item('Memory').get_codelist()
+    # pm.batch_process(codelist)

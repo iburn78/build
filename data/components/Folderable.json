@@ -1,6 +1,6 @@
 {
     "name": "Folderable",
-    "updated": "2026-08-12",
+    "updated": "2026-08-14",
     "companies": [
         {
             "name": "KH바텍",
@@ -14,6 +14,5 @@
             "name": "파인엠텍",
             "code": "441270"
         }
-    ],
-    "note": ""
+    ]
 }
