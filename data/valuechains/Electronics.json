@@ -1,7 +1,7 @@
 {
     "name": "Electronics",
     "updated": "2026-08-14",
-    "components": [
+    "component_names": [
         "Appliances",
         "Smart_glass",
         "Camera_module",
@@ -9,5 +9,83 @@
         "MLCC",
         "Display",
         "Folderable"
-    ]
+    ],
+    "financials": {
+        "meta": {
+            "updated": "2026-08-14 15:39",
+            "name": "Electronics",
+            "codelist": [
+                "001820",
+                "097520",
+                "239890",
+                "178920",
+                "060720",
+                "066570",
+                "009150",
+                "108320",
+                "213420",
+                "441270",
+                "452430",
+                "005930",
+                "148150",
+                "011070",
+                "272290",
+                "053450"
+            ],
+            "unit": 1000000000.0,
+            "start_date": "2024-01-01"
+        },
+        "assess_data": {
+            "updated": "2026-08-14 15:39",
+            "opincome_health": {
+                "positive_last_4qtrs": true,
+                "higher_than_comp": true,
+                "slope": 5209.0,
+                "growth_per_qtr": 0.1361
+            },
+            "opmargin_last_4qtrs": {
+                "25_3Q": 0.114,
+                "25_4Q": 0.159,
+                "26_1Q": 0.3554,
+                "26_2Q": 0.3553
+            },
+            "PER": {
+                "PER_ltm": 11.35,
+                "PER_qx4": 7.293,
+                "PER_fwd": 5.985
+            },
+            "volatility_rolling_pct": {
+                "measure_to_base": 1.18,
+                "slope": 0.0001941
+            },
+            "amount_daily": {
+                "measure_to_base": 0.7142,
+                "slope": 44.76
+            },
+            "alpha_beta": {
+                "from_start_date": {
+                    "alpha": 0.000455,
+                    "beta": 1.215
+                },
+                "base_duration": {
+                    "alpha": 0.002043,
+                    "beta": 1.203
+                },
+                "measure_duration": {
+                    "alpha": 0.002308,
+                    "beta": 1.368
+                }
+            }
+        },
+        "assess_result": {
+            "basics": true,
+            "financially_sound": true,
+            "PER_level": "Mid",
+            "volatility_movement": "-",
+            "amount_movement": "-",
+            "alpha_level": "at_market",
+            "market_sentiment": "unchanged",
+            "category": "B"
+        }
+    }
 }

@@ -66,7 +66,7 @@ class Traits(InfoSection):
 
 class Component(JsonModel): 
     DIR = COMPONENTS_DIR
-    companies: list[Company] # listed domestic
+    companies: list[Company] 
     traits: Traits | None = Field(default_factory=Traits)
     financials: dict | None = None
 
@@ -82,7 +82,6 @@ class ComponentManager(JsonModelManager):
     # to create an component
     # use .get_item with codelist or namelist given
     # to completely overwrite, delete existing json file
-
     def _create_new_item(self, key, existing_json: dict | None = None, **kwargs) -> Component:
         ts, fs = self._extract_from_json(key, existing_json, 'traits', Traits)
 

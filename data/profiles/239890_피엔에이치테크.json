@@ -1,0 +1,100 @@
+{
+    "name": "피엔에이치테크",
+    "updated": "2026-08-14",
+    "code": "239890",
+    "overview": {
+        "title": "전방산업 수요 변동 속 제품 다변화",
+        "desc": "동사는 2009년 유기전자 재료 사업을 영위하는 중소기업으로 설립되었으며, 2021년 기술성장기업으로 코스닥시장에 상장함. OLED 소재, 촉매, 원료 등을 제조·판매하며, OLED 특허소재개발사업, 공동기술개발 및 양산화 사업, OLED 원료공급사업을 영위함. 고굴절 CPL 소재는 2018년 개발하여 Mobile, Auto, Watch 등에 양산 공급 중이며, 레드프라임, 레드호스트, 장수명 블루호스트 재료를 공급하고 있음.\n\n2026년 1분기 전년동기 대비 별도기준 매출액은 20.6% 감소, 영업이익은 81.1% 감소, 당기순이익은 71.3% 감소. 주력 제품인 OLED 소재 부문에서 전방산업 수요 변동으로 매출이 감소하고 매출총이익과 영업이익도 전년동기 대비 하락함. 고굴절/저굴절 CPL재료가 고객사에 양산채택되어 시장점유율이 상승 중이며, 레드프라임, 장수명 블루호스트 등 제품 다변화를 진행하고 있음.",
+        "as_of": "2026-06-10",
+        "updated": "2026-08-14"
+    },
+    "business": {
+        "reviewed": false,
+        "segments": [
+            "OLED 소재 사업",
+            "유기전자 재료 제조 및 판매",
+            "첨단 소재 개발 및 양산화"
+        ],
+        "key_products": [
+            "OLED 소재",
+            "고굴절 CPL 소재",
+            "레드프라임/장수명 블루호스트 등 특수 소재"
+        ],
+        "competitors": [],
+        "search_specifier": "",
+        "search_theme": [],
+        "updated": "2026-08-14"
+    },
+    "news_summary": {
+        "key_facts": [
+            "2026년 8월 7일 기준, OLED 유기 소재 관련주로서 주가 상승세를 유지함",
+            "2026년 7월 2일 기준, 정성욱 전무이사가 주식 12,561주를 추가 취득하여 지분율 0.13%를 기록함"
+        ],
+        "key_issues": [
+            "글로벌 IT 세트 기기 수요 회복 지연 및 디스플레이 패널 업체의 8.6세대 신규 라인 투자 속도 조절 우려 (OLED 테마 전반의 영향)"
+        ],
+        "news_summary": "피엔에이치테크는 OLED 유기 소재 관련주로서 2026년 8월 7일 기준 상승세를 보였으며, 7월에는 정성욱 전무이사가 지분을 확대했습니다. 다만, 업계 전반적으로는 IT 기기 수요 회복 지연 및 투자 속도 조절에 대한 우려가 공존하고 있습니다.",
+        "updated": "2026-08-14"
+    },
+    "financials": {
+        "meta": {
+            "updated": "2026-08-14 15:39",
+            "name": "피엔에이치테크",
+            "code": "239890",
+            "unit": 1000000000.0,
+            "start_date": "2024-01-01"
+        },
+        "assess_data": {
+            "updated": "2026-08-14 15:39",
+            "opincome_health": {
+                "positive_last_4qtrs": true,
+                "higher_than_comp": true,
+                "slope": 0.01253,
+                "growth_per_qtr": 0.01294
+            },
+            "opmargin_last_4qtrs": {
+                "25_3Q": 0.1415,
+                "25_4Q": 0.1415,
+                "26_1Q": 0.1415,
+                "26_2Q": 0.1415
+            },
+            "PER": {
+                "PER_ltm": 9.129,
+                "PER_qx4": 9.129,
+                "PER_fwd": 8.843
+            },
+            "volatility_rolling_pct": {
+                "measure_to_base": 1.004,
+                "slope": 0.0002093
+            },
+            "amount_daily": {
+                "measure_to_base": 0.391,
+                "slope": -0.004419
+            },
+            "alpha_beta": {
+                "from_start_date": {
+                    "alpha": -3.701e-05,
+                    "beta": 0.5713
+                },
+                "base_duration": {
+                    "alpha": -0.003545,
+                    "beta": 0.5633
+                },
+                "measure_duration": {
+                    "alpha": 0.001948,
+                    "beta": 0.6965
+                }
+            }
+        },
+        "assess_result": {
+            "basics": true,
+            "financially_sound": false,
+            "PER_level": "Mid",
+            "volatility_movement": "-",
+            "amount_movement": "Dn",
+            "alpha_level": "at_market",
+            "market_sentiment": "unchanged",
+            "category": "D"
+        }
+    }
+}

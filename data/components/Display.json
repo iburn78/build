@@ -25,7 +25,7 @@
     ],
     "financials": {
         "meta": {
-            "updated": "2026-08-14 13:05",
+            "updated": "2026-08-14 15:39",
             "name": "Display",
             "codelist": [
                 "213420",
@@ -38,44 +38,44 @@
             "start_date": "2024-01-01"
         },
         "assess_data": {
-            "updated": "2026-08-14 13:05",
+            "updated": "2026-08-14 15:39",
             "opincome_health": {
                 "positive_last_4qtrs": true,
                 "higher_than_comp": true,
                 "slope": -2.898,
                 "growth_per_qtr": -0.04237
             },
-            "opmargin_last_4qtrs": [
-                0.0951,
-                0.09969,
-                0.1109,
-                0.1093
-            ],
+            "opmargin_last_4qtrs": {
+                "25_3Q": 0.0951,
+                "25_4Q": 0.09969,
+                "26_1Q": 0.1109,
+                "26_2Q": 0.1093
+            },
             "PER": {
-                "PER_ltm": 9.569,
-                "PER_qx4": 9.218,
-                "PER_fwd": 10.27
+                "PER_ltm": 9.458,
+                "PER_qx4": 9.111,
+                "PER_fwd": 10.15
             },
             "volatility_rolling_pct": {
                 "measure_to_base": 1.16,
-                "slope": 5.126e-05
+                "slope": 5.13e-05
             },
             "amount_daily": {
-                "measure_to_base": 0.8286,
-                "slope": -0.2959
+                "measure_to_base": 0.8349,
+                "slope": -0.2946
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": -0.0002512,
-                    "beta": 0.8736
+                    "alpha": -0.0002547,
+                    "beta": 0.8735
                 },
                 "base_duration": {
-                    "alpha": -0.002646,
-                    "beta": 0.6
+                    "alpha": -0.002722,
+                    "beta": 0.5997
                 },
                 "measure_duration": {
-                    "alpha": 0.005703,
-                    "beta": 0.6112
+                    "alpha": 0.005228,
+                    "beta": 0.6111
                 }
             }
         },

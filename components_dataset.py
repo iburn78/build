@@ -12,5 +12,6 @@ cm.get_item('Display', namelist = ['덕산네오룩스', '이녹스첨단소재'
 cm.get_item('Folderable', namelist = ['KH바텍', '세경하이테크', '파인엠텍'])
 
 pm = ProfileManager()
-for component in cm._items:
+component_list = cm.get_itemlist()
+for component in component_list:
     pm.batch_process(component.get_codelist())

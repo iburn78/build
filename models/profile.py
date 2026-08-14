@@ -214,7 +214,12 @@ Articles:
 {news_collection}
 """
 #----------------------------------------------------------------------------------------------------
-        res = self.news_agent.run_sync(request_text).output   # CompanyRecentDevs class instance
+        try:
+            res = self.news_agent.run_sync(request_text).output   # CompanyRecentDevs class instance
+        except Exception as e:
+            print(f"News generation failed for {profile.code}: {e}")
+            return None
+
         res.updated = datetime.now().strftime("%Y-%m-%d") 
         return res
 

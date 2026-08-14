@@ -12,7 +12,8 @@ import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from scraper.tools.tools import sanitized_filename
-AGENT_RETRIES = 3 
+
+AGENT_RETRIES = 5 
 NUM_THREAD_TO_RUN = 4
 
 class JsonModel(BaseModel, ABC):
@@ -81,6 +82,9 @@ class JsonModelManager(ABC):
         if key != sanitized_filename(key): 
             raise ValueError(f"Invalid key: {key}")
 
+    def get_itemlist(self) -> list[JsonModel]:
+        return list(self._items.values())
+
     def get_item(self, key, replace=False, **kwargs):
         self._validate_key(key)
         item = self._items.get(key)
@@ -100,7 +104,7 @@ class JsonModelManager(ABC):
                 print(f"Importing existing json for {key}")
                 existing_json = json.loads(_files[0].read_text(encoding="utf-8"))
 
-            print(f"Creating new json for {key}")
+            print(f"{"Replacing" if replace else "Creating"} new json for {key}")
             item = self._create_new_item(key, existing_json, **kwargs)
             changed = True
 

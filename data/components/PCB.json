@@ -21,7 +21,7 @@
     ],
     "financials": {
         "meta": {
-            "updated": "2026-08-14 13:05",
+            "updated": "2026-08-14 15:39",
             "name": "PCB",
             "codelist": [
                 "011070",
@@ -33,44 +33,44 @@
             "start_date": "2024-01-01"
         },
         "assess_data": {
-            "updated": "2026-08-14 13:05",
+            "updated": "2026-08-14 15:39",
             "opincome_health": {
                 "positive_last_4qtrs": true,
                 "higher_than_comp": true,
                 "slope": 28.01,
                 "growth_per_qtr": 0.05056
             },
-            "opmargin_last_4qtrs": [
-                0.05439,
-                0.05209,
-                0.06429,
-                0.06429
-            ],
+            "opmargin_last_4qtrs": {
+                "25_3Q": 0.05439,
+                "25_4Q": 0.05209,
+                "26_1Q": 0.06429,
+                "26_2Q": 0.06429
+            },
             "PER": {
-                "PER_ltm": 59.03,
-                "PER_qx4": 55.59,
-                "PER_fwd": 49.68
+                "PER_ltm": 59.6,
+                "PER_qx4": 56.13,
+                "PER_fwd": 50.16
             },
             "volatility_rolling_pct": {
                 "measure_to_base": 1.093,
-                "slope": 0.0003656
+                "slope": 0.0003657
             },
             "amount_daily": {
-                "measure_to_base": 0.5242,
-                "slope": 16.22
+                "measure_to_base": 0.533,
+                "slope": 16.46
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0007185,
+                    "alpha": 0.0007242,
                     "beta": 1.225
                 },
                 "base_duration": {
-                    "alpha": 0.01083,
+                    "alpha": 0.01096,
                     "beta": 1.209
                 },
                 "measure_duration": {
-                    "alpha": 0.006775,
-                    "beta": 1.547
+                    "alpha": 0.007638,
+                    "beta": 1.549
                 }
             }
         },

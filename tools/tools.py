@@ -5,7 +5,6 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import re
-from datetime import datetime
 
 pd_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
 ppd_ = os.path.dirname(pd_) 

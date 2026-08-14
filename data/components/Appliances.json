@@ -13,7 +13,7 @@
     ],
     "financials": {
         "meta": {
-            "updated": "2026-08-14 13:05",
+            "updated": "2026-08-14 15:39",
             "name": "Appliances",
             "codelist": [
                 "005930",
@@ -23,44 +23,44 @@
             "start_date": "2024-01-01"
         },
         "assess_data": {
-            "updated": "2026-08-14 13:05",
+            "updated": "2026-08-14 15:39",
             "opincome_health": {
                 "positive_last_4qtrs": true,
                 "higher_than_comp": true,
                 "slope": 5186.0,
                 "growth_per_qtr": 0.1377
             },
-            "opmargin_last_4qtrs": [
-                0.1191,
-                0.1696,
-                0.3738,
-                0.3738
-            ],
+            "opmargin_last_4qtrs": {
+                "25_3Q": 0.1191,
+                "25_4Q": 0.1696,
+                "26_1Q": 0.3738,
+                "26_2Q": 0.3738
+            },
             "PER": {
-                "PER_ltm": 10.69,
-                "PER_qx4": 6.833,
-                "PER_fwd": 5.601
+                "PER_ltm": 10.63,
+                "PER_qx4": 6.795,
+                "PER_fwd": 5.569
             },
             "volatility_rolling_pct": {
                 "measure_to_base": 1.154,
                 "slope": 0.0001999
             },
             "amount_daily": {
-                "measure_to_base": 0.7566,
-                "slope": 27.18
+                "measure_to_base": 0.7612,
+                "slope": 27.83
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0004275,
+                    "alpha": 0.0004272,
                     "beta": 1.171
                 },
                 "base_duration": {
-                    "alpha": 0.001689,
-                    "beta": 1.202
+                    "alpha": 0.001685,
+                    "beta": 1.203
                 },
                 "measure_duration": {
-                    "alpha": 0.001987,
-                    "beta": 1.354
+                    "alpha": 0.001991,
+                    "beta": 1.356
                 }
             }
         },
