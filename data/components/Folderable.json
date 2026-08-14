@@ -14,5 +14,70 @@
             "name": "파인엠텍",
             "code": "441270"
         }
-    ]
+    ],
+    "financials": {
+        "meta": {
+            "updated": "2026-08-14 13:05",
+            "name": "Folderable",
+            "codelist": [
+                "060720",
+                "148150",
+                "441270"
+            ],
+            "unit": 1000000000.0,
+            "start_date": "2024-01-01"
+        },
+        "assess_data": {
+            "updated": "2026-08-14 13:05",
+            "opincome_health": {
+                "positive_last_4qtrs": false,
+                "higher_than_comp": false,
+                "slope": -1.918,
+                "growth_per_qtr": -0.5585
+            },
+            "opmargin_last_4qtrs": [
+                0.05981,
+                0.004805,
+                -0.01657,
+                -0.01657
+            ],
+            "PER": {
+                "PER_ltm": 55.71,
+                "PER_qx4": -71.17,
+                "PER_fwd": -25.57
+            },
+            "volatility_rolling_pct": {
+                "measure_to_base": 1.234,
+                "slope": 3.109e-05
+            },
+            "amount_daily": {
+                "measure_to_base": 2.646,
+                "slope": -0.1491
+            },
+            "alpha_beta": {
+                "from_start_date": {
+                    "alpha": -0.0008156,
+                    "beta": 0.772
+                },
+                "base_duration": {
+                    "alpha": -0.002859,
+                    "beta": 0.6488
+                },
+                "measure_duration": {
+                    "alpha": 0.01134,
+                    "beta": 0.6698
+                }
+            }
+        },
+        "assess_result": {
+            "basics": false,
+            "financially_sound": false,
+            "PER_level": "High",
+            "volatility_movement": "-",
+            "amount_movement": "Up",
+            "alpha_level": "at_market",
+            "market_sentiment": "unchanged",
+            "category": "D"
+        }
+    }
 }

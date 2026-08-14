@@ -1,0 +1,63 @@
+{
+    "financials": {
+        "meta": {
+            "updated": "2026-08-14 13:05",
+            "name": "LG이노텍",
+            "code": "011070",
+            "unit": 1000000000.0,
+            "start_date": "2024-01-01"
+        },
+        "assess_data": {
+            "updated": "2026-08-14 13:05",
+            "opincome_health": {
+                "positive_last_4qtrs": true,
+                "higher_than_comp": true,
+                "slope": 17.0,
+                "growth_per_qtr": 0.06075
+            },
+            "opmargin_last_4qtrs": [
+                0.03795,
+                0.04268,
+                0.05336,
+                0.05336
+            ],
+            "PER": {
+                "PER_ltm": 13.34,
+                "PER_qx4": 12.64,
+                "PER_fwd": 11.05
+            },
+            "volatility_rolling_pct": {
+                "measure_to_base": 0.9278,
+                "slope": 0.0001891
+            },
+            "amount_daily": {
+                "measure_to_base": 0.3753,
+                "slope": 2.121
+            },
+            "alpha_beta": {
+                "from_start_date": {
+                    "alpha": 0.0005156,
+                    "beta": 1.177
+                },
+                "base_duration": {
+                    "alpha": 0.007719,
+                    "beta": 1.091
+                },
+                "measure_duration": {
+                    "alpha": -0.000294,
+                    "beta": 1.348
+                }
+            }
+        },
+        "assess_result": {
+            "basics": true,
+            "financially_sound": true,
+            "PER_level": "High",
+            "volatility_movement": "-",
+            "amount_movement": "Dn",
+            "alpha_level": "at_market",
+            "market_sentiment": "unchanged",
+            "category": "C"
+        }
+    }
+}

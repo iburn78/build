@@ -22,5 +22,72 @@
             "name": "LX세미콘",
             "code": "108320"
         }
-    ]
+    ],
+    "financials": {
+        "meta": {
+            "updated": "2026-08-14 13:05",
+            "name": "Display",
+            "codelist": [
+                "213420",
+                "272290",
+                "239890",
+                "178920",
+                "108320"
+            ],
+            "unit": 1000000000.0,
+            "start_date": "2024-01-01"
+        },
+        "assess_data": {
+            "updated": "2026-08-14 13:05",
+            "opincome_health": {
+                "positive_last_4qtrs": true,
+                "higher_than_comp": true,
+                "slope": -2.898,
+                "growth_per_qtr": -0.04237
+            },
+            "opmargin_last_4qtrs": [
+                0.0951,
+                0.09969,
+                0.1109,
+                0.1093
+            ],
+            "PER": {
+                "PER_ltm": 9.569,
+                "PER_qx4": 9.218,
+                "PER_fwd": 10.27
+            },
+            "volatility_rolling_pct": {
+                "measure_to_base": 1.16,
+                "slope": 5.126e-05
+            },
+            "amount_daily": {
+                "measure_to_base": 0.8286,
+                "slope": -0.2959
+            },
+            "alpha_beta": {
+                "from_start_date": {
+                    "alpha": -0.0002512,
+                    "beta": 0.8736
+                },
+                "base_duration": {
+                    "alpha": -0.002646,
+                    "beta": 0.6
+                },
+                "measure_duration": {
+                    "alpha": 0.005703,
+                    "beta": 0.6112
+                }
+            }
+        },
+        "assess_result": {
+            "basics": false,
+            "financially_sound": false,
+            "PER_level": "Mid",
+            "volatility_movement": "-",
+            "amount_movement": "-",
+            "alpha_level": "at_market",
+            "market_sentiment": "unchanged",
+            "category": "D"
+        }
+    }
 }

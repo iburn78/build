@@ -18,5 +18,71 @@
             "name": "세코닉스",
             "code": "053450"
         }
-    ]
+    ],
+    "financials": {
+        "meta": {
+            "updated": "2026-08-14 13:05",
+            "name": "PCB",
+            "codelist": [
+                "011070",
+                "009150",
+                "097520",
+                "053450"
+            ],
+            "unit": 1000000000.0,
+            "start_date": "2024-01-01"
+        },
+        "assess_data": {
+            "updated": "2026-08-14 13:05",
+            "opincome_health": {
+                "positive_last_4qtrs": true,
+                "higher_than_comp": true,
+                "slope": 28.01,
+                "growth_per_qtr": 0.05056
+            },
+            "opmargin_last_4qtrs": [
+                0.05439,
+                0.05209,
+                0.06429,
+                0.06429
+            ],
+            "PER": {
+                "PER_ltm": 59.03,
+                "PER_qx4": 55.59,
+                "PER_fwd": 49.68
+            },
+            "volatility_rolling_pct": {
+                "measure_to_base": 1.093,
+                "slope": 0.0003656
+            },
+            "amount_daily": {
+                "measure_to_base": 0.5242,
+                "slope": 16.22
+            },
+            "alpha_beta": {
+                "from_start_date": {
+                    "alpha": 0.0007185,
+                    "beta": 1.225
+                },
+                "base_duration": {
+                    "alpha": 0.01083,
+                    "beta": 1.209
+                },
+                "measure_duration": {
+                    "alpha": 0.006775,
+                    "beta": 1.547
+                }
+            }
+        },
+        "assess_result": {
+            "basics": true,
+            "financially_sound": true,
+            "PER_level": "High",
+            "volatility_movement": "-",
+            "amount_movement": "Dn",
+            "alpha_level": "at_market",
+            "market_sentiment": "unchanged",
+            "category": "C"
+        }
+    }
 }

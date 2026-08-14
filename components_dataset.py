@@ -1,5 +1,5 @@
-from scraper.models.component_manager import ComponentManager
-from scraper.models.profile_manager import ProfileManager
+from scraper.models.component import ComponentManager
+from scraper.models.profile import ProfileManager
 
 cm = ComponentManager()
 cm.get_item('Memory', namelist = ['하이닉스', '삼성전자'])

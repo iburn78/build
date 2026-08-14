@@ -1,24 +1,9 @@
 {
-    "name": "MLCC",
-    "updated": "2026-08-14",
-    "companies": [
-        {
-            "name": "삼성전기",
-            "code": "009150"
-        },
-        {
-            "name": "삼화콘덴서",
-            "code": "001820"
-        }
-    ],
     "financials": {
         "meta": {
             "updated": "2026-08-14 13:05",
-            "name": "MLCC",
-            "codelist": [
-                "009150",
-                "001820"
-            ],
+            "name": "삼성전기",
+            "code": "009150",
             "unit": 1000000000.0,
             "start_date": "2024-01-01"
         },
@@ -27,40 +12,40 @@
             "opincome_health": {
                 "positive_last_4qtrs": true,
                 "higher_than_comp": true,
-                "slope": 11.38,
-                "growth_per_qtr": 0.04242
+                "slope": 11.7,
+                "growth_per_qtr": 0.04412
             },
             "opmargin_last_4qtrs": [
-                0.08878,
-                0.0805,
-                0.08692,
-                0.08692
+                0.09009,
+                0.08252,
+                0.08743,
+                0.08743
             ],
             "PER": {
-                "PER_ltm": 108.7,
-                "PER_qx4": 102.1,
-                "PER_fwd": 92.89
+                "PER_ltm": 108.8,
+                "PER_qx4": 102.9,
+                "PER_fwd": 93.18
             },
             "volatility_rolling_pct": {
                 "measure_to_base": 1.103,
-                "slope": 0.0003601
+                "slope": 0.0003624
             },
             "amount_daily": {
-                "measure_to_base": 0.5494,
-                "slope": 15.04
+                "measure_to_base": 0.5534,
+                "slope": 14.11
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0008932,
-                    "beta": 1.241
+                    "alpha": 0.0009063,
+                    "beta": 1.239
                 },
                 "base_duration": {
-                    "alpha": 0.01167,
+                    "alpha": 0.01173,
                     "beta": 1.229
                 },
                 "measure_duration": {
-                    "alpha": 0.007887,
-                    "beta": 1.581
+                    "alpha": 0.007861,
+                    "beta": 1.583
                 }
             }
         },

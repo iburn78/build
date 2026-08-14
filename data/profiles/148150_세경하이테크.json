@@ -1,0 +1,63 @@
+{
+    "financials": {
+        "meta": {
+            "updated": "2026-08-14 13:05",
+            "name": "세경하이테크",
+            "code": "148150",
+            "unit": 1000000000.0,
+            "start_date": "2024-01-01"
+        },
+        "assess_data": {
+            "updated": "2026-08-14 13:05",
+            "opincome_health": {
+                "positive_last_4qtrs": false,
+                "higher_than_comp": false,
+                "slope": -1.439,
+                "growth_per_qtr": 4.551
+            },
+            "opmargin_last_4qtrs": [
+                0.03265,
+                0.007258,
+                -0.03551,
+                -0.03551
+            ],
+            "PER": {
+                "PER_ltm": -92.6,
+                "PER_qx4": -13.51,
+                "PER_fwd": -5.079
+            },
+            "volatility_rolling_pct": {
+                "measure_to_base": 1.156,
+                "slope": 5.757e-05
+            },
+            "amount_daily": {
+                "measure_to_base": 1.123,
+                "slope": -0.006409
+            },
+            "alpha_beta": {
+                "from_start_date": {
+                    "alpha": -0.0003873,
+                    "beta": 0.8228
+                },
+                "base_duration": {
+                    "alpha": -0.004036,
+                    "beta": 0.4454
+                },
+                "measure_duration": {
+                    "alpha": 0.00525,
+                    "beta": 0.5688
+                }
+            }
+        },
+        "assess_result": {
+            "basics": false,
+            "financially_sound": true,
+            "PER_level": "Low",
+            "volatility_movement": "-",
+            "amount_movement": "-",
+            "alpha_level": "at_market",
+            "market_sentiment": "unchanged",
+            "category": "D"
+        }
+    }
+}

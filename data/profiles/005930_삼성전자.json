@@ -1,24 +1,9 @@
 {
-    "name": "Appliances",
-    "updated": "2026-08-14",
-    "companies": [
-        {
-            "name": "삼성전자",
-            "code": "005930"
-        },
-        {
-            "name": "LG전자",
-            "code": "066570"
-        }
-    ],
     "financials": {
         "meta": {
             "updated": "2026-08-14 13:05",
-            "name": "Appliances",
-            "codelist": [
-                "005930",
-                "066570"
-            ],
+            "name": "삼성전자",
+            "code": "005930",
             "unit": 1000000000.0,
             "start_date": "2024-01-01"
         },
@@ -27,40 +12,40 @@
             "opincome_health": {
                 "positive_last_4qtrs": true,
                 "higher_than_comp": true,
-                "slope": 5186.0,
-                "growth_per_qtr": 0.1377
+                "slope": 5167.0,
+                "growth_per_qtr": 0.1409
             },
             "opmargin_last_4qtrs": [
-                0.1191,
-                0.1696,
-                0.3738,
-                0.3738
+                0.1414,
+                0.2139,
+                0.4275,
+                0.4275
             ],
             "PER": {
-                "PER_ltm": 10.69,
-                "PER_qx4": 6.833,
-                "PER_fwd": 5.601
+                "PER_ltm": 10.74,
+                "PER_qx4": 6.882,
+                "PER_fwd": 5.615
             },
             "volatility_rolling_pct": {
-                "measure_to_base": 1.154,
-                "slope": 0.0001999
+                "measure_to_base": 1.16,
+                "slope": 0.0002017
             },
             "amount_daily": {
-                "measure_to_base": 0.7566,
-                "slope": 27.18
+                "measure_to_base": 0.7774,
+                "slope": 25.06
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0004275,
-                    "beta": 1.171
+                    "alpha": 0.000445,
+                    "beta": 1.177
                 },
                 "base_duration": {
-                    "alpha": 0.001689,
-                    "beta": 1.202
+                    "alpha": 0.001658,
+                    "beta": 1.21
                 },
                 "measure_duration": {
-                    "alpha": 0.001987,
-                    "beta": 1.354
+                    "alpha": 0.001839,
+                    "beta": 1.366
                 }
             }
         },

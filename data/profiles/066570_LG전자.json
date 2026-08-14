@@ -1,19 +1,9 @@
 {
-    "name": "Smart_glass",
-    "updated": "2026-08-14",
-    "companies": [
-        {
-            "name": "사피엔반도체",
-            "code": "452430"
-        }
-    ],
     "financials": {
         "meta": {
             "updated": "2026-08-14 13:05",
-            "name": "Smart_glass",
-            "codelist": [
-                "452430"
-            ],
+            "name": "LG전자",
+            "code": "066570",
             "unit": 1000000000.0,
             "start_date": "2024-01-01"
         },
@@ -22,47 +12,47 @@
             "opincome_health": {
                 "positive_last_4qtrs": false,
                 "higher_than_comp": true,
-                "slope": 0.2523,
-                "growth_per_qtr": -1.169
+                "slope": 18.94,
+                "growth_per_qtr": 0.01929
             },
             "opmargin_last_4qtrs": [
-                -0.2785,
-                0.001748,
-                0.01423,
-                0.04319
+                0.0315,
+                -0.004569,
+                0.07054,
+                0.07054
             ],
             "PER": {
-                "PER_ltm": -265.9,
-                "PER_qx4": 184.1,
-                "PER_fwd": 60.89
+                "PER_ltm": 8.793,
+                "PER_qx4": 5.158,
+                "PER_fwd": 5.016
             },
             "volatility_rolling_pct": {
-                "measure_to_base": 1.13,
-                "slope": 0.0001574
+                "measure_to_base": 0.7014,
+                "slope": 0.0001516
             },
             "amount_daily": {
-                "measure_to_base": 0.4869,
-                "slope": -0.02311
+                "measure_to_base": 0.4141,
+                "slope": 2.122
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": -0.001352,
-                    "beta": 0.9845
+                    "alpha": 0.0003757,
+                    "beta": 0.8993
                 },
                 "base_duration": {
-                    "alpha": -0.001769,
-                    "beta": 0.8592
+                    "alpha": 0.005286,
+                    "beta": 0.7889
                 },
                 "measure_duration": {
-                    "alpha": 0.0006273,
-                    "beta": 1.29
+                    "alpha": 0.01066,
+                    "beta": 0.7519
                 }
             }
         },
         "assess_result": {
             "basics": false,
             "financially_sound": false,
-            "PER_level": "Low",
+            "PER_level": "Mid",
             "volatility_movement": "-",
             "amount_movement": "Dn",
             "alpha_level": "at_market",

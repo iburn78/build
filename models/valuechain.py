@@ -1,7 +1,7 @@
 from pydantic import Field
 from scraper.tools.tools import VALUECHAIN_DIR 
 from scraper.models.json_models import JsonModel, JsonModelManager, InfoSection
-from scraper.models.component_manager import Component, ComponentManager
+from scraper.models.component import Component, ComponentManager
 
 class Landscape(InfoSection):
     dynamics: str = "" # leading component, margin concentration, buyer-seller power dynamics
@@ -20,11 +20,11 @@ class ValueChain(JsonModel):
             components.append(c.name)
         return components
 
-    def get_codelist_set(self):
+    def get_codelist(self):
         codelist_set = set()
         for c in self.components:
             codelist_set.update(c.get_codelist())
-        return codelist_set
+        return list(codelist_set)
 
 class ValueChainManager(JsonModelManager):
     MODEL = ValueChain
@@ -55,7 +55,7 @@ class ValueChainManager(JsonModelManager):
 
         if fs:
             # codelevel confirmation
-            if vc.get_codelist_set == set((fs.get('meta') or {}).get('codelist')):
+            if set(vc.get_codelist()) == set((fs.get('meta') or {}).get('codelist')):
                 vc.financials = fs
             else: 
                 print(f'VC_Manager: component list mismatching for {key} in financial section: discarding existing financial section')
