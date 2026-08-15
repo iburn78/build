@@ -17,8 +17,12 @@ AGENT_RETRIES = 5
 NUM_THREAD_TO_RUN = 4
 
 class JsonModel(BaseModel, ABC):
-    DIR: ClassVar[str] # json does not include ClassVars / not validate either
-    name: str
+    # to provide a basic pydantic structure to subclasses
+    # - a json file is maintained per a model instance
+    # - data format is validated when loaded
+
+    DIR: ClassVar[str] # ClassVars is not included in json file, not validate when loaded
+    name: str # used as the json filename (except for a company profile: code_name)
     updated: str = ""
 
     def model_post_init(self, context: Any) -> None:
@@ -42,9 +46,11 @@ class JsonModel(BaseModel, ABC):
             Path(path).read_text(encoding="utf-8")
         )
 
+    # key for the json_model dict
     def key(self) -> str:
         return self.name
 
+    # returns all instances in dict {key: json_model dict}
     @classmethod
     def load_all_validated(cls) -> dict[str, "JsonModel"]:
         objects_dict = {}
@@ -59,9 +65,13 @@ class JsonModel(BaseModel, ABC):
         return objects_dict
 
 class InfoSection(BaseModel):
+    # to provide human-review-needed information to JsonModels
+    # - if reviewed == True, information survives through updates or (automatic) creations if filename matches
+    # - if needed, AI agent will be provided
     reviewed: bool = False
 
 class JsonModelManager(ABC): 
+    # to load all JsonModel instances and to manage (get, update, create, etc)
     MODEL: type[JsonModel]
 
     def __init__(self):
@@ -85,6 +95,10 @@ class JsonModelManager(ABC):
     def get_itemlist(self) -> list[JsonModel]:
         return list(self._items.values())
 
+    # main function to get an item from loaded
+    # - if update needed, this will triger update 
+    # - if reviewed info_section exists, this will load it
+    # - if financials_section exists, this will load it
     def get_item(self, key, replace=False, **kwargs):
         self._validate_key(key)
         item = self._items.get(key)
