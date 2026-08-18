@@ -43,14 +43,13 @@
     },
     "financials": {
         "meta": {
-            "updated": "2026-08-14 15:39",
+            "updated": "2026-08-18 15:53",
             "name": "삼화콘덴서",
             "code": "001820",
             "unit": 1000000000.0,
             "start_date": "2024-01-01"
         },
         "assess_data": {
-            "updated": "2026-08-14 15:39",
             "opincome_health": {
                 "positive_last_4qtrs": false,
                 "higher_than_comp": false,
@@ -64,30 +63,30 @@
                 "26_2Q": 0.06447
             },
             "PER": {
-                "PER_ltm": 90.5,
-                "PER_qx4": 57.21,
-                "PER_fwd": 69.17
+                "PER_ltm": 87.08,
+                "PER_qx4": 55.05,
+                "PER_fwd": 66.56
             },
-            "volatility_rolling_pct": {
-                "measure_to_base": 0.8907,
-                "slope": 0.0002841
+            "volatility_pct": {
+                "measure_to_base": 0.8974,
+                "slope": 0.0002695
             },
             "amount_daily": {
-                "measure_to_base": 0.4977,
-                "slope": 0.9393
+                "measure_to_base": 0.5223,
+                "slope": 0.9057
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0007267,
-                    "beta": 1.238
+                    "alpha": 0.0007092,
+                    "beta": 1.237
                 },
                 "base_duration": {
-                    "alpha": 0.00896,
-                    "beta": 1.115
+                    "alpha": 0.006134,
+                    "beta": 1.108
                 },
                 "measure_duration": {
-                    "alpha": 0.01141,
-                    "beta": 1.389
+                    "alpha": 0.008,
+                    "beta": 1.377
                 }
             }
         },
@@ -97,7 +96,7 @@
             "PER_level": "High",
             "volatility_movement": "-",
             "amount_movement": "Dn",
-            "alpha_level": "at_market",
+            "alpha_level": "outperform",
             "market_sentiment": "unchanged",
             "category": "D"
         }

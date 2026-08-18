@@ -42,17 +42,16 @@
     },
     "financials": {
         "meta": {
-            "updated": "2026-08-14 15:39",
+            "updated": "2026-08-18 15:53",
             "name": "LG이노텍",
             "code": "011070",
             "unit": 1000000000.0,
             "start_date": "2024-01-01"
         },
         "assess_data": {
-            "updated": "2026-08-14 15:39",
             "opincome_health": {
                 "positive_last_4qtrs": true,
-                "higher_than_comp": true,
+                "higher_than_comp": false,
                 "slope": 17.0,
                 "growth_per_qtr": 0.06075
             },
@@ -63,42 +62,42 @@
                 "26_2Q": 0.05336
             },
             "PER": {
-                "PER_ltm": 13.41,
-                "PER_qx4": 12.7,
-                "PER_fwd": 11.1
+                "PER_ltm": 13.66,
+                "PER_qx4": 12.94,
+                "PER_fwd": 11.31
             },
-            "volatility_rolling_pct": {
-                "measure_to_base": 0.9279,
-                "slope": 0.0001892
+            "volatility_pct": {
+                "measure_to_base": 0.9514,
+                "slope": 0.0001804
             },
             "amount_daily": {
-                "measure_to_base": 0.3797,
-                "slope": 2.139
+                "measure_to_base": 0.4007,
+                "slope": 2.029
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0005193,
-                    "beta": 1.177
+                    "alpha": 0.0005231,
+                    "beta": 1.178
                 },
                 "base_duration": {
-                    "alpha": 0.007799,
-                    "beta": 1.091
+                    "alpha": 0.007469,
+                    "beta": 1.093
                 },
                 "measure_duration": {
-                    "alpha": 0.0002639,
-                    "beta": 1.349
+                    "alpha": 0.0009811,
+                    "beta": 1.36
                 }
             }
         },
         "assess_result": {
-            "basics": true,
+            "basics": false,
             "financially_sound": true,
             "PER_level": "High",
             "volatility_movement": "-",
             "amount_movement": "Dn",
-            "alpha_level": "at_market",
+            "alpha_level": "outperform",
             "market_sentiment": "unchanged",
-            "category": "C"
+            "category": "D"
         }
     }
 }

@@ -42,14 +42,13 @@
     },
     "financials": {
         "meta": {
-            "updated": "2026-08-14 15:39",
+            "updated": "2026-08-18 15:53",
             "name": "세경하이테크",
             "code": "148150",
             "unit": 1000000000.0,
             "start_date": "2024-01-01"
         },
         "assess_data": {
-            "updated": "2026-08-14 15:39",
             "opincome_health": {
                 "positive_last_4qtrs": false,
                 "higher_than_comp": false,
@@ -63,30 +62,30 @@
                 "26_2Q": -0.03551
             },
             "PER": {
-                "PER_ltm": -91.61,
-                "PER_qx4": -13.37,
-                "PER_fwd": -5.025
+                "PER_ltm": -94.0,
+                "PER_qx4": -13.71,
+                "PER_fwd": -5.156
             },
-            "volatility_rolling_pct": {
-                "measure_to_base": 1.156,
-                "slope": 5.76e-05
+            "volatility_pct": {
+                "measure_to_base": 1.148,
+                "slope": 5.678e-05
             },
             "amount_daily": {
-                "measure_to_base": 1.129,
-                "slope": -0.006381
+                "measure_to_base": 1.158,
+                "slope": -0.006377
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": -0.0003914,
-                    "beta": 0.8227
+                    "alpha": -0.0003786,
+                    "beta": 0.8218
                 },
                 "base_duration": {
-                    "alpha": -0.004109,
-                    "beta": 0.445
+                    "alpha": -0.00384,
+                    "beta": 0.4439
                 },
                 "measure_duration": {
-                    "alpha": 0.004816,
-                    "beta": 0.5686
+                    "alpha": 0.00631,
+                    "beta": 0.5681
                 }
             }
         },
@@ -96,7 +95,7 @@
             "PER_level": "Low",
             "volatility_movement": "-",
             "amount_movement": "-",
-            "alpha_level": "at_market",
+            "alpha_level": "outperform",
             "market_sentiment": "unchanged",
             "category": "D"
         }

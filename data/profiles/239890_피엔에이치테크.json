@@ -38,17 +38,16 @@
     },
     "financials": {
         "meta": {
-            "updated": "2026-08-14 15:39",
+            "updated": "2026-08-18 15:53",
             "name": "피엔에이치테크",
             "code": "239890",
             "unit": 1000000000.0,
             "start_date": "2024-01-01"
         },
         "assess_data": {
-            "updated": "2026-08-14 15:39",
             "opincome_health": {
                 "positive_last_4qtrs": true,
-                "higher_than_comp": true,
+                "higher_than_comp": false,
                 "slope": 0.01253,
                 "growth_per_qtr": 0.01294
             },
@@ -59,40 +58,40 @@
                 "26_2Q": 0.1415
             },
             "PER": {
-                "PER_ltm": 9.129,
-                "PER_qx4": 9.129,
-                "PER_fwd": 8.843
+                "PER_ltm": 9.232,
+                "PER_qx4": 9.232,
+                "PER_fwd": 8.942
             },
-            "volatility_rolling_pct": {
-                "measure_to_base": 1.004,
-                "slope": 0.0002093
+            "volatility_pct": {
+                "measure_to_base": 1.001,
+                "slope": 0.0002003
             },
             "amount_daily": {
-                "measure_to_base": 0.391,
-                "slope": -0.004419
+                "measure_to_base": 0.4009,
+                "slope": -0.004592
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": -3.701e-05,
-                    "beta": 0.5713
+                    "alpha": -3.372e-05,
+                    "beta": 0.5707
                 },
                 "base_duration": {
-                    "alpha": -0.003545,
-                    "beta": 0.5633
+                    "alpha": -0.003611,
+                    "beta": 0.5616
                 },
                 "measure_duration": {
-                    "alpha": 0.001948,
-                    "beta": 0.6965
+                    "alpha": 0.002401,
+                    "beta": 0.6922
                 }
             }
         },
         "assess_result": {
-            "basics": true,
+            "basics": false,
             "financially_sound": false,
             "PER_level": "Mid",
             "volatility_movement": "-",
             "amount_movement": "Dn",
-            "alpha_level": "at_market",
+            "alpha_level": "outperform",
             "market_sentiment": "unchanged",
             "category": "D"
         }

@@ -43,51 +43,50 @@
     },
     "financials": {
         "meta": {
-            "updated": "2026-08-14 15:39",
+            "updated": "2026-08-18 15:53",
             "name": "삼성전자",
             "code": "005930",
             "unit": 1000000000.0,
             "start_date": "2024-01-01"
         },
         "assess_data": {
-            "updated": "2026-08-14 15:39",
             "opincome_health": {
                 "positive_last_4qtrs": true,
                 "higher_than_comp": true,
-                "slope": 5167.0,
-                "growth_per_qtr": 0.1409
+                "slope": 6927.0,
+                "growth_per_qtr": 0.1548
             },
             "opmargin_last_4qtrs": {
                 "25_3Q": 0.1414,
                 "25_4Q": 0.2139,
                 "26_1Q": 0.4275,
-                "26_2Q": 0.4275
+                "26_2Q": 0.5218
             },
             "PER": {
-                "PER_ltm": 10.68,
-                "PER_qx4": 6.844,
-                "PER_fwd": 5.584
+                "PER_ltm": 8.877,
+                "PER_qx4": 4.438,
+                "PER_fwd": 3.719
             },
-            "volatility_rolling_pct": {
-                "measure_to_base": 1.16,
-                "slope": 0.0002017
+            "volatility_pct": {
+                "measure_to_base": 1.161,
+                "slope": 0.000206
             },
             "amount_daily": {
-                "measure_to_base": 0.7818,
-                "slope": 25.67
+                "measure_to_base": 0.7916,
+                "slope": 24.28
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0004447,
+                    "alpha": 0.0004469,
                     "beta": 1.177
                 },
                 "base_duration": {
-                    "alpha": 0.001654,
+                    "alpha": 0.001642,
                     "beta": 1.21
                 },
                 "measure_duration": {
-                    "alpha": 0.001847,
-                    "beta": 1.367
+                    "alpha": 0.001451,
+                    "beta": 1.36
                 }
             }
         },
@@ -97,7 +96,7 @@
             "PER_level": "Mid",
             "volatility_movement": "-",
             "amount_movement": "-",
-            "alpha_level": "at_market",
+            "alpha_level": "outperform",
             "market_sentiment": "unchanged",
             "category": "B"
         }

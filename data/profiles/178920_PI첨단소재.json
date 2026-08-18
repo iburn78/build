@@ -43,14 +43,13 @@
     },
     "financials": {
         "meta": {
-            "updated": "2026-08-14 15:39",
+            "updated": "2026-08-18 15:53",
             "name": "PI첨단소재",
             "code": "178920",
             "unit": 1000000000.0,
             "start_date": "2024-01-01"
         },
         "assess_data": {
-            "updated": "2026-08-14 15:39",
             "opincome_health": {
                 "positive_last_4qtrs": true,
                 "higher_than_comp": false,
@@ -64,30 +63,30 @@
                 "26_2Q": 0.2193
             },
             "PER": {
-                "PER_ltm": 12.43,
-                "PER_qx4": 10.25,
-                "PER_fwd": 9.383
+                "PER_ltm": 12.47,
+                "PER_qx4": 10.28,
+                "PER_fwd": 9.417
             },
-            "volatility_rolling_pct": {
-                "measure_to_base": 1.122,
-                "slope": -0.000137
+            "volatility_pct": {
+                "measure_to_base": 1.12,
+                "slope": -0.0001449
             },
             "amount_daily": {
-                "measure_to_base": 1.338,
-                "slope": -0.07644
+                "measure_to_base": 0.9615,
+                "slope": -0.07835
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0001776,
-                    "beta": 0.9011
+                    "alpha": 0.0001768,
+                    "beta": 0.9005
                 },
                 "base_duration": {
-                    "alpha": -0.0002264,
-                    "beta": 0.6138
+                    "alpha": -0.0001098,
+                    "beta": 0.6133
                 },
                 "measure_duration": {
-                    "alpha": 0.004955,
-                    "beta": 0.4936
+                    "alpha": 0.005619,
+                    "beta": 0.501
                 }
             }
         },
@@ -96,8 +95,8 @@
             "financially_sound": false,
             "PER_level": "High",
             "volatility_movement": "-",
-            "amount_movement": "Up",
-            "alpha_level": "at_market",
+            "amount_movement": "-",
+            "alpha_level": "outperform",
             "market_sentiment": "unchanged",
             "category": "D"
         }

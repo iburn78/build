@@ -13,7 +13,7 @@
     ],
     "financials": {
         "meta": {
-            "updated": "2026-08-14 15:39",
+            "updated": "2026-08-18 15:53",
             "name": "MLCC",
             "codelist": [
                 "009150",
@@ -23,10 +23,9 @@
             "start_date": "2024-01-01"
         },
         "assess_data": {
-            "updated": "2026-08-14 15:39",
             "opincome_health": {
                 "positive_last_4qtrs": true,
-                "higher_than_comp": true,
+                "higher_than_comp": false,
                 "slope": 11.38,
                 "growth_per_qtr": 0.04242
             },
@@ -37,40 +36,40 @@
                 "26_2Q": 0.08692
             },
             "PER": {
-                "PER_ltm": 109.8,
-                "PER_qx4": 103.2,
-                "PER_fwd": 93.83
+                "PER_ltm": 103.7,
+                "PER_qx4": 97.52,
+                "PER_fwd": 88.68
             },
-            "volatility_rolling_pct": {
-                "measure_to_base": 1.103,
-                "slope": 0.0003601
+            "volatility_pct": {
+                "measure_to_base": 1.111,
+                "slope": 0.000366
             },
             "amount_daily": {
-                "measure_to_base": 0.5587,
-                "slope": 15.28
+                "measure_to_base": 0.5672,
+                "slope": 15.0
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0008992,
-                    "beta": 1.241
+                    "alpha": 0.0008742,
+                    "beta": 1.242
                 },
                 "base_duration": {
-                    "alpha": 0.0118,
-                    "beta": 1.229
+                    "alpha": 0.01021,
+                    "beta": 1.228
                 },
                 "measure_duration": {
-                    "alpha": 0.008786,
-                    "beta": 1.583
+                    "alpha": 0.006751,
+                    "beta": 1.605
                 }
             }
         },
         "assess_result": {
-            "basics": true,
+            "basics": false,
             "financially_sound": false,
             "PER_level": "High",
             "volatility_movement": "-",
             "amount_movement": "Dn",
-            "alpha_level": "at_market",
+            "alpha_level": "outperform",
             "market_sentiment": "unchanged",
             "category": "D"
         }

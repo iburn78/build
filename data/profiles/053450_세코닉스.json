@@ -39,14 +39,13 @@
     },
     "financials": {
         "meta": {
-            "updated": "2026-08-14 15:39",
+            "updated": "2026-08-18 15:53",
             "name": "세코닉스",
             "code": "053450",
             "unit": 1000000000.0,
             "start_date": "2024-01-01"
         },
         "assess_data": {
-            "updated": "2026-08-14 15:39",
             "opincome_health": {
                 "positive_last_4qtrs": false,
                 "higher_than_comp": false,
@@ -60,30 +59,30 @@
                 "26_2Q": 0.01006
             },
             "PER": {
-                "PER_ltm": -33.17,
-                "PER_qx4": 12.36,
-                "PER_fwd": -38.23
+                "PER_ltm": -31.66,
+                "PER_qx4": 11.79,
+                "PER_fwd": -36.48
             },
-            "volatility_rolling_pct": {
-                "measure_to_base": 1.25,
-                "slope": 7.438e-05
+            "volatility_pct": {
+                "measure_to_base": 1.236,
+                "slope": 7.582e-05
             },
             "amount_daily": {
-                "measure_to_base": 2.422,
-                "slope": -0.01362
+                "measure_to_base": 0.9432,
+                "slope": -0.01383
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": -0.0007755,
+                    "alpha": -0.000795,
                     "beta": 0.8972
                 },
                 "base_duration": {
-                    "alpha": -0.004935,
-                    "beta": 0.4522
+                    "alpha": -0.005307,
+                    "beta": 0.4536
                 },
                 "measure_duration": {
-                    "alpha": 0.000296,
-                    "beta": 0.4809
+                    "alpha": -0.002993,
+                    "beta": 0.479
                 }
             }
         },
@@ -92,8 +91,8 @@
             "financially_sound": true,
             "PER_level": "Low",
             "volatility_movement": "-",
-            "amount_movement": "Up",
-            "alpha_level": "at_market",
+            "amount_movement": "-",
+            "alpha_level": "underperform",
             "market_sentiment": "unchanged",
             "category": "D"
         }

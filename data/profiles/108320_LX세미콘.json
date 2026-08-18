@@ -45,17 +45,16 @@
     },
     "financials": {
         "meta": {
-            "updated": "2026-08-14 15:39",
+            "updated": "2026-08-18 15:53",
             "name": "LX세미콘",
             "code": "108320",
             "unit": 1000000000.0,
             "start_date": "2024-01-01"
         },
         "assess_data": {
-            "updated": "2026-08-14 15:39",
             "opincome_health": {
                 "positive_last_4qtrs": true,
-                "higher_than_comp": true,
+                "higher_than_comp": false,
                 "slope": -3.787,
                 "growth_per_qtr": -0.189
             },
@@ -66,30 +65,30 @@
                 "26_2Q": 0.05297
             },
             "PER": {
-                "PER_ltm": 8.378,
-                "PER_qx4": 8.149,
-                "PER_fwd": 15.08
+                "PER_ltm": 8.099,
+                "PER_qx4": 7.878,
+                "PER_fwd": 14.58
             },
-            "volatility_rolling_pct": {
-                "measure_to_base": 1.1,
-                "slope": 0.000119
+            "volatility_pct": {
+                "measure_to_base": 1.101,
+                "slope": 0.0001141
             },
             "amount_daily": {
-                "measure_to_base": 0.5769,
-                "slope": -0.03228
+                "measure_to_base": 0.6066,
+                "slope": -0.03282
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": -8.636e-05,
-                    "beta": 0.8637
+                    "alpha": -0.0001016,
+                    "beta": 0.8643
                 },
                 "base_duration": {
-                    "alpha": -0.003,
-                    "beta": 0.5785
+                    "alpha": -0.00324,
+                    "beta": 0.5811
                 },
                 "measure_duration": {
-                    "alpha": 0.003801,
-                    "beta": 0.6897
+                    "alpha": 0.001321,
+                    "beta": 0.6954
                 }
             }
         },
@@ -99,7 +98,7 @@
             "PER_level": "Mid",
             "volatility_movement": "-",
             "amount_movement": "Dn",
-            "alpha_level": "at_market",
+            "alpha_level": "outperform",
             "market_sentiment": "unchanged",
             "category": "D"
         }

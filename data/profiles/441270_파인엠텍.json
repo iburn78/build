@@ -41,14 +41,13 @@
     },
     "financials": {
         "meta": {
-            "updated": "2026-08-14 15:39",
+            "updated": "2026-08-18 15:53",
             "name": "파인엠텍",
             "code": "441270",
             "unit": 1000000000.0,
             "start_date": "2024-01-01"
         },
         "assess_data": {
-            "updated": "2026-08-14 15:39",
             "opincome_health": {
                 "positive_last_4qtrs": false,
                 "higher_than_comp": false,
@@ -62,30 +61,30 @@
                 "26_2Q": -0.04782
             },
             "PER": {
-                "PER_ltm": -75.99,
-                "PER_qx4": -41.51,
-                "PER_fwd": -33.41
+                "PER_ltm": -68.65,
+                "PER_qx4": -37.5,
+                "PER_fwd": -30.19
             },
-            "volatility_rolling_pct": {
-                "measure_to_base": 1.212,
-                "slope": 5.793e-05
+            "volatility_pct": {
+                "measure_to_base": 1.193,
+                "slope": 5.896e-05
             },
             "amount_daily": {
-                "measure_to_base": 1.579,
-                "slope": -0.05853
+                "measure_to_base": 1.675,
+                "slope": -0.05611
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": -0.00045,
-                    "beta": 0.7991
+                    "alpha": -0.0005572,
+                    "beta": 0.799
                 },
                 "base_duration": {
-                    "alpha": -0.001453,
-                    "beta": 0.6881
+                    "alpha": -0.002509,
+                    "beta": 0.688
                 },
                 "measure_duration": {
-                    "alpha": 0.01294,
-                    "beta": 0.7731
+                    "alpha": 0.007035,
+                    "beta": 0.7753
                 }
             }
         },
@@ -95,7 +94,7 @@
             "PER_level": "Low",
             "volatility_movement": "-",
             "amount_movement": "Up",
-            "alpha_level": "at_market",
+            "alpha_level": "outperform",
             "market_sentiment": "unchanged",
             "category": "D"
         }

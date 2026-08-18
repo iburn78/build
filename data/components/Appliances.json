@@ -13,7 +13,7 @@
     ],
     "financials": {
         "meta": {
-            "updated": "2026-08-14 15:39",
+            "updated": "2026-08-18 15:53",
             "name": "Appliances",
             "codelist": [
                 "005930",
@@ -23,44 +23,43 @@
             "start_date": "2024-01-01"
         },
         "assess_data": {
-            "updated": "2026-08-14 15:39",
             "opincome_health": {
                 "positive_last_4qtrs": true,
                 "higher_than_comp": true,
-                "slope": 5186.0,
-                "growth_per_qtr": 0.1377
+                "slope": 6946.0,
+                "growth_per_qtr": 0.1519
             },
             "opmargin_last_4qtrs": {
                 "25_3Q": 0.1191,
                 "25_4Q": 0.1696,
                 "26_1Q": 0.3738,
-                "26_2Q": 0.3738
+                "26_2Q": 0.467
             },
             "PER": {
-                "PER_ltm": 10.63,
-                "PER_qx4": 6.795,
-                "PER_fwd": 5.569
+                "PER_ltm": 8.875,
+                "PER_qx4": 4.451,
+                "PER_fwd": 3.739
             },
-            "volatility_rolling_pct": {
-                "measure_to_base": 1.154,
-                "slope": 0.0001999
+            "volatility_pct": {
+                "measure_to_base": 1.156,
+                "slope": 0.0002039
             },
             "amount_daily": {
-                "measure_to_base": 0.7612,
-                "slope": 27.83
+                "measure_to_base": 0.7715,
+                "slope": 26.32
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0004272,
+                    "alpha": 0.0004293,
                     "beta": 1.171
                 },
                 "base_duration": {
-                    "alpha": 0.001685,
-                    "beta": 1.203
+                    "alpha": 0.001662,
+                    "beta": 1.202
                 },
                 "measure_duration": {
-                    "alpha": 0.001991,
-                    "beta": 1.356
+                    "alpha": 0.001589,
+                    "beta": 1.349
                 }
             }
         },
@@ -70,7 +69,7 @@
             "PER_level": "Mid",
             "volatility_movement": "-",
             "amount_movement": "-",
-            "alpha_level": "at_market",
+            "alpha_level": "outperform",
             "market_sentiment": "unchanged",
             "category": "B"
         }

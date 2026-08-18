@@ -17,7 +17,7 @@
     ],
     "financials": {
         "meta": {
-            "updated": "2026-08-14 15:39",
+            "updated": "2026-08-18 15:53",
             "name": "Folderable",
             "codelist": [
                 "060720",
@@ -28,7 +28,6 @@
             "start_date": "2024-01-01"
         },
         "assess_data": {
-            "updated": "2026-08-14 15:39",
             "opincome_health": {
                 "positive_last_4qtrs": false,
                 "higher_than_comp": false,
@@ -42,30 +41,30 @@
                 "26_2Q": -0.01657
             },
             "PER": {
-                "PER_ltm": 55.23,
-                "PER_qx4": -70.56,
-                "PER_fwd": -25.35
+                "PER_ltm": 51.81,
+                "PER_qx4": -66.19,
+                "PER_fwd": -23.78
             },
-            "volatility_rolling_pct": {
-                "measure_to_base": 1.234,
-                "slope": 3.121e-05
+            "volatility_pct": {
+                "measure_to_base": 1.221,
+                "slope": 3.319e-05
             },
             "amount_daily": {
-                "measure_to_base": 2.635,
-                "slope": -0.1485
+                "measure_to_base": 2.658,
+                "slope": -0.1441
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": -0.0008213,
-                    "beta": 0.7721
+                    "alpha": -0.0008916,
+                    "beta": 0.7725
                 },
                 "base_duration": {
-                    "alpha": -0.002907,
-                    "beta": 0.649
+                    "alpha": -0.003453,
+                    "beta": 0.6501
                 },
                 "measure_duration": {
-                    "alpha": 0.01104,
-                    "beta": 0.6718
+                    "alpha": 0.007022,
+                    "beta": 0.6759
                 }
             }
         },
@@ -75,7 +74,7 @@
             "PER_level": "High",
             "volatility_movement": "-",
             "amount_movement": "Up",
-            "alpha_level": "at_market",
+            "alpha_level": "outperform",
             "market_sentiment": "unchanged",
             "category": "D"
         }

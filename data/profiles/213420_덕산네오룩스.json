@@ -45,14 +45,13 @@
     },
     "financials": {
         "meta": {
-            "updated": "2026-08-14 15:39",
+            "updated": "2026-08-18 15:53",
             "name": "덕산네오룩스",
             "code": "213420",
             "unit": 1000000000.0,
             "start_date": "2024-01-01"
         },
         "assess_data": {
-            "updated": "2026-08-14 15:39",
             "opincome_health": {
                 "positive_last_4qtrs": true,
                 "higher_than_comp": true,
@@ -66,30 +65,30 @@
                 "26_2Q": 0.1956
             },
             "PER": {
-                "PER_ltm": 11.3,
-                "PER_qx4": 11.63,
-                "PER_fwd": 10.21
+                "PER_ltm": 11.14,
+                "PER_qx4": 11.46,
+                "PER_fwd": 10.06
             },
-            "volatility_rolling_pct": {
-                "measure_to_base": 1.187,
-                "slope": -8.226e-05
+            "volatility_pct": {
+                "measure_to_base": 1.186,
+                "slope": -8.102e-05
             },
             "amount_daily": {
-                "measure_to_base": 0.9726,
-                "slope": -0.08752
+                "measure_to_base": 1.008,
+                "slope": -0.08907
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0003736,
-                    "beta": 0.8891
+                    "alpha": 0.0003659,
+                    "beta": 0.8886
                 },
                 "base_duration": {
-                    "alpha": -0.00199,
-                    "beta": 0.5465
+                    "alpha": -0.002189,
+                    "beta": 0.5462
                 },
                 "measure_duration": {
-                    "alpha": 0.007707,
-                    "beta": 0.5943
+                    "alpha": 0.006412,
+                    "beta": 0.5937
                 }
             }
         },
@@ -99,7 +98,7 @@
             "PER_level": "Mid",
             "volatility_movement": "-",
             "amount_movement": "-",
-            "alpha_level": "at_market",
+            "alpha_level": "outperform",
             "market_sentiment": "unchanged",
             "category": "B"
         }

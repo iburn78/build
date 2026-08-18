@@ -43,14 +43,13 @@
     },
     "financials": {
         "meta": {
-            "updated": "2026-08-14 15:39",
+            "updated": "2026-08-18 15:53",
             "name": "이녹스첨단소재",
             "code": "272290",
             "unit": 1000000000.0,
             "start_date": "2024-01-01"
         },
         "assess_data": {
-            "updated": "2026-08-14 15:39",
             "opincome_health": {
                 "positive_last_4qtrs": true,
                 "higher_than_comp": false,
@@ -64,30 +63,30 @@
                 "26_2Q": 0.1776
             },
             "PER": {
-                "PER_ltm": 6.627,
-                "PER_qx4": 6.581,
-                "PER_fwd": 7.308
+                "PER_ltm": 6.419,
+                "PER_qx4": 6.375,
+                "PER_fwd": 7.079
             },
-            "volatility_rolling_pct": {
-                "measure_to_base": 1.12,
-                "slope": -7.207e-05
+            "volatility_pct": {
+                "measure_to_base": 1.114,
+                "slope": -7.255e-05
             },
             "amount_daily": {
-                "measure_to_base": 0.8429,
-                "slope": -0.09391
+                "measure_to_base": 0.8756,
+                "slope": -0.09459
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": -0.0002722,
-                    "beta": 0.9807
+                    "alpha": -0.0002889,
+                    "beta": 0.9805
                 },
                 "base_duration": {
-                    "alpha": -0.004434,
-                    "beta": 0.7207
+                    "alpha": -0.00457,
+                    "beta": 0.7216
                 },
                 "measure_duration": {
-                    "alpha": 0.004112,
-                    "beta": 0.6899
+                    "alpha": 0.00291,
+                    "beta": 0.7016
                 }
             }
         },
@@ -97,7 +96,7 @@
             "PER_level": "Low",
             "volatility_movement": "-",
             "amount_movement": "-",
-            "alpha_level": "at_market",
+            "alpha_level": "outperform",
             "market_sentiment": "unchanged",
             "category": "D"
         }
