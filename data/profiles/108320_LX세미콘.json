@@ -45,7 +45,7 @@
     },
     "financials": {
         "meta": {
-            "updated": "2026-08-18 15:53",
+            "updated": "2026-08-21 08:30",
             "name": "LX세미콘",
             "code": "108320",
             "unit": 1000000000.0,
@@ -65,30 +65,30 @@
                 "26_2Q": 0.05297
             },
             "PER": {
-                "PER_ltm": 8.099,
-                "PER_qx4": 7.878,
-                "PER_fwd": 14.58
+                "PER_ltm": 7.673,
+                "PER_qx4": 7.463,
+                "PER_fwd": 13.81
             },
             "volatility_pct": {
-                "measure_to_base": 1.101,
-                "slope": 0.0001141
+                "measure_to_base": 1.108,
+                "slope": 0.0001028
             },
             "amount_daily": {
-                "measure_to_base": 0.6066,
-                "slope": -0.03282
+                "measure_to_base": 0.6578,
+                "slope": -0.03643
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": -0.0001016,
-                    "beta": 0.8643
+                    "alpha": -0.0001164,
+                    "beta": 0.8598
                 },
                 "base_duration": {
-                    "alpha": -0.00324,
-                    "beta": 0.5811
+                    "alpha": -0.004467,
+                    "beta": 0.5714
                 },
                 "measure_duration": {
-                    "alpha": 0.001321,
-                    "beta": 0.6954
+                    "alpha": -0.0002878,
+                    "beta": 0.6724
                 }
             }
         },
@@ -98,7 +98,7 @@
             "PER_level": "Mid",
             "volatility_movement": "-",
             "amount_movement": "Dn",
-            "alpha_level": "outperform",
+            "alpha_level": "at_market",
             "market_sentiment": "unchanged",
             "category": "D"
         }

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Dictionary Display</title>
+<!-- <link rel="stylesheet" href="templates/dict_template.css"> -->
+ <style>
+ body {
+    font-family: "Noto Sans KR", "Malgun Gothic", sans-serif;
+}
+
+.dict-table {
+    width: fit-content;
+    max-width: 100%;
+    min-width: 420px; 
+    margin: 0 auto;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.dict-table th,
+.dict-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.dict-table .label {
+    text-align: left;
+    white-space: nowrap;
+}
+
+.dict-table .value {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.dict-table .header-row th {
+    background: #011336;
+    font-weight: 600;
+    color: white;
+    border-bottom: 3px solid #d1d5db;
+}
+
+.dict-table .section-row td {
+    font-weight: 600;
+    border-bottom: 2px solid #d1d5db;
+}
+
+.dict-table tr:hover {
+    filter: brightness(0.90);
+}
+
+.dict-table .section-row.level-0 td { background: #2163b3; color: white;}
+.dict-table .section-row.level-1 td { background: #DBEAFE; }
+.dict-table .section-row.level-2 td { background: #fcf6db; }
+.dict-table .section-row.level-3 td { background: #f7fded; }
+.dict-table .value-row td { background: #ffffff; }  /* data level */
+
+/* Nested dictionary indentation */
+.dict-table .level-0 .label {padding-left: 12px;}
+.dict-table .level-1 .label {padding-left: 28px;}
+.dict-table .level-2 .label {padding-left: 48px;}
+.dict-table .level-3 .label {padding-left: 68px;}
+.dict-table .level-4 .label {padding-left: 88px;}
+
+.dict-table .section-row {
+    cursor: pointer;
+}
+
+.dict-table .section-row .label::before {
+    content: "▼";
+    display: inline-block;
+    width: 18px;
+    font-size: 11px;
+    margin-right: 4px;
+}
+
+.dict-table .section-row.collapsed .label::before {
+    content: "▶";
+}
+
+ </style>
+</head>
+
+<body>
+<div class="table-controls">
+    <button onclick="expandAll()">Expand All</button>
+    <button onclick="collapseAll()">Collapse All</button>
+</div>
+
+<table class="dict-table">
+    <thead>
+    <tr class="header-row">
+        <th class="label">CompanyProfile</th>
+        <th class="value">삼성전기</th>
+    </tr>    </thead>
+    <tbody>
+    <tr class="section-row level-0">
+        <td class="label" colspan="2">meta</td>
+    </tr>
+    <tr class="value-row level-1">
+        <td class="label">updated</td>
+        <td class="value">2026-08-22 16:05</td>
+    </tr>
+    <tr class="value-row level-1">
+        <td class="label">name</td>
+        <td class="value">삼성전기</td>
+    </tr>
+    <tr class="value-row level-1">
+        <td class="label">code</td>
+        <td class="value">009150</td>
+    </tr>
+    <tr class="value-row level-1">
+        <td class="label">unit</td>
+        <td class="value">1e+09</td>
+    </tr>
+    <tr class="value-row level-1">
+        <td class="label">start_date</td>
+        <td class="value">2024-01-01</td>
+    </tr>
+    <tr class="section-row level-0">
+        <td class="label" colspan="2">assess_data</td>
+    </tr>
+    <tr class="section-row level-1">
+        <td class="label" colspan="2">opincome_health</td>
+    </tr>
+    <tr class="value-row level-2">
+        <td class="label">positive_last_4qtrs</td>
+        <td class="value">✓</td>
+    </tr>
+    <tr class="value-row level-2">
+        <td class="label">higher_than_comp</td>
+        <td class="value">✓</td>
+    </tr>
+    <tr class="value-row level-2">
+        <td class="label">slope</td>
+        <td class="value">11.7</td>
+    </tr>
+    <tr class="value-row level-2">
+        <td class="label">growth_per_qtr</td>
+        <td class="value">0.04412</td>
+    </tr>
+    <tr class="section-row level-1">
+        <td class="label" colspan="2">opmargin_last_4qtrs</td>
+    </tr>
+    <tr class="value-row level-2">
+        <td class="label">25_3Q</td>
+        <td class="value">0.09009</td>
+    </tr>
+    <tr class="value-row level-2">
+        <td class="label">25_4Q</td>
+        <td class="value">0.08252</td>
+    </tr>
+    <tr class="value-row level-2">
+        <td class="label">26_1Q</td>
+        <td class="value">0.08743</td>
+    </tr>
+    <tr class="value-row level-2">
+        <td class="label">26_2Q</td>
+        <td class="value">0.08743</td>
+    </tr>
+    <tr class="section-row level-1">
+        <td class="label" colspan="2">PER</td>
+    </tr>
+    <tr class="value-row level-2">
+        <td class="label">PER_ltm</td>
+        <td class="value">92.65</td>
+    </tr>
+    <tr class="value-row level-2">
+        <td class="label">PER_qx4</td>
+        <td class="value">87.59</td>
+    </tr>
+    <tr class="value-row level-2">
+        <td class="label">PER_fwd</td>
+        <td class="value">79.32</td>
+    </tr>
+    <tr class="section-row level-1">
+        <td class="label" colspan="2">volatility_pct</td>
+    </tr>
+    <tr class="value-row level-2">
+        <td class="label">measure_to_base</td>
+        <td class="value">1.13</td>
+    </tr>
+    <tr class="value-row level-2">
+        <td class="label">slope</td>
+        <td class="value">0.0003932</td>
+    </tr>
+    <tr class="section-row level-1">
+        <td class="label" colspan="2">amount_daily</td>
+    </tr>
+    <tr class="value-row level-2">
+        <td class="label">measure_to_base</td>
+        <td class="value">0.5949</td>
+    </tr>
+    <tr class="value-row level-2">
+        <td class="label">slope</td>
+        <td class="value">13.14</td>
+    </tr>
+    <tr class="section-row level-1">
+        <td class="label" colspan="2">alpha_beta</td>
+    </tr>
+    <tr class="section-row level-2">
+        <td class="label" colspan="2">from_start_date</td>
+    </tr>
+    <tr class="value-row level-3">
+        <td class="label">alpha</td>
+        <td class="value">0.0008494</td>
+    </tr>
+    <tr class="value-row level-3">
+        <td class="label">beta</td>
+        <td class="value">1.229</td>
+    </tr>
+    <tr class="section-row level-2">
+        <td class="label" colspan="2">base_duration</td>
+    </tr>
+    <tr class="value-row level-3">
+        <td class="label">alpha</td>
+        <td class="value">0.009408</td>
+    </tr>
+    <tr class="value-row level-3">
+        <td class="label">beta</td>
+        <td class="value">1.212</td>
+    </tr>
+    <tr class="section-row level-2">
+        <td class="label" colspan="2">measure_duration</td>
+    </tr>
+    <tr class="value-row level-3">
+        <td class="label">alpha</td>
+        <td class="value">-0.0002626</td>
+    </tr>
+    <tr class="value-row level-3">
+        <td class="label">beta</td>
+        <td class="value">1.481</td>
+    </tr>
+    <tr class="section-row level-0">
+        <td class="label" colspan="2">assess_result</td>
+    </tr>
+    <tr class="value-row level-1">
+        <td class="label">basics</td>
+        <td class="value">✓</td>
+    </tr>
+    <tr class="value-row level-1">
+        <td class="label">financially_sound</td>
+        <td class="value">✗</td>
+    </tr>
+    <tr class="value-row level-1">
+        <td class="label">PER_level</td>
+        <td class="value">High</td>
+    </tr>
+    <tr class="value-row level-1">
+        <td class="label">volatility_movement</td>
+        <td class="value">-</td>
+    </tr>
+    <tr class="value-row level-1">
+        <td class="label">amount_movement</td>
+        <td class="value">Dn</td>
+    </tr>
+    <tr class="value-row level-1">
+        <td class="label">alpha_level</td>
+        <td class="value">at_market</td>
+    </tr>
+    <tr class="value-row level-1">
+        <td class="label">market_sentiment</td>
+        <td class="value">unchanged</td>
+    </tr>
+    <tr class="value-row level-1">
+        <td class="label">category</td>
+        <td class="value">D</td>
+    </tr>
+    </tbody>
+</table>
+
+</body>
+<script>
+function getLevel(row) {
+    const levelClass = [...row.classList]
+        .find(c => c.startsWith("level-"));
+
+    return levelClass
+        ? Number(levelClass.replace("level-", ""))
+        : null;
+}
+
+
+function updateVisibility() {
+    const rows = document.querySelectorAll(".dict-table tr");
+
+    // Stack of collapsed section levels.
+    const collapsedLevels = [];
+
+    rows.forEach(row => {
+        const level = getLevel(row);
+
+        if (level === null) return;
+
+        // Remove collapsed levels that are no longer ancestors.
+        while (
+            collapsedLevels.length &&
+            collapsedLevels[collapsedLevels.length - 1] >= level
+        ) {
+            collapsedLevels.pop();
+        }
+
+        // Hide if any ancestor section is collapsed.
+        row.hidden = collapsedLevels.length > 0;
+
+        // If this is a collapsed section, its descendants are hidden.
+        if (
+            row.classList.contains("section-row") &&
+            row.classList.contains("collapsed")
+        ) {
+            collapsedLevels.push(level);
+        }
+    });
+}
+
+
+function toggleSection(section) {
+    section.classList.toggle("collapsed");
+    updateVisibility();
+}
+
+
+function expandAll() {
+    document.querySelectorAll(".section-row")
+        .forEach(section => {
+            section.classList.remove("collapsed");
+        });
+
+    updateVisibility();
+}
+
+
+function collapseAll() {
+    document.querySelectorAll(".section-row")
+        .forEach(section => {
+            section.classList.add("collapsed");
+        });
+
+    updateVisibility();
+}
+
+
+// Attach click handlers
+document.querySelectorAll(".dict-table .section-row")
+    .forEach(section => {
+        section.addEventListener("click", () => {
+            toggleSection(section);
+        });
+    });
+
+
+// Initial state
+updateVisibility();
+</script>
+
+</html>

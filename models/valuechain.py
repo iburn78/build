@@ -14,6 +14,19 @@ class ValueChain(JsonModel):
     landscape: Landscape | None = Field(default_factory=Landscape)
     financials: dict | None = None
 
+    def get_components(self):
+        components = []
+        for component_name in self.component_names:
+            components.append(Component.load_from_prefix(component_name))
+        return components
+
+    def get_codelist(self):
+        components = self.get_components()
+        codelist = set()
+        for c in components:
+            codelist.update(c.get_codelist())
+        return list(codelist)
+
 class ValueChainManager(JsonModelManager):
     MODEL = ValueChain
 

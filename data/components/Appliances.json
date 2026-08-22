@@ -13,9 +13,9 @@
     ],
     "financials": {
         "meta": {
-            "updated": "2026-08-18 15:53",
+            "updated": "2026-08-22 16:05",
             "name": "Appliances",
-            "codelist": [
+            "code": [
                 "005930",
                 "066570"
             ],
@@ -36,30 +36,30 @@
                 "26_2Q": 0.467
             },
             "PER": {
-                "PER_ltm": 8.875,
-                "PER_qx4": 4.451,
-                "PER_fwd": 3.739
+                "PER_ltm": 9.172,
+                "PER_qx4": 4.6,
+                "PER_fwd": 3.864
             },
             "volatility_pct": {
-                "measure_to_base": 1.156,
-                "slope": 0.0002039
+                "measure_to_base": 1.17,
+                "slope": 0.0002178
             },
             "amount_daily": {
-                "measure_to_base": 0.7715,
-                "slope": 26.32
+                "measure_to_base": 0.82,
+                "slope": 22.65
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0004293,
-                    "beta": 1.171
+                    "alpha": 0.0004416,
+                    "beta": 1.175
                 },
                 "base_duration": {
-                    "alpha": 0.001662,
-                    "beta": 1.202
+                    "alpha": 0.001717,
+                    "beta": 1.207
                 },
                 "measure_duration": {
-                    "alpha": 0.001589,
-                    "beta": 1.349
+                    "alpha": 0.004903,
+                    "beta": 1.377
                 }
             }
         },

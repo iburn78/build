@@ -42,7 +42,7 @@
     },
     "financials": {
         "meta": {
-            "updated": "2026-08-18 15:53",
+            "updated": "2026-08-22 16:05",
             "name": "삼성전기",
             "code": "009150",
             "unit": 1000000000.0,
@@ -51,7 +51,7 @@
         "assess_data": {
             "opincome_health": {
                 "positive_last_4qtrs": true,
-                "higher_than_comp": false,
+                "higher_than_comp": true,
                 "slope": 11.7,
                 "growth_per_qtr": 0.04412
             },
@@ -62,40 +62,40 @@
                 "26_2Q": 0.08743
             },
             "PER": {
-                "PER_ltm": 103.9,
-                "PER_qx4": 98.23,
-                "PER_fwd": 88.96
+                "PER_ltm": 92.65,
+                "PER_qx4": 87.59,
+                "PER_fwd": 79.32
             },
             "volatility_pct": {
-                "measure_to_base": 1.11,
-                "slope": 0.0003685
+                "measure_to_base": 1.13,
+                "slope": 0.0003932
             },
             "amount_daily": {
-                "measure_to_base": 0.5702,
-                "slope": 14.1
+                "measure_to_base": 0.5949,
+                "slope": 13.14
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0008872,
-                    "beta": 1.24
-                },
-                "base_duration": {
-                    "alpha": 0.01029,
+                    "alpha": 0.0008494,
                     "beta": 1.229
                 },
+                "base_duration": {
+                    "alpha": 0.009408,
+                    "beta": 1.212
+                },
                 "measure_duration": {
-                    "alpha": 0.006746,
-                    "beta": 1.607
+                    "alpha": -0.0002626,
+                    "beta": 1.481
                 }
             }
         },
         "assess_result": {
-            "basics": false,
+            "basics": true,
             "financially_sound": false,
             "PER_level": "High",
             "volatility_movement": "-",
             "amount_movement": "Dn",
-            "alpha_level": "outperform",
+            "alpha_level": "at_market",
             "market_sentiment": "unchanged",
             "category": "D"
         }

@@ -21,9 +21,9 @@
     ],
     "financials": {
         "meta": {
-            "updated": "2026-08-18 15:53",
+            "updated": "2026-08-22 16:05",
             "name": "Camera_module",
-            "codelist": [
+            "code": [
                 "011070",
                 "009150",
                 "097520",
@@ -35,7 +35,7 @@
         "assess_data": {
             "opincome_health": {
                 "positive_last_4qtrs": true,
-                "higher_than_comp": false,
+                "higher_than_comp": true,
                 "slope": 28.01,
                 "growth_per_qtr": 0.05056
             },
@@ -46,42 +46,42 @@
                 "26_2Q": 0.06429
             },
             "PER": {
-                "PER_ltm": 56.83,
-                "PER_qx4": 53.51,
-                "PER_fwd": 47.82
+                "PER_ltm": 50.4,
+                "PER_qx4": 47.46,
+                "PER_fwd": 42.41
             },
             "volatility_pct": {
-                "measure_to_base": 1.102,
-                "slope": 0.0003706
+                "measure_to_base": 1.127,
+                "slope": 0.0003919
             },
             "amount_daily": {
-                "measure_to_base": 0.5428,
-                "slope": 16.11
+                "measure_to_base": 0.5681,
+                "slope": 14.71
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0007026,
-                    "beta": 1.225
+                    "alpha": 0.0006631,
+                    "beta": 1.215
                 },
                 "base_duration": {
-                    "alpha": 0.009588,
-                    "beta": 1.209
+                    "alpha": 0.008437,
+                    "beta": 1.187
                 },
                 "measure_duration": {
-                    "alpha": 0.005914,
-                    "beta": 1.569
+                    "alpha": -0.001228,
+                    "beta": 1.445
                 }
             }
         },
         "assess_result": {
-            "basics": false,
+            "basics": true,
             "financially_sound": true,
             "PER_level": "High",
             "volatility_movement": "-",
             "amount_movement": "Dn",
-            "alpha_level": "outperform",
+            "alpha_level": "underperform",
             "market_sentiment": "unchanged",
-            "category": "D"
+            "category": "C"
         }
     }
 }

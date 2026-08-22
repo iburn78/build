@@ -1,6 +1,6 @@
 {
     "name": "Electronics",
-    "updated": "2026-08-14",
+    "updated": "2026-08-22",
     "component_names": [
         "Appliances",
         "Smart_glass",
@@ -12,25 +12,25 @@
     ],
     "financials": {
         "meta": {
-            "updated": "2026-08-18 15:53",
+            "updated": "2026-08-22 16:05",
             "name": "Electronics",
-            "codelist": [
+            "code": [
+                "452430",
+                "009150",
+                "239890",
+                "178920",
+                "060720",
+                "441270",
+                "066570",
+                "005930",
+                "053450",
+                "213420",
                 "108320",
                 "272290",
-                "213420",
-                "060720",
-                "053450",
-                "178920",
-                "441270",
-                "239890",
                 "001820",
-                "066570",
-                "009150",
+                "097520",
                 "011070",
-                "005930",
-                "452430",
-                "148150",
-                "097520"
+                "148150"
             ],
             "unit": 1000000000.0,
             "start_date": "2024-01-01"
@@ -49,30 +49,30 @@
                 "26_2Q": 0.4474
             },
             "PER": {
-                "PER_ltm": 9.458,
-                "PER_qx4": 4.774,
-                "PER_fwd": 4.013
+                "PER_ltm": 9.672,
+                "PER_qx4": 4.882,
+                "PER_fwd": 4.104
             },
             "volatility_pct": {
-                "measure_to_base": 1.182,
-                "slope": 0.0001989
+                "measure_to_base": 1.196,
+                "slope": 0.000215
             },
             "amount_daily": {
-                "measure_to_base": 0.7246,
-                "slope": 42.87
+                "measure_to_base": 0.7683,
+                "slope": 37.78
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.000456,
-                    "beta": 1.215
+                    "alpha": 0.0004928,
+                    "beta": 1.219
                 },
                 "base_duration": {
-                    "alpha": 0.001957,
-                    "beta": 1.203
+                    "alpha": 0.001925,
+                    "beta": 1.205
                 },
                 "measure_duration": {
-                    "alpha": 0.001797,
-                    "beta": 1.363
+                    "alpha": 0.004355,
+                    "beta": 1.38
                 }
             }
         },

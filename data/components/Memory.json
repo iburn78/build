@@ -10,5 +10,68 @@
             "name": "삼성전자",
             "code": "005930"
         }
-    ]
+    ],
+    "financials": {
+        "meta": {
+            "updated": "2026-08-22 16:05",
+            "name": "Memory",
+            "code": [
+                "000660",
+                "005930"
+            ],
+            "unit": 1000000000.0,
+            "start_date": "2024-01-01"
+        },
+        "assess_data": {
+            "opincome_health": {
+                "positive_last_4qtrs": true,
+                "higher_than_comp": true,
+                "slope": 10620.0,
+                "growth_per_qtr": 0.1492
+            },
+            "opmargin_last_4qtrs": {
+                "25_3Q": 0.2131,
+                "25_4Q": 0.3098,
+                "26_1Q": 0.5087,
+                "26_2Q": 0.5672
+            },
+            "PER": {
+                "PER_ltm": 10.22,
+                "PER_qx4": 5.723,
+                "PER_fwd": 4.734
+            },
+            "volatility_pct": {
+                "measure_to_base": 1.203,
+                "slope": 0.0002498
+            },
+            "amount_daily": {
+                "measure_to_base": 0.7623,
+                "slope": 93.92
+            },
+            "alpha_beta": {
+                "from_start_date": {
+                    "alpha": 0.0005844,
+                    "beta": 1.263
+                },
+                "base_duration": {
+                    "alpha": 0.002409,
+                    "beta": 1.317
+                },
+                "measure_duration": {
+                    "alpha": 0.001735,
+                    "beta": 1.507
+                }
+            }
+        },
+        "assess_result": {
+            "basics": true,
+            "financially_sound": true,
+            "PER_level": "Mid",
+            "volatility_movement": "-",
+            "amount_movement": "-",
+            "alpha_level": "outperform",
+            "market_sentiment": "unchanged",
+            "category": "B"
+        }
+    }
 }

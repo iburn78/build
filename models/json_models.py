@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from pydantic import BaseModel
+from pydantic import BaseModel, PrivateAttr
 from datetime import datetime
 from typing import Any, ClassVar
 from pydantic_ai import Agent
@@ -24,6 +24,7 @@ class JsonModel(BaseModel, ABC):
     DIR: ClassVar[str] # ClassVars is not included in json file, not validate when loaded
     name: str # used as the json filename (except for a company profile: code_name)
     updated: str = ""
+    _json_path: Path | None = PrivateAttr(default=None)
 
     def model_post_init(self, context: Any) -> None:
         self.name = sanitized_filename(self.name)
@@ -38,13 +39,35 @@ class JsonModel(BaseModel, ABC):
             self.model_dump_json(indent=4, exclude_none=True),
             encoding="utf-8",
         )
+        self._json_path = path
 
     @classmethod
     def load_from_file(cls, path: str | Path):
+        path = Path(path)
         # default: extra = "ignore"
-        return cls.model_validate_json(
-            Path(path).read_text(encoding="utf-8")
+        obj = cls.model_validate_json(
+            path.read_text(encoding="utf-8")
         )
+        obj._json_path = path
+        return obj
+
+    # search within cls.DIR for a unique file starts with prefix...
+    @classmethod
+    def load_from_prefix(cls, prefix: str): 
+        paths = list(Path(cls.DIR).glob(f"{prefix}*.json"))
+        if len(paths) != 1:
+            print(f"cannot load json file with prefix {prefix}...")
+            return None 
+        return cls.load_from_file(paths[0])
+
+    def get_json_path(self) -> Path:
+        if not self._json_path: 
+            print("Instance doesn't have json file...") 
+            return None
+        return self._json_path
+
+    def get_html_path(self) -> Path:
+        return self.get_json_path().with_suffix('.html')
 
     # key for the json_model dict
     def key(self) -> str:

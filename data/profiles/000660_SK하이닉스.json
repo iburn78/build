@@ -42,5 +42,65 @@
         ],
         "news_summary": "AI 인프라 확대로 메모리 반도체 수요가 지속되는 가운데, 삼성전자와 SK하이닉스는 3분기 HBM4 시장 주도권 경쟁에 돌입함. SK하이닉스는 역대 최대 실적을 바탕으로 대규모 주주환원 방안을 준비 중이며, 샌디스크와 협력해 차세대 HBF 표준 개발에 나서고 있음. 샌디스크 또한 AI 수요를 기반으로 2030년까지 견조한 성장과 높은 수익성 유지를 전망함.",
         "updated": "2026-08-14"
+    },
+    "financials": {
+        "meta": {
+            "updated": "2026-08-21 15:11",
+            "name": "SK하이닉스",
+            "code": "000660",
+            "unit": 1000000000.0,
+            "start_date": "2024-01-01"
+        },
+        "assess_data": {
+            "opincome_health": {
+                "positive_last_4qtrs": true,
+                "higher_than_comp": true,
+                "slope": 3696.0,
+                "growth_per_qtr": 0.1398
+            },
+            "opmargin_last_4qtrs": {
+                "25_3Q": 0.4656,
+                "25_4Q": 0.584,
+                "26_1Q": 0.7153,
+                "26_2Q": 0.7153
+            },
+            "PER": {
+                "PER_ltm": 12.08,
+                "PER_qx4": 8.493,
+                "PER_fwd": 6.818
+            },
+            "volatility_pct": {
+                "measure_to_base": 1.169,
+                "slope": 0.0002886
+            },
+            "amount_daily": {
+                "measure_to_base": 0.702,
+                "slope": 72.12
+            },
+            "alpha_beta": {
+                "from_start_date": {
+                    "alpha": 0.001114,
+                    "beta": 1.434
+                },
+                "base_duration": {
+                    "alpha": 0.003819,
+                    "beta": 1.447
+                },
+                "measure_duration": {
+                    "alpha": -0.001034,
+                    "beta": 1.648
+                }
+            }
+        },
+        "assess_result": {
+            "basics": true,
+            "financially_sound": true,
+            "PER_level": "High",
+            "volatility_movement": "-",
+            "amount_movement": "-",
+            "alpha_level": "underperform",
+            "market_sentiment": "unchanged",
+            "category": "C"
+        }
     }
 }

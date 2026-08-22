@@ -42,7 +42,7 @@
     },
     "financials": {
         "meta": {
-            "updated": "2026-08-18 15:53",
+            "updated": "2026-08-21 08:30",
             "name": "세경하이테크",
             "code": "148150",
             "unit": 1000000000.0,
@@ -62,30 +62,30 @@
                 "26_2Q": -0.03551
             },
             "PER": {
-                "PER_ltm": -94.0,
-                "PER_qx4": -13.71,
-                "PER_fwd": -5.156
+                "PER_ltm": -95.83,
+                "PER_qx4": -13.98,
+                "PER_fwd": -5.256
             },
             "volatility_pct": {
-                "measure_to_base": 1.148,
-                "slope": 5.678e-05
+                "measure_to_base": 1.138,
+                "slope": 5.432e-05
             },
             "amount_daily": {
-                "measure_to_base": 1.158,
-                "slope": -0.006377
+                "measure_to_base": 1.218,
+                "slope": -0.00607
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": -0.0003786,
-                    "beta": 0.8218
+                    "alpha": -0.0003587,
+                    "beta": 0.8168
                 },
                 "base_duration": {
-                    "alpha": -0.00384,
-                    "beta": 0.4439
+                    "alpha": -0.003478,
+                    "beta": 0.445
                 },
                 "measure_duration": {
-                    "alpha": 0.00631,
-                    "beta": 0.5681
+                    "alpha": 0.0069,
+                    "beta": 0.5592
                 }
             }
         },

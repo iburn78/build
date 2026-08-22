@@ -42,7 +42,7 @@
     },
     "financials": {
         "meta": {
-            "updated": "2026-08-18 15:53",
+            "updated": "2026-08-21 08:30",
             "name": "사피엔반도체",
             "code": "452430",
             "unit": 1000000000.0,
@@ -62,30 +62,30 @@
                 "26_2Q": 0.04319
             },
             "PER": {
-                "PER_ltm": -268.3,
-                "PER_qx4": 185.8,
-                "PER_fwd": 61.43
+                "PER_ltm": -250.6,
+                "PER_qx4": 173.5,
+                "PER_fwd": 57.38
             },
             "volatility_pct": {
-                "measure_to_base": 1.14,
-                "slope": 0.0001598
+                "measure_to_base": 1.164,
+                "slope": 0.0001634
             },
             "amount_daily": {
-                "measure_to_base": 0.5101,
-                "slope": -0.024
+                "measure_to_base": 0.5564,
+                "slope": -0.02627
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": -0.001339,
-                    "beta": 0.9848
+                    "alpha": -0.001411,
+                    "beta": 0.9733
                 },
                 "base_duration": {
-                    "alpha": -0.001559,
-                    "beta": 0.86
+                    "alpha": -0.002256,
+                    "beta": 0.8456
                 },
                 "measure_duration": {
-                    "alpha": 0.001613,
-                    "beta": 1.296
+                    "alpha": 0.001727,
+                    "beta": 1.236
                 }
             }
         },

@@ -43,7 +43,7 @@
     },
     "financials": {
         "meta": {
-            "updated": "2026-08-18 15:53",
+            "updated": "2026-08-21 08:30",
             "name": "PI첨단소재",
             "code": "178920",
             "unit": 1000000000.0,
@@ -63,30 +63,30 @@
                 "26_2Q": 0.2193
             },
             "PER": {
-                "PER_ltm": 12.47,
-                "PER_qx4": 10.28,
-                "PER_fwd": 9.417
+                "PER_ltm": 12.33,
+                "PER_qx4": 10.16,
+                "PER_fwd": 9.307
             },
             "volatility_pct": {
                 "measure_to_base": 1.12,
-                "slope": -0.0001449
+                "slope": -0.0001601
             },
             "amount_daily": {
-                "measure_to_base": 0.9615,
-                "slope": -0.07835
+                "measure_to_base": 0.9919,
+                "slope": -0.08078
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0001768,
-                    "beta": 0.9005
+                    "alpha": 0.0001802,
+                    "beta": 0.8916
                 },
                 "base_duration": {
-                    "alpha": -0.0001098,
-                    "beta": 0.6133
+                    "alpha": -0.0003966,
+                    "beta": 0.5986
                 },
                 "measure_duration": {
-                    "alpha": 0.005619,
-                    "beta": 0.501
+                    "alpha": 0.001709,
+                    "beta": 0.4338
                 }
             }
         },

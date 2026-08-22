@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from scraper.tools.tools import df_krx, COMPONENTS_DIR
 from scraper.models.json_models import JsonModel, JsonModelManager, InfoSection
+from pathlib import Path
 
 class Company(BaseModel):
     # simple vehicle that carries only name and code

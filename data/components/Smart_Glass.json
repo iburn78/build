@@ -9,9 +9,9 @@
     ],
     "financials": {
         "meta": {
-            "updated": "2026-08-18 15:53",
+            "updated": "2026-08-22 16:05",
             "name": "Smart_glass",
-            "codelist": [
+            "code": [
                 "452430"
             ],
             "unit": 1000000000.0,
@@ -31,30 +31,30 @@
                 "26_2Q": 0.04319
             },
             "PER": {
-                "PER_ltm": -268.3,
-                "PER_qx4": 185.8,
-                "PER_fwd": 61.43
+                "PER_ltm": -238.7,
+                "PER_qx4": 165.2,
+                "PER_fwd": 54.64
             },
             "volatility_pct": {
-                "measure_to_base": 1.14,
-                "slope": 0.0001598
+                "measure_to_base": 1.18,
+                "slope": 0.0001627
             },
             "amount_daily": {
-                "measure_to_base": 0.5101,
-                "slope": -0.024
+                "measure_to_base": 0.5662,
+                "slope": -0.02663
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": -0.001339,
-                    "beta": 0.9848
+                    "alpha": -0.001499,
+                    "beta": 0.9722
                 },
                 "base_duration": {
-                    "alpha": -0.001559,
-                    "beta": 0.86
+                    "alpha": -0.002373,
+                    "beta": 0.8498
                 },
                 "measure_duration": {
-                    "alpha": 0.001613,
-                    "beta": 1.296
+                    "alpha": -0.001706,
+                    "beta": 1.236
                 }
             }
         },
@@ -64,7 +64,7 @@
             "PER_level": "Low",
             "volatility_movement": "-",
             "amount_movement": "Dn",
-            "alpha_level": "outperform",
+            "alpha_level": "underperform",
             "market_sentiment": "unchanged",
             "category": "D"
         }
