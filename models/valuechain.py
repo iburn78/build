@@ -1,7 +1,7 @@
 from pydantic import Field
-from scraper.tools.tools import VALUECHAIN_DIR 
-from scraper.models.json_models import JsonModel, JsonModelManager, InfoSection
-from scraper.models.component import Component, ComponentManager
+from build.tools.tools import VALUECHAIN_DIR 
+from build.models.json_models import JsonModel, JsonModelManager, InfoSection
+from build.models.component import Component, ComponentManager
 
 class Landscape(InfoSection):
     dynamics: str = "" # leading component, margin concentration, buyer-seller power dynamics

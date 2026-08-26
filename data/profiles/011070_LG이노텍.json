@@ -1,6 +1,6 @@
 {
     "name": "LG이노텍",
-    "updated": "2026-08-14",
+    "updated": "2026-08-26",
     "code": "011070",
     "overview": {
         "title": "AI·프리미엄폰 수요로 실적 개선",
@@ -25,24 +25,9 @@
         "search_theme": [],
         "updated": "2026-08-14"
     },
-    "news_summary": {
-        "key_facts": [
-            "㈜LG 2분기 매출 2조 1,396억원, 영업이익 5,330억원(전년 동기 대비 92.5% 증가)을 기록하며 외형과 수익성 개선",
-            "LG전자 2분기 영업이익 1조 2,750억원(99.3% 증가) 및 LG이노텍 2분기 영업이익 2,458억원 달성으로 전자 계열 실적 견인",
-            "LG이노텍이 MSCI 한국 지수에 신규 편입(8월 31일 반영)되었으며, 상반기 누적 매출 최초 10조원 돌파(11조 621억원)",
-            "LG디스플레이는 상반기 영업이익 390억원을 기록하며 5년 만에 흑자 전환에 성공함",
-            "LG유플러스 2분기 영업이익 3,445억원(13.1% 증가) 및 LG CNS 매출 1조 5,208억원(4.2% 증가) 기록"
-        ],
-        "key_issues": [
-            "부진한 화학 계열의 수익성 회복이 향후 실적 개선의 핵심 과제로 평가됨",
-            "미국의 중국산 로봇 규제 강화로 인한 비전 센싱 대체 수요 확대가 LG이노텍의 수혜 요인으로 작용할 전망임"
-        ],
-        "news_summary": "LG그룹은 LG전자와 LG이노텍 등 전자 계열사의 실적 호조에 힘입어 지주사 ㈜LG의 2분기 영업이익이 전년 동기 대비 92.5% 급증했습니다. LG이노텍은 어닝 서프라이즈와 MSCI 한국 지수 편입, 로보틱스 사업 기대감으로 주목받고 있으며, LG디스플레이 또한 5년 만에 상반기 흑자 전환을 달성하며 전반적인 전자 계열의 회복세를 보였습니다.",
-        "updated": "2026-08-14"
-    },
     "financials": {
         "meta": {
-            "updated": "2026-08-22 16:14",
+            "updated": "2026-08-26 17:09",
             "name": "LG이노텍",
             "code": "011070",
             "unit": 1000000000.0,
@@ -62,42 +47,42 @@
                 "26_2Q": 0.05336
             },
             "PER": {
-                "PER_ltm": 11.63,
-                "PER_qx4": 11.02,
-                "PER_fwd": 9.633
+                "PER_ltm": 12.39,
+                "PER_qx4": 11.74,
+                "PER_fwd": 10.26
             },
             "volatility_pct": {
-                "measure_to_base": 1.02,
-                "slope": 0.0001563
+                "measure_to_base": 1.064,
+                "slope": 0.0001561
             },
             "amount_daily": {
-                "measure_to_base": 0.4234,
-                "slope": 1.593
+                "measure_to_base": 0.4301,
+                "slope": 1.253
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0004695,
-                    "beta": 1.165
+                    "alpha": 0.0005013,
+                    "beta": 1.161
                 },
                 "base_duration": {
-                    "alpha": 0.004748,
-                    "beta": 1.044
+                    "alpha": 0.006411,
+                    "beta": 1.007
                 },
                 "measure_duration": {
-                    "alpha": -0.007296,
-                    "beta": 1.237
+                    "alpha": 0.003684,
+                    "beta": 1.062
                 }
             }
         },
         "assess_result": {
             "basics": true,
             "financially_sound": true,
-            "PER_level": "Mid",
+            "PER_level": "High",
             "volatility_movement": "-",
             "amount_movement": "Dn",
-            "alpha_level": "underperform",
+            "alpha_level": "outperform",
             "market_sentiment": "unchanged",
-            "category": "B"
+            "category": "C"
         }
     }
 }

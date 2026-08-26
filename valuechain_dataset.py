@@ -1,5 +1,5 @@
 #%%
-from scraper.models.valuechain import ValueChainManager
+from build.models.valuechain import ValueChainManager
 
 vm = ValueChainManager()
 

@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
-from scraper.tools.crawl_news import crawl_news
-from scraper.tools.tools import get_name, get_overview, PROFILES_DIR, NEWS_DIR
-from scraper.models.json_models import JsonModel, JsonModelManager, InfoSection
+from build.tools.crawl_news import crawl_news
+from build.tools.tools import get_name, get_overview, PROFILES_DIR, NEWS_DIR
+from build.models.json_models import JsonModel, JsonModelManager, InfoSection
 from datetime import datetime, timedelta
 import os
 from pathlib import Path

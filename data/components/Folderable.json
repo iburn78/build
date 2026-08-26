@@ -17,7 +17,7 @@
     ],
     "financials": {
         "meta": {
-            "updated": "2026-08-22 16:14",
+            "updated": "2026-08-26 17:09",
             "name": "Folderable",
             "code": [
                 "060720",
@@ -41,30 +41,30 @@
                 "26_2Q": -0.01657
             },
             "PER": {
-                "PER_ltm": 47.13,
-                "PER_qx4": -60.21,
-                "PER_fwd": -21.63
+                "PER_ltm": 48.61,
+                "PER_qx4": -62.1,
+                "PER_fwd": -22.31
             },
             "volatility_pct": {
-                "measure_to_base": 1.189,
-                "slope": 4.673e-05
+                "measure_to_base": 1.171,
+                "slope": 5.299e-05
             },
             "amount_daily": {
-                "measure_to_base": 1.566,
-                "slope": -0.1135
+                "measure_to_base": 1.32,
+                "slope": -0.08553
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": -0.00101,
-                    "beta": 0.7894
+                    "alpha": -0.0009635,
+                    "beta": 0.7883
                 },
                 "base_duration": {
-                    "alpha": -0.003988,
-                    "beta": 0.6832
+                    "alpha": -0.002749,
+                    "beta": 0.6428
                 },
                 "measure_duration": {
-                    "alpha": 0.0009137,
-                    "beta": 0.7002
+                    "alpha": 0.003762,
+                    "beta": 0.6548
                 }
             }
         },
@@ -73,7 +73,7 @@
             "financially_sound": false,
             "PER_level": "High",
             "volatility_movement": "-",
-            "amount_movement": "Up",
+            "amount_movement": "-",
             "alpha_level": "outperform",
             "market_sentiment": "unchanged",
             "category": "D"

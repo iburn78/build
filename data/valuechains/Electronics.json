@@ -12,25 +12,25 @@
     ],
     "financials": {
         "meta": {
-            "updated": "2026-08-22 16:14",
+            "updated": "2026-08-26 17:09",
             "name": "Electronics",
             "code": [
-                "452430",
-                "005930",
-                "060720",
-                "001820",
-                "053450",
                 "009150",
-                "011070",
-                "441270",
-                "272290",
                 "066570",
-                "213420",
-                "108320",
-                "148150",
                 "097520",
+                "108320",
+                "005930",
+                "053450",
+                "272290",
+                "239890",
+                "441270",
+                "001820",
+                "213420",
+                "148150",
+                "011070",
                 "178920",
-                "239890"
+                "452430",
+                "060720"
             ],
             "unit": 1000000000.0,
             "start_date": "2024-01-01"
@@ -49,30 +49,30 @@
                 "26_2Q": 0.4474
             },
             "PER": {
-                "PER_ltm": 9.672,
-                "PER_qx4": 4.882,
-                "PER_fwd": 4.104
+                "PER_ltm": 9.125,
+                "PER_qx4": 4.606,
+                "PER_fwd": 3.871
             },
             "volatility_pct": {
-                "measure_to_base": 1.196,
-                "slope": 0.000215
+                "measure_to_base": 1.212,
+                "slope": 0.0002316
             },
             "amount_daily": {
-                "measure_to_base": 0.7683,
-                "slope": 37.78
+                "measure_to_base": 0.764,
+                "slope": 35.29
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0004928,
-                    "beta": 1.219
+                    "alpha": 0.000413,
+                    "beta": 1.223
                 },
                 "base_duration": {
-                    "alpha": 0.001925,
-                    "beta": 1.205
+                    "alpha": 0.001345,
+                    "beta": 1.221
                 },
                 "measure_duration": {
-                    "alpha": 0.004355,
-                    "beta": 1.38
+                    "alpha": -0.001355,
+                    "beta": 1.478
                 }
             }
         },
@@ -82,7 +82,7 @@
             "PER_level": "Mid",
             "volatility_movement": "-",
             "amount_movement": "-",
-            "alpha_level": "outperform",
+            "alpha_level": "underperform",
             "market_sentiment": "unchanged",
             "category": "B"
         }

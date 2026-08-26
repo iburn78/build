@@ -7,7 +7,7 @@
 - Overview: auto-update (outside THRESHOLD)
 - Business(InfoSection): auto-update (AI-summary using Overview) if not reviewed
 - News: crawl and AI summary, auto-update (outside THRESHOLD)
-- financials: generated from "trader"
+- financials: generated from "financials"
 
 ### Component
 ---
@@ -15,7 +15,7 @@
 - filename: name.json
 - companies: list(Company(code, name): a class separately created to represent a company)
 - Traits(InfoSection): auto-update not yet implemented
-- financials: generated from "trader"
+- financials: generated from "financials"
 
 #### Component info to fill
 - 제품
@@ -31,7 +31,7 @@
 - components: list(str: component_names)
     - to get component objects, use get_components()
 - Landscape(InfoSection): auto-update not yet implemented
-- financials: generated from "trader"
+- financials: generated from "financials"
 
 #### ValueChain info to fill
 - components: 공급관계, key component

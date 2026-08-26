@@ -1,6 +1,6 @@
 {
     "name": "세코닉스",
-    "updated": "2026-08-14",
+    "updated": "2026-08-26",
     "code": "053450",
     "overview": {
         "title": "공급망 불안 속 전기차 수주로 성장",
@@ -25,21 +25,9 @@
         "search_theme": [],
         "updated": "2026-08-14"
     },
-    "news_summary": {
-        "key_facts": [
-            "...",
-            "..."
-        ],
-        "key_issues": [
-            "...",
-            "..."
-        ],
-        "news_summary": "...",
-        "updated": "2026-08-14"
-    },
     "financials": {
         "meta": {
-            "updated": "2026-08-22 16:14",
+            "updated": "2026-08-26 17:09",
             "name": "세코닉스",
             "code": "053450",
             "unit": 1000000000.0,
@@ -59,30 +47,30 @@
                 "26_2Q": 0.01006
             },
             "PER": {
-                "PER_ltm": -28.86,
-                "PER_qx4": 10.75,
-                "PER_fwd": -33.26
+                "PER_ltm": -29.8,
+                "PER_qx4": 11.1,
+                "PER_fwd": -34.35
             },
             "volatility_pct": {
-                "measure_to_base": 1.198,
-                "slope": 7.809e-05
+                "measure_to_base": 1.163,
+                "slope": 7.838e-05
             },
             "amount_daily": {
-                "measure_to_base": 1.039,
-                "slope": -0.0138
+                "measure_to_base": 1.075,
+                "slope": -0.01383
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": -0.0008249,
-                    "beta": 0.8897
+                    "alpha": -0.0008072,
+                    "beta": 0.8883
                 },
                 "base_duration": {
-                    "alpha": -0.005754,
-                    "beta": 0.4528
+                    "alpha": -0.004539,
+                    "beta": 0.4209
                 },
                 "measure_duration": {
-                    "alpha": -0.00986,
-                    "beta": 0.4474
+                    "alpha": -0.00168,
+                    "beta": 0.3389
                 }
             }
         },

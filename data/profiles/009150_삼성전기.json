@@ -1,6 +1,6 @@
 {
     "name": "삼성전기",
-    "updated": "2026-08-14",
+    "updated": "2026-08-26",
     "code": "009150",
     "overview": {
         "title": "AI/서버·전장 수요로 실적 개선",
@@ -25,24 +25,9 @@
         "search_theme": [],
         "updated": "2026-08-14"
     },
-    "news_summary": {
-        "key_facts": [
-            "2026년 2분기 매출 3조 4,572억원, 영업이익 4,404억원을 기록하며 AI 서버 및 전장용 고부가 MLCC와 FC-BGA 수요 확대로 호실적 달성",
-            "베트남 타이응우옌성 AI 기판 생산라인을 2.4배 확대 투자하여 고부가가치 산업 전환 가속화",
-            "글로벌 대형 기업과 2027~2028년 대상 약 1조 5,000억원 규모의 실리콘 캐패시터 공급계약 체결(2026년 5월)",
-            "10여 개 고객사와 MLCC 장기공급계약(LTA)을 체결하거나 논의 중이며, AI 관련 매출 비중 확대를 추진 중임",
-            "모건스탠리가 삼성전기를 IT 업종 최선호주로 변경하고 목표주가를 262만원으로 상향했으며, 8월 주가가 31.6% 급등함"
-        ],
-        "key_issues": [
-            "AI 인프라 투자 속도, MLCC 가격 및 고부가 기판의 실제 매출 확대 여부가 주가 재평가의 관건임",
-            "모건스탠리의 AI 매출 비중 및 ABF 매출 확대 전망은 공식 가이던스가 아닌 추정치임"
-        ],
-        "news_summary": "삼성전기는 AI 서버 및 전장용 고부가 부품 수요 증가로 2026년 2분기 영업이익이 전년 대비 107% 증가하는 등 가파른 성장세를 보이고 있습니다. 베트남 AI 기판 라인 증설과 대규모 실리콘 캐패시터 공급계약 등을 통해 AI 중심의 포트폴리오를 강화하고 있으며, 이에 따라 글로벌 IB의 최선호주 선정과 함께 주가가 큰 폭으로 상승하고 있습니다.",
-        "updated": "2026-08-14"
-    },
     "financials": {
         "meta": {
-            "updated": "2026-08-22 16:14",
+            "updated": "2026-08-26 17:09",
             "name": "삼성전기",
             "code": "009150",
             "unit": 1000000000.0,
@@ -62,30 +47,30 @@
                 "26_2Q": 0.08743
             },
             "PER": {
-                "PER_ltm": 92.65,
-                "PER_qx4": 87.59,
-                "PER_fwd": 79.32
+                "PER_ltm": 94.34,
+                "PER_qx4": 89.18,
+                "PER_fwd": 80.76
             },
             "volatility_pct": {
-                "measure_to_base": 1.13,
-                "slope": 0.0003932
+                "measure_to_base": 1.14,
+                "slope": 0.0004113
             },
             "amount_daily": {
-                "measure_to_base": 0.5949,
-                "slope": 13.14
+                "measure_to_base": 0.5985,
+                "slope": 11.39
             },
             "alpha_beta": {
                 "from_start_date": {
-                    "alpha": 0.0008494,
-                    "beta": 1.229
+                    "alpha": 0.0008619,
+                    "beta": 1.226
                 },
                 "base_duration": {
-                    "alpha": 0.009408,
+                    "alpha": 0.009615,
                     "beta": 1.212
                 },
                 "measure_duration": {
-                    "alpha": -0.0002626,
-                    "beta": 1.481
+                    "alpha": 0.001854,
+                    "beta": 1.456
                 }
             }
         },
@@ -95,7 +80,7 @@
             "PER_level": "High",
             "volatility_movement": "-",
             "amount_movement": "Dn",
-            "alpha_level": "at_market",
+            "alpha_level": "outperform",
             "market_sentiment": "unchanged",
             "category": "D"
         }

@@ -8,7 +8,7 @@ import re
 
 pd_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
 ppd_ = os.path.dirname(pd_) 
-df_krx = pd.read_feather(os.path.join(ppd_, "trader/data_collect/data/df_krx.feather"))
+df_krx = pd.read_feather(os.path.join(ppd_, "financials/data_collect/data/df_krx.feather"))
 BASE_DATA_DIR = os.path.join(pd_, 'data')
 GENERAL_DIR = os.path.join(BASE_DATA_DIR, 'general') # to be created when needed
 NEWS_DIR = os.path.join(BASE_DATA_DIR, 'news')
