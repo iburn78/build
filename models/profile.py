@@ -76,7 +76,6 @@ class Overview(BaseModel):
                 )
                 for li in content.select("li")
             )
-
         return cls(
             title = title.get_text(strip=True) if title else "", 
             desc = desc,
@@ -195,7 +194,6 @@ class ProfileManager(JsonModelManager):
         )
         # news summary is filled after profile creation
         profile.news_summary = self._gen_news(profile)
-
         return profile
 
     def _update(self, item) -> bool:

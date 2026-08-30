@@ -5,7 +5,8 @@ from data.load import get_df_krx
 
 pd_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
 ppd_ = os.path.dirname(pd_) 
-BASE_DATA_DIR = os.path.join(pd_, 'data')
+# BASE_DATA_DIR = os.path.join(pd_, 'data') # in this repo
+BASE_DATA_DIR = os.path.join(ppd_, 'data') # in global data repo
 GENERAL_DIR = os.path.join(BASE_DATA_DIR, 'general') # to be created when needed
 NEWS_DIR = os.path.join(BASE_DATA_DIR, 'news')
 PROFILES_DIR = os.path.join(BASE_DATA_DIR, 'profiles')
@@ -18,6 +19,7 @@ os.makedirs(PROFILES_DIR, exist_ok=True)
 os.makedirs(COMPONENTS_DIR, exist_ok=True)
 os.makedirs(VALUECHAIN_DIR, exist_ok=True)
 
+# may need to turn on local llm server (i.e., ollama: >> ollama serve)
 OPENAI_CONF = os.path.join(ppd_, 'config/openai_api.json')
 with open(OPENAI_CONF, 'r') as json_file:
     config = json.load(json_file)
