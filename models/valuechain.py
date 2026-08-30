@@ -1,5 +1,5 @@
 from pydantic import Field
-from build.tools.analysis_tools import VALUECHAIN_DIR 
+from build.tools.settings import VALUECHAIN_DIR 
 from build.models.json_models import JsonModel, JsonModelManager, InfoSection
 from build.models.component import Component, ComponentManager
 

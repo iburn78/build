@@ -7,11 +7,11 @@ from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from openai import AsyncOpenAI
-from build.tools.analysis_tools import llm_selector
+from build.tools.settings import llm_selector
 import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from build.tools.analysis_tools import sanitized_filename
+from build.tools.settings import sanitized_filename
 
 AGENT_RETRIES = 5 
 NUM_THREAD_TO_RUN = 4

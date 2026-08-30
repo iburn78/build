@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
 from build.tools.crawl_news import crawl_news
-from build.tools.analysis_tools import PROFILES_DIR, NEWS_DIR
-from build.tools.analysis_tools import get_name 
+from build.tools.settings import PROFILES_DIR, NEWS_DIR, get_name
 from build.models.json_models import JsonModel, JsonModelManager, InfoSection
 from datetime import datetime, timedelta
 import requests

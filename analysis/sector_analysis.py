@@ -11,10 +11,9 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import FuncFormatter
 from data import load
-from financials.tools.analysis_tools import is_KRX_open, get_slope_intercept, KRW_UNIT_KR, round_sig, calc_increment, calc_alpha_beta, dprint, dict_to_html
-
-from financials.tools.dc_tools import set_KoreanFonts
-from build.tools.analysis_tools import PROFILES_DIR, COMPONENTS_DIR, VALUECHAIN_DIR, sanitized_filename
+from data.tools import set_KoreanFonts
+from build.tools.settings import PROFILES_DIR, COMPONENTS_DIR, VALUECHAIN_DIR, df_krx, sanitized_filename
+from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, dprint, dict_to_html
 from build.models.json_models import JsonModel
 from build.models.profile import CompanyProfile
 from build.models.component import Component
@@ -30,7 +29,6 @@ recent_inc: comparing last 2 priods (e.g., last period movement)
 ltm: last twelve months (last 4 qurarters)
 aggregation: d, w, m, q (refer to the BLOCK_MAP)
 '''
-df_krx = load.get_df_krx()
 prices = load.get_prices()
 volumes = load.get_volumes()
 fr_main_db = load.get_fr_main_db()
