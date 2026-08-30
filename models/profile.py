@@ -1,8 +1,11 @@
 from pydantic import BaseModel, Field
 from build.tools.crawl_news import crawl_news
-from build.tools.tools import get_name, get_overview, PROFILES_DIR, NEWS_DIR
+from build.tools.analysis_tools import PROFILES_DIR, NEWS_DIR
+from build.tools.analysis_tools import get_name 
 from build.models.json_models import JsonModel, JsonModelManager, InfoSection
 from datetime import datetime, timedelta
+import requests
+from bs4 import BeautifulSoup
 import os
 from pathlib import Path
 
@@ -23,20 +26,63 @@ class Overview(BaseModel):
     as_of: str # date fnguide created title/desc; yyyy-mm-dd
     updated: str # date current overview is updated: yyyy-mm-dd
 
-    @classmethod
-    def fetch(cls, code):
-        info = get_overview(code)
-        return cls(
-            title=info["title"], 
-            desc=info["desc"],
-            as_of=info["date"],
-            updated=datetime.now().strftime("%Y-%m-%d"),
-        )
-
     def needs_refresh(self): 
         return (
             datetime.now() - datetime.fromisoformat(self.updated)
             >= timedelta(days=OVERVIEW_REFRESH_THRES)
+        )
+
+    @classmethod
+    def fetch(cls, code):
+        url = (
+            "https://wcomp.fnguide.com/CompanyInfo/Snapshot"
+            f"?c_id=AA&menu_type=01&cmp_cd={code}"
+        )
+
+        headers = {
+            "User-Agent": "Mozilla/5.0"
+        }
+
+        r = requests.get(
+            url,
+            headers=headers,
+            timeout=10,
+        )
+
+        r.raise_for_status()
+
+        soup = BeautifulSoup(
+            r.text,
+            "html.parser",
+        )
+
+        title = soup.select_one(
+            "#bizSummaryHeader"
+        )
+
+        date = soup.select_one(
+            "#bizSummaryDate"
+        )
+
+        content = soup.select_one(
+            "#bizSummaryContent"
+        )
+
+        desc = ""
+        if content:
+            desc = "\n\n".join(
+                li.get_text(
+                    " ",
+                    strip=True,
+                )
+                for li in content.select("li")
+            )
+
+        return cls(
+            title = title.get_text(strip=True) if title else "", 
+            desc = desc,
+            as_of = date.get_text(strip=True).strip("[]").replace("/","-") if date else "", 
+            updated = datetime.now().strftime("%Y-%m-%d")
         )
 
 class Business(InfoSection):
