@@ -3,19 +3,28 @@
 <head>
 <meta charset="utf-8">
 <title>Dictionary Display</title>
-<!-- <link rel="stylesheet" href="templates/dict_template.css"> -->
- <style>
- {{ css }}
- </style>
+<link rel="stylesheet" href="../css/dict_template.css">
 </head>
 
 <body>
-<div class="table-controls">
-    <button onclick="expandAll()">Expand All</button>
-    <button onclick="collapseAll()">Collapse All</button>
-</div>
+<div></div>
+<div class="dashboard">
+    <div class="table-panel">
+        <div class="table-wrapper">
+            <div class="table-controls">
+                <button onclick="expandAll()">Expand All</button>
+                <button onclick="collapseAll()">Collapse All</button>
+            </div>
+        
+            <table class="dict-table">
 {{ content }}
-
+            </table>
+        </div>
+    </div>
+    <div class="charts-panel">
+{{ image }}
+    </div>
+</div> 
 </body>
 <script>
 function getLevel(row) {

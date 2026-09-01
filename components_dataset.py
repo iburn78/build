@@ -1,7 +1,9 @@
 from build.models.component import ComponentManager
 from build.models.profile import ProfileManager
+from build.analysis.sector_analysis import SectorAnalysis
 
 cm = ComponentManager()
+
 cm.get_item('Memory', namelist = ['하이닉스', '삼성전자'])
 cm.get_item('Appliances', namelist = ['삼성전자', 'LG전자'])
 cm.get_item('Smart_glass', namelist = ['사피엔'])
@@ -11,7 +13,13 @@ cm.get_item('MLCC', namelist = ['삼성전기', '삼화콘덴서'])
 cm.get_item('Display', namelist = ['덕산네오룩스', '이녹스첨단소재', '피엔에이치테크', 'PI첨단소재', 'LX세미콘'])
 cm.get_item('Folderable', namelist = ['KH바텍', '세경하이테크', '파인엠텍'])
 
+# creation of SA(json, plot, html) for components, and creation of company profiles
 pm = ProfileManager()
-component_list = cm.get_itemlist()
-for component in component_list:
-    pm.batch_process(component.get_codelist())
+for component in cm.get_itemlist():
+    print(component.name)
+    SectorAnalysis().process_component(component)
+    codelist = component.get_codelist()
+    pm.batch_process(codelist)
+    for code in codelist:
+        cp = pm.get_item(code)
+        SectorAnalysis().process_profile(cp)

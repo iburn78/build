@@ -3,9 +3,8 @@ import re
 import json
 from data.load import get_df_krx
 
-pd_ = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
-ppd_ = os.path.dirname(pd_) 
-# BASE_DATA_DIR = os.path.join(pd_, 'data') # in this repo
+THIS_PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
+ppd_ = os.path.dirname(THIS_PROJECT) 
 BASE_DATA_DIR = os.path.join(ppd_, 'data') # in global data repo
 GENERAL_DIR = os.path.join(BASE_DATA_DIR, 'general') # to be created when needed
 NEWS_DIR = os.path.join(BASE_DATA_DIR, 'news')
@@ -25,6 +24,8 @@ with open(OPENAI_CONF, 'r') as json_file:
     config = json.load(json_file)
 OPENAI_API_KEY = config['openai_api_key']
 OLLAMA_API_KEY = config['ollama_api_key']
+
+QUARTERLY_PERFORMANCES_URL = 'http://10.245.110.101:3000'
 
 df_krx = get_df_krx()
 

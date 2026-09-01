@@ -70,7 +70,7 @@ class ValueChainManager(JsonModelManager):
 
         if fs:
             # codelevel confirmation
-            if set(self.get_codelist(vc)) == set((fs.get('meta') or {}).get('codelist')):
+            if set(self.get_codelist(vc)) == set((fs.get('meta', {})).get('code', [])):
                 vc.financials = fs
             else: 
                 print(f'VC_Manager: component list mismatching for {key} in financial section: discarding existing financial section')

@@ -48,8 +48,6 @@ VOLATILITY_THRESHOLD = 0.33 # 0.33 for 33% volality up/down
 AMOUNT_DAILY_THRESHOLD = 0.33 # 0.33 for 33% amount up/down
 ALPHA_DAILY_THRESHOLD = 0.0004 # to convert yearly: x 250 (busines days), 0.0004 if 10% +/- compared to index
 
-# HTML 
-TEMPLATE_HTML = Path(__file__).parent / "templates"  / "dict_template.html"
 
 @dataclass
 class CodeData:
@@ -147,11 +145,13 @@ class SectorAnalysis:
         self.assess_data = {}
 
         # this class basically assumes a group of code (a sector, codelist, or component), but can handle company and index too
+        self.jsonmodel = None
         self.is_index = False # fr_data not available
         self.is_company = False # self.codelist = [code] 
         self.is_component = False 
         self.is_valuechain = False 
         self._dest_dir = None
+        self._json_file = None
 
     # =======================================================================================================================
     # Creation
@@ -171,8 +171,35 @@ class SectorAnalysis:
         self.is_index = True
         return self
 
+    # -------------------------------------------------------------------------------------------------------
+    # public interfaces
+    # -------------------------------------------------------------------------------------------------------
+    def process_profile(self, profile: CompanyProfile, unit=None, fill=False, start_date=DEFAULT_START_DATE):
+        self.jsonmodel = profile
+        self._process_code(profile.code, unit=unit, fill=fill, start_date=start_date)
+
+    def process_component(self, component: Component, unit=None, fill=False, start_date=DEFAULT_START_DATE): 
+        self.jsonmodel = component
+        self.is_component = True
+        self._dest_dir = COMPONENTS_DIR
+        self._process_codelist(codelist=component.get_codelist(), name=component.name, unit=unit, fill=fill, start_date=start_date)
+        return self
+
+    def process_valuechain(self, vc: ValueChain, unit=None, fill=False, start_date=DEFAULT_START_DATE): 
+        self.jsonmodel = vc
+        self.is_valuechain = True
+        self._dest_dir = VALUECHAIN_DIR
+        self._process_codelist(codelist=vc.get_codelist(), name=vc.name, unit=unit, fill=fill, start_date=start_date)
+        return self
+
+    def _process_code(self, code: str, unit=None, fill=False, start_date=DEFAULT_START_DATE):
+        self.is_company = True
+        self._dest_dir = PROFILES_DIR
+        self._process_codelist(codelist=[code], name=df_krx.at[code, 'Name'], unit=unit, fill=fill, start_date=start_date)
+        return self
+
     # codelist: target sector -> returns an SA for the group of the codelist
-    def process_codelist(self, codelist: list, name='', unit=None, fill=False, start_date=DEFAULT_START_DATE):
+    def _process_codelist(self, codelist: list, name='', unit=None, fill=False, start_date=DEFAULT_START_DATE):
         if len(codelist) != len(set(codelist)): raise ValueError(f'codelist should not contain any duplications: {codelist}')
 
         self.codelist = codelist
@@ -198,24 +225,6 @@ class SectorAnalysis:
         self._post_process()
         return self
 
-    def process_code(self, code: str, unit=None, fill=False, start_date=DEFAULT_START_DATE):
-        self.is_company = True
-        self._dest_dir = PROFILES_DIR
-        self.process_codelist(codelist=[code], name=df_krx.at[code, 'Name'], unit=unit, fill=fill, start_date=start_date)
-        return self
-
-    def process_component(self, component: Component, unit=None, fill=False, start_date=DEFAULT_START_DATE): 
-        self.is_component = True
-        self._dest_dir = COMPONENTS_DIR
-        self.process_codelist(codelist=component.get_codelist(), name=component.name, unit=unit, fill=fill, start_date=start_date)
-        return self
-
-    def process_valuechain(self, vc: ValueChain, unit=None, fill=False, start_date=DEFAULT_START_DATE): 
-        self.is_valuechain = True
-        self._dest_dir = VALUECHAIN_DIR
-        self.process_codelist(codelist=vc.get_codelist(), name=vc.name, unit=unit, fill=fill, start_date=start_date)
-        return self
-    
     # function that sums multiple serieses
     def _add_dfs(self, df_list, fill=False):
         return reduce(lambda a, b: a.add(b, fill_value=0 if fill else None), df_list)
@@ -224,6 +233,31 @@ class SectorAnalysis:
         self._build_assess_data()
         self._perform_assess()
         self._save_analysis_to_json() # autosave
+        self._create_plot(save_path=self._json_file.with_suffix('.png')) 
+
+        # autosave 
+        if self.jsonmodel is not None: 
+            self.create_html()
+
+    def create_html(self):
+        sa_list = [self]
+        if self.is_company:
+            pass
+        elif self.is_component:
+            for code in self.codelist:
+                sa_list.append(SectorAnalysis()._process_code(code))
+        elif self.is_valuechain:
+            for component in self.jsonmodel.get_components():
+                sa_list.append(SectorAnalysis().process_component(component))
+        else: 
+            raise ValueError(f'invalid type...')
+
+        title = self.jsonmodel.__class__.__name__
+        name_list = [sa.meta['name'] for sa in sa_list]
+        dict_list = [sa.get_combined_dict() for sa in sa_list]
+        output_file = self.jsonmodel.get_html_path()
+
+        dict_to_html(title, name_list, dict_list, output_file)
 
     def _save_analysis_to_json(self: SectorAnalysis):
         if self.is_index:
@@ -272,6 +306,8 @@ class SectorAnalysis:
 
         with open(json_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
+
+        self._json_file = json_file
 
     # =======================================================================================================================
     # Assessment  
@@ -366,7 +402,6 @@ class SectorAnalysis:
 
         opic = fr['opincome_qtr'] 
         rev = fr['revenue_qtr']
-        print(opic)
         opic_slope , _ = get_slope_intercept(opic)
 
         res = {}
@@ -515,17 +550,12 @@ class SectorAnalysis:
         }
         return combined_dict
 
-    def to_html(self, output_file: str|None = None):
-        if output_file: output = output_file
-        else: output = f'{self.meta["code"]}_{self.meta["name"]}.html'
-        dict_to_html('SectorAnalysis Display', [self.meta['name']], [self.get_combined_dict()], template_html=TEMPLATE_HTML, output_file=output)
-
     # =======================================================================================================================
     # Aggregation and plotting
     # =======================================================================================================================
 
     # cut data from start_date and define aggregation length
-    def plot(self, aggregation: Literal['d', 'w', 'm', 'q'] = 'w'): 
+    def _create_plot(self, save_path: Path | None = None, aggregation: Literal['d', 'w', 'm', 'q'] = 'w'): 
         # business days in each aggregation
         BLOCK_MAP = {
             'd': 1,
@@ -545,7 +575,7 @@ class SectorAnalysis:
         if not self.is_index:
             self._aggr_dataset = self._combine_fr_data()
 
-        self._plot()
+        self._plot(save_path=save_path)
 
     # aggregate into backward-aligned discrete blocks
     def _ma_aggregate_periods(self, block_size):
@@ -615,7 +645,7 @@ class SectorAnalysis:
 
         return ma_plotdata
 
-    def _plot(self, figsize = None):
+    def _plot(self, figsize = None, save_path = None):
         set_KoreanFonts()
         if self.is_index:
             if figsize is None: figsize = (12, 3)
@@ -638,12 +668,16 @@ class SectorAnalysis:
 
             self._plot_ma_panel(ax1)
 
-            self._plot_fundamental_panel(ax2, use_ltm=True)
+            self._plot_financials_panel(ax2, use_ltm=True)
 
-            # self._plot_fundamental_panel(ax3, use_ltm=False)
+            # self._plot_financials_panel(ax3, use_ltm=False)
 
         plt.tight_layout()
-        plt.show()
+        if save_path: 
+            fig.savefig(save_path)
+        else: 
+            plt.show()
+        plt.close(fig)   
 
     # =======================================================================================================================
     # (1) TOP PANEL: MARCAP + AMOUNT
@@ -781,8 +815,12 @@ class SectorAnalysis:
 
         ax.grid(True, linestyle='--', alpha=0.3)
 
+        _codelist = self.codelist if not self.is_index else ''
+        if len(_codelist) > 5:
+            _codelist = f"[{_codelist[0]}, {_codelist[1]}, ... : {len(_codelist)} codes]"
+
         ax.set_title(
-            f"{self.meta['name']} {self.codelist if not self.is_index else ''} | "
+            f"{self.meta['name']} {_codelist} | "
             f"{self.meta['updated']} | "
             f"aggr: {self.meta['aggregation']}"
         )
@@ -801,9 +839,9 @@ class SectorAnalysis:
 
 
     # =======================================================================================================================
-    # (2) FUNDAMENTAL PANEL
+    # (2) FINANCIALS PANEL
     # =======================================================================================================================
-    def _plot_fundamental_panel(self, ax, use_ltm: bool):
+    def _plot_financials_panel(self, ax, use_ltm: bool):
 
         x = self._aggr_dataset.index
         ax_r = ax.twinx()
@@ -961,14 +999,14 @@ def jsonmodel_to_html(jsonmodel: JsonModel):
     title = jsonmodel.__class__.__name__
 
     if jsonmodel.__class__ == CompanyProfile:
-        sa_list = [SectorAnalysis().process_code(jsonmodel.code)]
+        sa_list = [SectorAnalysis().process_profile(jsonmodel)]
 
     elif jsonmodel.__class__ == Component:
         sa_list = []
         sa_list.append(SectorAnalysis().process_component(jsonmodel))
 
         for code in jsonmodel.get_codelist():
-            sa_list.append(SectorAnalysis().process_code(code))
+            sa_list.append(SectorAnalysis()._process_code(code))
 
     elif jsonmodel.__class__ == ValueChain:
         sa_list = []
@@ -983,8 +1021,8 @@ def jsonmodel_to_html(jsonmodel: JsonModel):
     name_list = [sa.meta['name'] for sa in sa_list]
     dict_list = [sa.get_combined_dict() for sa in sa_list]
     output_file = jsonmodel.get_html_path()
-    
-    dict_to_html(title, name_list, dict_list, TEMPLATE_HTML, output_file)
+
+    dict_to_html(title, name_list, dict_list, output_file)
 
 # -----------------------------------------------------------------------------------------------
 # Usage examples
@@ -992,27 +1030,27 @@ def jsonmodel_to_html(jsonmodel: JsonModel):
 if __name__ == "__main__": 
     # single company
     code = '005930'
-    sc = SectorAnalysis().process_code(code)
-    sc.plot()
+    sc = SectorAnalysis()._process_code(code)
+    sc._create_plot()
     sc.print()
 
     # component
     name = "Memory"
     component = Component.load_from_prefix(name)
     sc = SectorAnalysis().process_component(component)
-    sc.plot()
+    sc._create_plot()
     sc.print()
 
     # valuechain
     name = "Electronics"
     vc = ValueChain.load_from_prefix(name)
     sa = SectorAnalysis().process_valuechain(vc)
-    sa.plot()
+    sa._create_plot()
     sa.print()
 
     # index
     sa = SectorAnalysis().from_index('KOSDAQ')
-    sa.plot()
+    sa._create_plot()
     sa.print()
 
     # ------------------------------------------

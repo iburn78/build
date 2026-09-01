@@ -6,11 +6,19 @@ import numpy as np
 import json
 from html import escape
 import holidays
+import requests
+from build.tools.settings import THIS_PROJECT, QUARTERLY_PERFORMANCES_URL
 
 KRW_UNIT_KR = {
     1e12: 'jo',
     1e9: '10-uk',
     1e8: 'uk', 
+}
+
+# HTML 
+TEMPLATE_HTML = Path(THIS_PROJECT) / "analysis" / "templates"  / "dict_template.html"
+COLLAPSED_PATHS = {
+    'meta', 'assess_data.alpha_beta.from_start_date'
 }
 
 def is_KRX_open(now=None, strict=False):
@@ -231,8 +239,8 @@ def _same_signature(*dicts):
             print(_dict_signature(d))
     return passed
 
-def _section_row(key, level=0, colspan=1):
-    return f"""    <tr class="section-row level-{level}">
+def _section_row(key, level=0, colspan=1, collapsed=False):
+    return f"""    <tr class="section-row level-{level}{" collapsed" if collapsed else ""}">
         <td class="label" colspan="{colspan}">{escape(str(key))}</td>
     </tr>
 """
@@ -249,15 +257,18 @@ def _value_row(key, values=[], level=0):
     </tr>
 """
 
-def _render_rows(dict_list, level=0):
+def _render_rows(dict_list, level=0, path="", collapsed_paths=None):
     """Flatten nested dictionaries into table rows."""
+    collapsed_paths = collapsed_paths or set()
     rows = []
     for key, value in dict_list[0].items():
+        current_path = f"{path}.{key}" if path else str(key)
         values = [d[key] for d in dict_list]
 
         if isinstance(value, dict):
-            rows.append(_section_row(key, level=level, colspan=len(dict_list)+1))
-            rows.extend(_render_rows(values, level=level + 1))
+            collapsed = current_path in collapsed_paths
+            rows.append(_section_row(key, level=level, colspan=len(dict_list)+1, collapsed=collapsed))
+            rows.extend(_render_rows(values, level=level + 1, path=current_path, collapsed_paths=collapsed_paths))
 
         else:
             rows.append(_value_row(key, values, level=level))
@@ -265,7 +276,10 @@ def _render_rows(dict_list, level=0):
     return rows
 
 # general function
-def dict_to_html(title, column_names: list, dict_list: list, template_html:Path, output_file=None):
+def dict_to_html(title, column_names: list, dict_list: list, output_file=None, 
+                 template_html:Path = TEMPLATE_HTML, 
+                 images=None,
+                 collapsed_paths=COLLAPSED_PATHS):
     if not dict_list:
         raise ValueError("dict_list cannot be empty")
 
@@ -275,7 +289,7 @@ def dict_to_html(title, column_names: list, dict_list: list, template_html:Path,
     if not _same_signature(*dict_list):
         raise ValueError("signatures not matching")
 
-    rows = _render_rows(dict_list)
+    rows = _render_rows(dict_list, collapsed_paths=collapsed_paths)
 
     header = f"""    <tr class="header-row">
         <th class="label">{escape(str(title))}</th>
@@ -286,24 +300,42 @@ def dict_to_html(title, column_names: list, dict_list: list, template_html:Path,
     </tr>"""
 
     content = f"""
-<table class="dict-table">
     <thead>
-{header}    </thead>
+{header}    
+    </thead>
     <tbody>
-{"".join(rows)}    </tbody>
-</table>"""
+{"".join(rows)}    
+    </tbody>"""
 
     template = template_html.read_text(encoding="utf-8")
     html = template.replace("{{ content }}", content)
 
-    with open("templates/dict_template.css", "r", encoding="utf-8") as f:
-        css = f.read()
-        html_css = html.replace("{{ css }}", css)
+    if images is None and output_file is not None: 
+        images = []
+        sa_image = Path(output_file).with_suffix(".png") 
+        if sa_image.exists():
+            images.append(sa_image)
+
+        # adding potential quarterly performances image
+        _code = dict_list[0].get('meta', {}).get('code')
+        if isinstance(_code, str):
+            url = f"{QUARTERLY_PERFORMANCES_URL}/data/{_code}.png"
+            if requests.get(url, stream=True, timeout=3).ok:
+                images.append(url)
+
+    image_html = ""
+    for image in images:
+        image_html += f'''
+            <div class="chart-card">
+                <img src="{image}" class="analysis-image">
+            </div>
+        '''
+    html = html.replace("{{ image }}", image_html)
 
     if output_file:
         output_file = Path(output_file)
         output_file.parent.mkdir(parents=True, exist_ok=True)
-        output_file.write_text(html_css, encoding="utf-8")
+        output_file.write_text(html, encoding="utf-8")
         print(f"file {output_file} is written...")
     else: 
         print(html)
