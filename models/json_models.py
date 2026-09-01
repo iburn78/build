@@ -44,30 +44,39 @@ class JsonModel(BaseModel, ABC):
     @classmethod
     def load_from_file(cls, path: str | Path):
         path = Path(path)
-        # default: extra = "ignore"
-        obj = cls.model_validate_json(
-            path.read_text(encoding="utf-8")
-        )
-        obj._json_path = path
+        try:
+            # default: extra = "ignore"
+            obj = cls.model_validate_json(
+                path.read_text(encoding="utf-8")
+            )
+            obj._json_path = path
+        except Exception as e:
+            print(f"jsonmodel validation failed: {path} | {e}")
+            obj = None
         return obj
 
     # search within cls.DIR for a unique file starts with prefix...
     @classmethod
-    def load_from_prefix(cls, prefix: str): 
+    def get_json_filename_from_prefix(cls, prefix: str): 
         paths = list(Path(cls.DIR).glob(f"{prefix}*.json"))
         if len(paths) != 1:
             print(f"cannot load json file with prefix {prefix}...")
             return None 
-        return cls.load_from_file(paths[0])
+        return paths[0]
+
+    @classmethod
+    def load_from_prefix(cls, prefix: str): 
+        json_filename = cls.get_json_filename_from_prefix(prefix)
+        if json_filename is not None:
+            return cls.load_from_file(json_filename)
+        else: 
+            return None
 
     def get_json_path(self) -> Path:
         if not self._json_path: 
             print("Instance doesn't have json file...") 
             return None
         return self._json_path
-
-    def get_html_path(self) -> Path:
-        return self.get_json_path().with_suffix('.html')
 
     # key for the json_model dict
     def key(self) -> str:
@@ -94,11 +103,10 @@ class InfoSection(BaseModel):
     reviewed: bool = False
 
 class JsonModelManager(ABC): 
-    # to load all JsonModel instances and to manage (get, update, create, etc)
     MODEL: type[JsonModel]
 
     def __init__(self):
-        self._items = self.MODEL.load_all_validated()
+        self._items = {} # {obj.key(): obj, ...}
 
     @abstractmethod
     def _create_new_item(self, key, existing_json: dict | None = None, **kwargs) -> JsonModel:
@@ -122,34 +130,36 @@ class JsonModelManager(ABC):
     # - if update needed, this will triger update 
     # - if reviewed info_section exists, this will load it
     # - if financials_section exists, this will load it
-    def get_item(self, key, replace=False, **kwargs):
+    def get_item(self, key, **kwargs):
         self._validate_key(key)
-        item = self._items.get(key)
+        json_filename = self.MODEL.get_json_filename_from_prefix(key)
 
-        # Case 1: if valid json is already loaded, then update and return
-        if item and not replace:
-            changed = self._update(item)
+        if json_filename is not None:
+            item = self.MODEL.load_from_file(json_filename)
 
-        # Case 2: json exists but wasn't loaded as valid model, which may contain info from other sources
-        else: 
-            _files = list(Path(self.MODEL.DIR).glob(f"{key}*.json"))
-            if len(_files) > 1:
-                raise ValueError(f"Expected one JSON for {key}, found {len(_files)}")
+            if item is not None:
+                changed = self._update(item)
+            else: 
+                try: 
+                    existing_json = json.loads(json_filename.read_text(encoding="utf-8"))
+                    print(f"Importing existing json for {key}")
+                except:
+                    existing_json = None
+                    print(f"Overwriting existing json for {key}")
 
-            existing_json = None
-            if _files:
-                print(f"Importing existing json for {key}")
-                existing_json = json.loads(_files[0].read_text(encoding="utf-8"))
+                item = self._create_new_item(key, existing_json, **kwargs)
+                changed = True
 
-            print(f"{"Replacing" if replace else "Creating"} new json for {key}")
-            item = self._create_new_item(key, existing_json, **kwargs)
+        else:
+            print(f"Creating new json for {key}")
+            item = self._create_new_item(key, None, **kwargs)
             changed = True
-
+            
         if changed: 
             item.updated = datetime.now().strftime("%Y-%m-%d") 
-            self._items[key] = item
             item.save_to_file()
 
+        self._items[item.key()] = item
         return item
 
     def _extract_from_json(self, key, existing_json = None, info_section_key="", validation_class = InfoSection):

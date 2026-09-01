@@ -196,7 +196,6 @@ def get_local_response(input_text, image_file=None, context_file=None, client=cl
 # -----------------------------------------------------------------------------------
 # Display dict in html
 # -----------------------------------------------------------------------------------
-
 def _fmt_value(key, value):
     if value is None:
         return "-"
@@ -245,7 +244,8 @@ def _section_row(key, level=0, colspan=1, collapsed=False):
     </tr>
 """
 
-def _value_row(key, values=[], level=0):
+def _value_row(key, values=None, level=0):
+    values = values or []
     cells = "\n".join(
         f'        <td class="value">{escape(_fmt_value(key, v))}</td>'
         for v in values
@@ -275,10 +275,65 @@ def _render_rows(dict_list, level=0, path="", collapsed_paths=None):
 
     return rows
 
-# general function
-def dict_to_html(title, column_names: list, dict_list: list, output_file=None, 
+# column_names = [{'name': , 'link': }, ...]
+def _render_header(title, column_names):
+    cells = []
+
+    for column in column_names:
+        name = escape(str(column["name"]))
+        link = column.get("link")
+
+        if link:
+            name = f'<a href="{escape(str(link))}">{name}</a>'
+
+        cells.append(f'<th class="value">{name}</th>')
+
+    return f"""    <tr class="header-row">
+        <th class="label">{escape(str(title))}</th>
+        {"".join(cells)}
+    </tr>"""
+
+def _render_table(header, rows): 
+    return f"""
+    <thead>
+{header}    
+    </thead>
+    <tbody>
+{"".join(rows)}    
+    </tbody>"""
+
+def _url_exists(url):
+    try:
+        return requests.get(url, stream=True, timeout=3).ok
+    except requests.RequestException:
+        return False
+
+def _render_images(output_file, meta_dict):
+    images = []
+
+    sa_image = Path(output_file).with_suffix(".png")
+    if sa_image.exists():
+        images.append(sa_image)
+
+    code = meta_dict.get("code")
+    if isinstance(code, str):
+        url = f"{QUARTERLY_PERFORMANCES_URL}/data/{code}.png"
+        if _url_exists(url):
+            images.append(url)
+
+    # may add additional images
+
+    return "".join(
+        f'''
+        <div class="chart-card">
+            <img src="{image}" class="analysis-image">
+        </div>
+        '''
+        for image in images
+    )
+
+def dict_to_html(title, column_names: list, dict_list: list, output_file: Path, 
                  template_html:Path = TEMPLATE_HTML, 
-                 images=None,
                  collapsed_paths=COLLAPSED_PATHS):
     if not dict_list:
         raise ValueError("dict_list cannot be empty")
@@ -289,53 +344,15 @@ def dict_to_html(title, column_names: list, dict_list: list, output_file=None,
     if not _same_signature(*dict_list):
         raise ValueError("signatures not matching")
 
+    header = _render_header(title, column_names)
     rows = _render_rows(dict_list, collapsed_paths=collapsed_paths)
-
-    header = f"""    <tr class="header-row">
-        <th class="label">{escape(str(title))}</th>
-        {"".join(
-            f'<th class="value">{escape(str(name))}</th>'
-            for name in column_names
-        )}
-    </tr>"""
-
-    content = f"""
-    <thead>
-{header}    
-    </thead>
-    <tbody>
-{"".join(rows)}    
-    </tbody>"""
+    table_content = _render_table(header, rows)
+    image_section = _render_images(output_file, dict_list[0].get('meta', {}))
 
     template = template_html.read_text(encoding="utf-8")
-    html = template.replace("{{ content }}", content)
+    html = template.replace("{{ content }}", table_content)
+    html = html.replace("{{ image }}", image_section)
 
-    if images is None and output_file is not None: 
-        images = []
-        sa_image = Path(output_file).with_suffix(".png") 
-        if sa_image.exists():
-            images.append(sa_image)
-
-        # adding potential quarterly performances image
-        _code = dict_list[0].get('meta', {}).get('code')
-        if isinstance(_code, str):
-            url = f"{QUARTERLY_PERFORMANCES_URL}/data/{_code}.png"
-            if requests.get(url, stream=True, timeout=3).ok:
-                images.append(url)
-
-    image_html = ""
-    for image in images:
-        image_html += f'''
-            <div class="chart-card">
-                <img src="{image}" class="analysis-image">
-            </div>
-        '''
-    html = html.replace("{{ image }}", image_html)
-
-    if output_file:
-        output_file = Path(output_file)
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        output_file.write_text(html, encoding="utf-8")
-        print(f"file {output_file} is written...")
-    else: 
-        print(html)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    output_file.write_text(html, encoding="utf-8")
+    print(f"file {output_file} is written...")

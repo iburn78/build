@@ -15,7 +15,7 @@ cm.get_item('Folderable', namelist = ['KH바텍', '세경하이테크', '파인�
 
 # creation of SA(json, plot, html) for components, and creation of company profiles
 pm = ProfileManager()
-for component in cm.get_itemlist():
+for component in cm.get_itemlist(): 
     print(component.name)
     SectorAnalysis().process_component(component)
     codelist = component.get_codelist()

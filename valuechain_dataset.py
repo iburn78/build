@@ -12,5 +12,5 @@ vc = vm.get_item(
 
 # creation of SA(json, plot, html) for valuechains
 # cascading creation of SA for components within
-for vc in vm.get_itemlist():
+for vc in vm.get_itemlist(): 
     SectorAnalysis().process_valuechain(vc)

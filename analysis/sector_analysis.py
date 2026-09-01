@@ -12,12 +12,11 @@ import matplotlib.dates as mdates
 from matplotlib.ticker import FuncFormatter
 from data import load
 from data.tools import set_KoreanFonts
-from build.tools.settings import PROFILES_DIR, COMPONENTS_DIR, VALUECHAIN_DIR, df_krx, sanitized_filename
+from build.tools.settings import df_krx, sanitized_filename
 from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, dprint, dict_to_html
-from build.models.json_models import JsonModel
-from build.models.profile import CompanyProfile
-from build.models.component import Component
-from build.models.valuechain import ValueChain
+from build.models.profile import CompanyProfile, ProfileManager
+from build.models.component import Component, ComponentManager
+from build.models.valuechain import ValueChain, ValueChainManager
 
 '''
 ma: MarCap (until last day if is_KRX_open == True; if strict False then include today if it is after 12:00), Amount
@@ -146,17 +145,43 @@ class SectorAnalysis:
 
         # this class basically assumes a group of code (a sector, codelist, or component), but can handle company and index too
         self.jsonmodel = None
-        self.is_index = False # fr_data not available
-        self.is_company = False # self.codelist = [code] 
+        self.is_profile = False # self.codelist = [code] 
         self.is_component = False 
         self.is_valuechain = False 
         self._dest_dir = None
-        self._json_file = None
+        self.is_index = False # fr_data not available
+
+        self.pm = ProfileManager()
+        self.cm = ComponentManager()
 
     # =======================================================================================================================
     # Creation
     # =======================================================================================================================
-    def from_index(self, name: str, unit=1e12, start_date=DEFAULT_START_DATE):
+    # -------------------------------------------------------------------------------------------------------
+    # public interfaces
+    # -------------------------------------------------------------------------------------------------------
+    def process_profile(self, profile: CompanyProfile, unit=None, fill=False, start_date=DEFAULT_START_DATE):
+        self.jsonmodel = profile
+        self.is_profile = True
+        self._dest_dir = profile.DIR 
+        self._process_codelist(codelist=[profile.code], name=df_krx.at[profile.code, 'Name'], unit=unit, fill=fill, start_date=start_date)
+        return self
+
+    def process_component(self, component: Component, unit=None, fill=False, start_date=DEFAULT_START_DATE): 
+        self.jsonmodel = component
+        self.is_component = True
+        self._dest_dir = component.DIR
+        self._process_codelist(codelist=component.get_codelist(), name=component.name, unit=unit, fill=fill, start_date=start_date)
+        return self
+
+    def process_valuechain(self, vc: ValueChain, unit=None, fill=False, start_date=DEFAULT_START_DATE): 
+        self.jsonmodel = vc
+        self.is_valuechain = True
+        self._dest_dir = vc.DIR
+        self._process_codelist(codelist=vc.get_codelist(), name=vc.name, unit=unit, fill=fill, start_date=start_date)
+        return self
+
+    def process_index(self, name: str, unit=1e12, start_date=DEFAULT_START_DATE):
         self.meta = self.meta | {
             'name': name,
             'unit': unit if unit else DEFAULT_KRW_UNIT, # KRW unit
@@ -172,39 +197,15 @@ class SectorAnalysis:
         return self
 
     # -------------------------------------------------------------------------------------------------------
-    # public interfaces
+    # private 
     # -------------------------------------------------------------------------------------------------------
-    def process_profile(self, profile: CompanyProfile, unit=None, fill=False, start_date=DEFAULT_START_DATE):
-        self.jsonmodel = profile
-        self._process_code(profile.code, unit=unit, fill=fill, start_date=start_date)
-
-    def process_component(self, component: Component, unit=None, fill=False, start_date=DEFAULT_START_DATE): 
-        self.jsonmodel = component
-        self.is_component = True
-        self._dest_dir = COMPONENTS_DIR
-        self._process_codelist(codelist=component.get_codelist(), name=component.name, unit=unit, fill=fill, start_date=start_date)
-        return self
-
-    def process_valuechain(self, vc: ValueChain, unit=None, fill=False, start_date=DEFAULT_START_DATE): 
-        self.jsonmodel = vc
-        self.is_valuechain = True
-        self._dest_dir = VALUECHAIN_DIR
-        self._process_codelist(codelist=vc.get_codelist(), name=vc.name, unit=unit, fill=fill, start_date=start_date)
-        return self
-
-    def _process_code(self, code: str, unit=None, fill=False, start_date=DEFAULT_START_DATE):
-        self.is_company = True
-        self._dest_dir = PROFILES_DIR
-        self._process_codelist(codelist=[code], name=df_krx.at[code, 'Name'], unit=unit, fill=fill, start_date=start_date)
-        return self
-
     # codelist: target sector -> returns an SA for the group of the codelist
     def _process_codelist(self, codelist: list, name='', unit=None, fill=False, start_date=DEFAULT_START_DATE):
         if len(codelist) != len(set(codelist)): raise ValueError(f'codelist should not contain any duplications: {codelist}')
 
         self.codelist = codelist
         self.meta['name'] = name
-        if self.is_company:
+        if self.is_profile:
             self.meta['code'] = codelist[0]
         else:
             self.meta['code'] = codelist 
@@ -232,53 +233,27 @@ class SectorAnalysis:
     def _post_process(self):
         self._build_assess_data()
         self._perform_assess()
-        self._save_analysis_to_json() # autosave
-        self._create_plot(save_path=self._json_file.with_suffix('.png')) 
+        self._create_json()
+        self._create_plot()
+        self._create_html() 
 
-        # autosave 
-        if self.jsonmodel is not None: 
-            self.create_html()
-
-    def create_html(self):
-        sa_list = [self]
-        if self.is_company:
-            pass
-        elif self.is_component:
-            for code in self.codelist:
-                sa_list.append(SectorAnalysis()._process_code(code))
-        elif self.is_valuechain:
-            for component in self.jsonmodel.get_components():
-                sa_list.append(SectorAnalysis().process_component(component))
-        else: 
-            raise ValueError(f'invalid type...')
-
-        title = self.jsonmodel.__class__.__name__
-        name_list = [sa.meta['name'] for sa in sa_list]
-        dict_list = [sa.get_combined_dict() for sa in sa_list]
-        output_file = self.jsonmodel.get_html_path()
-
-        dict_to_html(title, name_list, dict_list, output_file)
-
-    def _save_analysis_to_json(self: SectorAnalysis):
-        if self.is_index:
-            return
-
-        if self.is_company:
+    # create or append to/replace existing json
+    def _create_json(self):
+        if self.is_profile:
             code = self.codelist[0]
             name = df_krx.at[code, 'Name']
-
             key = code
-            new_filename = f'{code}_{sanitized_filename(name)}.json'
+            json_filename = f'{code}_{sanitized_filename(name)}.json'
             label = f'company {code}'
 
         elif self.is_component:
             key = sanitized_filename(self.meta['name'])
-            new_filename = f'{key}.json'
+            json_filename = f'{key}.json'
             label = f'component {key}'
 
         elif self.is_valuechain:
             key = sanitized_filename(self.meta['name'])
-            new_filename = f'{key}.json'
+            json_filename = f'{key}.json'
             label = f'valuechain {key}'
 
         else: 
@@ -294,8 +269,8 @@ class SectorAnalysis:
             with open(json_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
         else:
-            json_file = Path(self._dest_dir) / new_filename
-            print(f"json file with {label} does not exist: {new_filename} to be created")
+            json_file = Path(self._dest_dir) / json_filename
+            print(f"json file with {label} does not exist: {json_filename} to be created")
             data = {}
 
         data['financials'] = {
@@ -307,7 +282,28 @@ class SectorAnalysis:
         with open(json_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
-        self._json_file = json_file
+    # recursively refreshing profiles and components
+    def _create_html(self):
+        sa_list = [self]
+        if self.is_profile:
+            pass
+        elif self.is_component:
+            for code in self.codelist:
+                cp = self.pm.get_item(code)
+                sa_list.append(SectorAnalysis().process_profile(cp))
+        elif self.is_valuechain:
+            for component_name in self.jsonmodel.component_names:
+                cp = self.cm.get_item(component_name)
+                sa_list.append(SectorAnalysis().process_component(cp))
+        else: 
+            raise ValueError(f'invalid type...')
+
+        title = self.jsonmodel.__class__.__name__
+        name_list = [{'name': sa.meta['name'], 'link': sa.jsonmodel.get_json_path().with_suffix('.html')} for sa in sa_list]
+        dict_list = [sa.get_combined_dict() for sa in sa_list]
+        output_file = self.jsonmodel.get_json_path().with_suffix('.html')
+
+        dict_to_html(title, name_list, dict_list, output_file)
 
     # =======================================================================================================================
     # Assessment  
@@ -376,13 +372,15 @@ class SectorAnalysis:
             * in D, PER has to be interpreted individually, high per doesn't mean high valuation (negative or high value PER)
     '''
     def print(self):
-        print('Meta Data:')
-        dprint(self.meta)
         if not self.is_index:
+            print('Meta Data:')
+            dprint(self.meta)
             print('Assess Data:')
             dprint(self.assess_data)
             print('Assess Result:')
             dprint(self.assess_result)
+        else: 
+            self._create_plot()
 
     def _build_assess_data(self):  
         if self.is_index: 
@@ -574,6 +572,10 @@ class SectorAnalysis:
         self._aggr_ma_plotdata = self._prep_aggr_ma_plotdata()
         if not self.is_index:
             self._aggr_dataset = self._combine_fr_data()
+
+        if save_path is None:
+            if self.jsonmodel is not None:
+                save_path=self.jsonmodel.get_json_path().with_suffix('.png')
 
         self._plot(save_path=save_path)
 
@@ -993,80 +995,28 @@ class SectorAnalysis:
         )
 
 # -----------------------------------------------------------------------------------------------
-# JsonModel to HTML interfacing function
-# -----------------------------------------------------------------------------------------------
-def jsonmodel_to_html(jsonmodel: JsonModel):
-    title = jsonmodel.__class__.__name__
-
-    if jsonmodel.__class__ == CompanyProfile:
-        sa_list = [SectorAnalysis().process_profile(jsonmodel)]
-
-    elif jsonmodel.__class__ == Component:
-        sa_list = []
-        sa_list.append(SectorAnalysis().process_component(jsonmodel))
-
-        for code in jsonmodel.get_codelist():
-            sa_list.append(SectorAnalysis()._process_code(code))
-
-    elif jsonmodel.__class__ == ValueChain:
-        sa_list = []
-        sa_list.append(SectorAnalysis().process_valuechain(jsonmodel))
-
-        for component in jsonmodel.get_components():
-            sa_list.append(SectorAnalysis().process_component(component))
-
-    else: 
-        raise ValueError(f'invalid jsonmodel argument: {jsonmodel}...')
-
-    name_list = [sa.meta['name'] for sa in sa_list]
-    dict_list = [sa.get_combined_dict() for sa in sa_list]
-    output_file = jsonmodel.get_html_path()
-
-    dict_to_html(title, name_list, dict_list, output_file)
-
-# -----------------------------------------------------------------------------------------------
 # Usage examples
 # -----------------------------------------------------------------------------------------------
 if __name__ == "__main__": 
-    # single company
+    pm = ProfileManager()
+    cm = ComponentManager()
+    vm = ValueChainManager()
+
+    # company profile
     code = '005930'
-    sc = SectorAnalysis()._process_code(code)
-    sc._create_plot()
-    sc.print()
+    cp = pm.get_item(code)
+    sa = SectorAnalysis().process_profile(cp)
 
     # component
     name = "Memory"
-    component = Component.load_from_prefix(name)
-    sc = SectorAnalysis().process_component(component)
-    sc._create_plot()
-    sc.print()
+    cp = cm.get_item(name)
+    sa = SectorAnalysis().process_component(cp)
 
     # valuechain
     name = "Electronics"
-    vc = ValueChain.load_from_prefix(name)
+    vc = vm.get_item(name)
     sa = SectorAnalysis().process_valuechain(vc)
-    sa._create_plot()
-    sa.print()
 
     # index
-    sa = SectorAnalysis().from_index('KOSDAQ')
-    sa._create_plot()
+    sa = SectorAnalysis().process_index('KOSDAQ')
     sa.print()
-
-    # ------------------------------------------
-    # HTML 
-    # ------------------------------------------
-    # 1) CompanyProfile
-    code = '009150'
-    profile = CompanyProfile.load_from_prefix(code)
-    jsonmodel_to_html(profile)
-
-    # 2) Component
-    name = 'PCB'
-    component = Component.load_from_prefix(name)
-    jsonmodel_to_html(component)
-
-    # 3) ValueChain
-    name = 'Electronics'
-    vc = ValueChain.load_from_prefix(name)
-    jsonmodel_to_html(vc)
