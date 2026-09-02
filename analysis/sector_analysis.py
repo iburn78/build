@@ -304,9 +304,10 @@ class SectorAnalysis:
         sa_list = [self] + self.sub_sas if self.sub_sas is not None else [self]
         name_list = [{'name': sa.meta['name'], 'link': sa.jsonmodel.get_json_path().with_suffix('.html')} for sa in sa_list]
         dict_list = [sa.get_combined_dict() for sa in sa_list]
+        qs = self.jsonmodel.get_qualitative_dict()
         output_file = self.jsonmodel.get_json_path().with_suffix('.html')
 
-        dict_to_html(self.model_class.__name__, name_list, dict_list, output_file)
+        dict_to_html(self.model_class.__name__, name_list, dict_list, qs, output_file)
 
     # =======================================================================================================================
     # Assessment  

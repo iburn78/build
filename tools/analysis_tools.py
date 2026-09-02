@@ -8,6 +8,7 @@ from html import escape
 import holidays
 import requests
 from build.tools.settings import THIS_PROJECT, QUARTERLY_PERFORMANCES_URL
+from pydantic import BaseModel
 
 KRW_UNIT_KR = {
     1e12: 'jo',
@@ -310,7 +311,7 @@ def _render_table(header, rows):
 
 def _url_exists(url):
     try:
-        return requests.get(url, stream=True, timeout=3).ok
+        return requests.get(url, stream=True, timeout=2).ok
     except requests.RequestException:
         return False
 
@@ -343,8 +344,114 @@ def _render_images(output_file, meta_dict):
         for image in images
     )
 
-def dict_to_html(title, column_names: list, dict_list: list, output_file: Path, 
-                 template_html:Path = TEMPLATE_HTML, 
+def _render_qualitative_value(value):
+    """Recursively render dict, list, and scalar values as HTML."""
+    # Pydantic BaseModel → dict
+    if isinstance(value, BaseModel):
+        value = value.model_dump()
+
+    # Nested dict
+    if isinstance(value, dict):
+        rows = []
+
+        for key, val in value.items():
+            rows.append(f"""
+                <tr>
+                    <th>{escape(str(key))}</th>
+                    <td>{_render_qualitative_value(val)}</td>
+                </tr>
+            """)
+
+        return f"""
+            <table class="qualitative-table">
+                <tbody>
+                    {"".join(rows)}
+                </tbody>
+            </table>
+        """
+
+    # List
+    elif isinstance(value, list):
+        rows = []
+
+        for i, item in enumerate(value, start=1):
+            rows.append(f"""
+                <tr>
+                    <td>{_render_qualitative_value(item)}</td>
+                </tr>
+            """)
+
+        return f"""
+            <table class="qualitative-table">
+                <tbody>
+                    {"".join(rows)}
+                </tbody>
+            </table>
+        """
+
+    # Simple value
+    else:
+        return escape(str(value))
+
+def _render_qualitative(qual_dict):
+    if not qual_dict:
+        return ""
+
+    sections = []
+
+    for key, value in qual_dict.items():
+        title = escape(str(key))
+        content = _render_qualitative_value(value)
+
+        sections.append(f"""
+        <div class="qualitative-card">
+            <h4>{title}</h4>
+            <div class="qualitative-content">
+                {content}
+            </div>
+        </div>
+        """)
+
+    return f"""
+        <h3>Qualitative Analysis</h3>
+        <div class="qualitative-grid">
+            {"".join(sections)}
+        </div>
+    """
+
+# def _render_qualitative(qual_dict):
+#     if qual_dict is None: return ""
+
+#     sections = []
+
+#     for key, value in qual_dict.items():
+#         title = escape(str(key))
+
+#         if isinstance(value, list):
+#             content = "<ul>"
+#             for item in value:
+#                 content += f"<li>{escape(str(item))}</li>"
+#             content += "</ul>"
+
+#         else:
+#             content = f"<p>{escape(str(value))}</p>"
+
+#         sections.append(f"""
+#         <div class="qualitative-card">
+#             <h4>{title}</h4>
+#             {content}
+#         </div>
+#         """)
+
+#     return f"""
+#         <h4>Qualitative Analysis</h4>
+#         <div class="qualitative-grid">
+#             {"".join(sections)}
+#         </div>
+#     """
+
+def dict_to_html(title, column_names: list, dict_list: list, qual_dict: dict, 
+                 output_file: Path, template_html:Path = TEMPLATE_HTML, 
                  collapsed_paths=COLLAPSED_PATHS):
     if not dict_list:
         raise ValueError("dict_list cannot be empty")
@@ -359,10 +466,12 @@ def dict_to_html(title, column_names: list, dict_list: list, output_file: Path,
     rows = _render_rows(dict_list, collapsed_paths=collapsed_paths)
     table_content = _render_table(header, rows)
     image_section = _render_images(output_file, dict_list[0].get('meta', {}))
+    qual_section = _render_qualitative(qual_dict)
 
     template = template_html.read_text(encoding="utf-8")
     html = template.replace("{{ content }}", table_content)
     html = html.replace("{{ image }}", image_section)
+    html = html.replace("{{ qualitative }}", qual_section)
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text(html, encoding="utf-8")

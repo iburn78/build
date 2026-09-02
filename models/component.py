@@ -51,6 +51,11 @@ class Company(BaseModel):
             code=str(code)
         )
 
+    def get_qualitative_dict(self):
+        return {
+            'to be implemented': 'to be'
+        }
+
 # company from name
 def cn(name):
     return Company.from_name(name)

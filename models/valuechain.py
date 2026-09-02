@@ -27,6 +27,11 @@ class ValueChain(JsonModel):
             codelist.update(c.get_codelist())
         return list(codelist)
 
+    def get_qualitative_dict(self):
+        return {
+            'to be implemented': 'to be'
+        }
+
 class ValueChainManager(JsonModelManager):
     MODEL = ValueChain
 

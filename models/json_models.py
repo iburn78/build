@@ -82,6 +82,11 @@ class JsonModel(BaseModel, ABC):
     def key(self) -> str:
         return self.name
 
+    @abstractmethod
+    def get_qualitative_dict(self):
+        # return a dict, which may contain BaseModels
+        pass
+
     # returns all instances in dict {key: json_model dict}
     @classmethod
     def load_all_validated(cls) -> dict[str, "JsonModel"]:

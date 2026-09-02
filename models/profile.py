@@ -165,6 +165,13 @@ class Profile(JsonModel):
 
         return combined
 
+    def get_qualitative_dict(self):
+        return {
+            'overview': self.overview,
+            'business': self.business,
+            'news_summary': self.news_summary,
+        }
+
 class ProfileManager(JsonModelManager):
     MODEL = Profile
 
