@@ -125,7 +125,7 @@ class News(BaseModel):
             )
         return True
 
-class CompanyProfile(JsonModel):
+class Profile(JsonModel):
     DIR = PROFILES_DIR
     code: str
 
@@ -166,7 +166,7 @@ class CompanyProfile(JsonModel):
         return combined
 
 class ProfileManager(JsonModelManager):
-    MODEL = CompanyProfile
+    MODEL = Profile
 
     def __init__(self, biz_mode='local', news_mode='ollama'): 
         self.business_agent = self._make_agent(llm_mode=biz_mode, output_type=Business)
@@ -178,14 +178,14 @@ class ProfileManager(JsonModelManager):
         if len(key) != 6 or not key[0].isdigit():
             raise ValueError(f"Invalid key: {key}")
 
-    def _create_new_item(self, key, existing_json: dict | None = None, **kwargs) -> CompanyProfile:
+    def _create_new_item(self, key, existing_json: dict | None = None, **kwargs) -> Profile:
         bs, fs = self._extract_from_json(key, existing_json, 'business', Business)
 
         ov = Overview.fetch(key)
         if bs is None: 
             bs = self._gen_business(ov)
 
-        profile = CompanyProfile(
+        profile = Profile(
             code=key,
             name=get_name(key),
             overview=ov,
@@ -238,7 +238,7 @@ Rules:
         bs.reviewed = False
         return bs
 
-    def _gen_news(self, profile: CompanyProfile):
+    def _gen_news(self, profile: Profile):
         news_collection = profile.scrape_news()
 #----------------------------------------------------------------------------------------------------
         request_text = f"""

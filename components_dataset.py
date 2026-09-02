@@ -21,5 +21,5 @@ for component in cm.get_itemlist():
     codelist = component.get_codelist()
     pm.batch_process(codelist)
     for code in codelist:
-        cp = pm.get_item(code)
-        SectorAnalysis().process_profile(cp)
+        pr = pm.get_item(code)
+        SectorAnalysis().process_profile(pr)

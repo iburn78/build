@@ -14,7 +14,7 @@ from data import load
 from data.tools import set_KoreanFonts
 from build.tools.settings import df_krx, sanitized_filename
 from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, dprint, dict_to_html
-from build.models.profile import CompanyProfile, ProfileManager
+from build.models.profile import Profile, ProfileManager
 from build.models.component import Component, ComponentManager
 from build.models.valuechain import ValueChain, ValueChainManager
 
@@ -139,46 +139,71 @@ class CodeData:
 class SectorAnalysis: 
     # a sector analysis
     def __init__(self):
-        self.meta = {'updated': pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")}
+        self.meta = {'name': '','updated': pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")}
         self.codelist = [] 
+        self.shape = {}
         self.assess_data = {}
+        self.assess_result = {}
 
         # this class basically assumes a group of code (a sector, codelist, or component), but can handle company and index too
         self.jsonmodel = None
-        self.is_profile = False # self.codelist = [code] 
-        self.is_component = False 
-        self.is_valuechain = False 
-        self._dest_dir = None
+        self.model_class = None
+        self.sub_sas = None
         self.is_index = False # fr_data not available
 
         self.pm = ProfileManager()
         self.cm = ComponentManager()
+        self.vm = ValueChainManager()
 
     # =======================================================================================================================
     # Creation
     # =======================================================================================================================
+    @classmethod
+    def get_from_code(cls, code, **kwargs):
+        sa = cls()
+        pr = sa.pm.get_item(code)
+        return sa.process_profile(pr, **kwargs)
+
+    @classmethod
+    def get_from_component_name(cls, name, **kwargs):
+        sa = cls()
+        cp = sa.cm.get_item(name)
+        return sa.process_component(cp, **kwargs)
+    
+    @classmethod
+    def get_from_valuechain_name(cls, name, **kwargs):
+        sa = cls()
+        vm = sa.vm.get_item(name)
+        return sa.process_valuechain(vm, **kwargs)
+    
     # -------------------------------------------------------------------------------------------------------
     # public interfaces
     # -------------------------------------------------------------------------------------------------------
-    def process_profile(self, profile: CompanyProfile, unit=None, fill=False, start_date=DEFAULT_START_DATE):
-        self.jsonmodel = profile
-        self.is_profile = True
-        self._dest_dir = profile.DIR 
-        self._process_codelist(codelist=[profile.code], name=df_krx.at[profile.code, 'Name'], unit=unit, fill=fill, start_date=start_date)
+    def process_profile(self, pr: Profile, unit=None, fill=False, start_date=DEFAULT_START_DATE):
+        self.jsonmodel = pr
+        self.model_class = Profile
+        self.meta['name'] = df_krx.at[pr.code, 'Name']
+        self.codelist = [pr.code]
+        self.meta['code'] = pr.code 
+        self._process_codelist(unit=unit, fill=fill, start_date=start_date)
         return self
 
-    def process_component(self, component: Component, unit=None, fill=False, start_date=DEFAULT_START_DATE): 
-        self.jsonmodel = component
-        self.is_component = True
-        self._dest_dir = component.DIR
-        self._process_codelist(codelist=component.get_codelist(), name=component.name, unit=unit, fill=fill, start_date=start_date)
+    def process_component(self, cp: Component, unit=None, fill=False, start_date=DEFAULT_START_DATE): 
+        self.jsonmodel = cp
+        self.model_class = Component
+        self.meta['name'] = cp.name
+        self.codelist = cp.get_codelist()
+        self.meta['code'] = self.codelist
+        self._process_codelist(unit=unit, fill=fill, start_date=start_date)
         return self
 
     def process_valuechain(self, vc: ValueChain, unit=None, fill=False, start_date=DEFAULT_START_DATE): 
         self.jsonmodel = vc
-        self.is_valuechain = True
-        self._dest_dir = vc.DIR
-        self._process_codelist(codelist=vc.get_codelist(), name=vc.name, unit=unit, fill=fill, start_date=start_date)
+        self.model_class = ValueChain
+        self.meta['name'] = vc.name
+        self.codelist = vc.get_codelist()
+        self.meta['code'] = self.codelist
+        self._process_codelist(unit=unit, fill=fill, start_date=start_date)
         return self
 
     def process_index(self, name: str, unit=1e12, start_date=DEFAULT_START_DATE):
@@ -200,24 +225,15 @@ class SectorAnalysis:
     # private 
     # -------------------------------------------------------------------------------------------------------
     # codelist: target sector -> returns an SA for the group of the codelist
-    def _process_codelist(self, codelist: list, name='', unit=None, fill=False, start_date=DEFAULT_START_DATE):
-        if len(codelist) != len(set(codelist)): raise ValueError(f'codelist should not contain any duplications: {codelist}')
-
-        self.codelist = codelist
-        self.meta['name'] = name
-        if self.is_profile:
-            self.meta['code'] = codelist[0]
-        else:
-            self.meta['code'] = codelist 
+    def _process_codelist(self, unit=None, fill=False, start_date=DEFAULT_START_DATE):
+        if len(self.codelist) != len(set(self.codelist)): raise ValueError(f'codelist should not contain any duplications: {self.codelist}')
 
         self.meta = self.meta | {
             'unit': unit if unit else DEFAULT_KRW_UNIT, # KRW unit
             'start_date': start_date, # start date in "yyyy-mm-dd" format
         }
 
-        if len(set(codelist)) != len(codelist): 
-            raise ValueError('non-unique cd_list')
-        cd_list = [CodeData(code=code, unit=self.meta['unit']) for code in codelist]
+        cd_list = [CodeData(code=code, unit=self.meta['unit']) for code in self.codelist]
 
         # ma_data, fr_data stay as raw
         self.ma_data = self._add_dfs([cd.ma_data for cd in cd_list], fill) # daily basis
@@ -231,35 +247,24 @@ class SectorAnalysis:
         return reduce(lambda a, b: a.add(b, fill_value=0 if fill else None), df_list)
 
     def _post_process(self):
+        self._build_shape() 
         self._build_assess_data()
         self._perform_assess()
         self._create_json()
         self._create_plot()
+        self._build_sub_sector_analyses()
         self._create_html() 
 
     # create or append to/replace existing json
     def _create_json(self):
-        if self.is_profile:
-            code = self.codelist[0]
-            name = df_krx.at[code, 'Name']
-            key = code
-            json_filename = f'{code}_{sanitized_filename(name)}.json'
-            label = f'company {code}'
-
-        elif self.is_component:
+        if self.model_class is Profile:
+            key = self.codelist[0]
+            json_filename = f'{key}_{sanitized_filename(self.meta['name'])}.json'
+        else:
             key = sanitized_filename(self.meta['name'])
             json_filename = f'{key}.json'
-            label = f'component {key}'
 
-        elif self.is_valuechain:
-            key = sanitized_filename(self.meta['name'])
-            json_filename = f'{key}.json'
-            label = f'valuechain {key}'
-
-        else: 
-            return
-
-        files = list(Path(self._dest_dir).glob(f'{key}*.json'))
+        files = list(Path(self.jsonmodel.DIR).glob(f'{key}*.json'))
 
         if len(files) > 1:
             raise ValueError(f"Expected 1 file for {key}, found {len(files)}")
@@ -269,12 +274,13 @@ class SectorAnalysis:
             with open(json_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
         else:
-            json_file = Path(self._dest_dir) / json_filename
-            print(f"json file with {label} does not exist: {json_filename} to be created")
+            json_file = Path(self.jsonmodel.DIR) / json_filename
+            print(f"json file with {self.model_class.__name__} {key} does not exist: {json_filename} to be created")
             data = {}
 
         data['financials'] = {
             'meta': self.meta,
+            'shape': self.shape,
             'assess_data': self.assess_data,
             'assess_result': self.assess_result,
         }
@@ -283,32 +289,33 @@ class SectorAnalysis:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
     # recursively refreshing profiles and components
-    def _create_html(self):
-        sa_list = [self]
-        if self.is_profile:
-            pass
-        elif self.is_component:
-            for code in self.codelist:
-                cp = self.pm.get_item(code)
-                sa_list.append(SectorAnalysis().process_profile(cp))
-        elif self.is_valuechain:
+    def _build_sub_sector_analyses(self):
+        if self.model_class is Component:
+            self.sub_sas = []
+            for code in self.jsonmodel.get_codelist():
+                self.sub_sas.append(SectorAnalysis().get_from_code(code))
+        elif self.model_class is ValueChain:
+            self.sub_sas = []
             for component_name in self.jsonmodel.component_names:
-                cp = self.cm.get_item(component_name)
-                sa_list.append(SectorAnalysis().process_component(cp))
-        else: 
-            raise ValueError(f'invalid type...')
+                self.sub_sas.append(SectorAnalysis().get_from_component_name(component_name))
+        self._sub_sector_analyses()
 
-        title = self.jsonmodel.__class__.__name__
+    def _create_html(self):
+        sa_list = [self] + self.sub_sas if self.sub_sas is not None else [self]
         name_list = [{'name': sa.meta['name'], 'link': sa.jsonmodel.get_json_path().with_suffix('.html')} for sa in sa_list]
         dict_list = [sa.get_combined_dict() for sa in sa_list]
         output_file = self.jsonmodel.get_json_path().with_suffix('.html')
 
-        dict_to_html(title, name_list, dict_list, output_file)
+        dict_to_html(self.model_class.__name__, name_list, dict_list, output_file)
 
     # =======================================================================================================================
     # Assessment  
     # =======================================================================================================================
     '''
+    [shape]
+        - share: last quarter 기준, %
+        - opincome: negative opincome 제외
+
     [basics]
         - OP Income (시점, 상황에 따라 마지막 분기 data가 duplicated (ffill) 되었을 수 있음):
             * 최근 4개 분기 모두 Positive 인가?
@@ -317,13 +324,11 @@ class SectorAnalysis:
 
         > 모두 충족하면 True
 
-
     [financially sound]
         - OP Income: (START_DATE 부터) 성장률이 충분히 높은가? (slope > THRESHOLD)
         - OP Margin: 최근 4개 분기 이익률이 각각 충분히 높은가? (each of opmargin > THRESHOLD, 영업이익률은 트렌드를 보지 않음)
 
         > 둘중의 하나 충족하면 True
-
 
     [PER]
         - PER_ltm: 직전 4개 분기 OP Income의 합 대비, 해당시점의 Marcap
@@ -331,7 +336,6 @@ class SectorAnalysis:
         - PER_fwd: (START_DATE 부터) OP Income의 Regression으로 Extrapolate한 미래 4개 분기 데이터 추정 (직전분기 데이터는 미포함)
         
         > (PER_ltm default로 사용) Low, Mid, High로 구분: PER_LOW, PER_MID로 구분 (2026-08, KOSPI PER = ~17)
-
 
     [Volatility]
         - Marcap의 변화율(daily pct change)에 대해, Measure_Duration(직전, business days)기간동안 Standard_Dev로 정의함 (Rolling 일별, 양수)
@@ -344,13 +348,11 @@ class SectorAnalysis:
         * Regression 결과가 비교위치에서 near zero or negative 되는 것을 방지하기 위한 floor value 설정 (실제 구현 참조)
         * THRESHOLD in float
 
-
     [Amount]
         - 일별 거래대금 대상 Volatility와 동일하게 산정
 
         > ratio > 1 + THRESHOLD: Up
         > ratio > 1 - THRESHOLD: Dn
-
 
     [Alpha]
         - Measure_Duration (or Base_Duration, from START_DATE) 동안, Index (KOSPI default) 대비 Alpha, Beta 분석
@@ -360,8 +362,7 @@ class SectorAnalysis:
 
         * THRESHOLD: 일별 수익률, in float (기간 수익률은 convert 필요하며, x days로 estimate)
     
-
-    [해석]
+    [Result]
         - Categorization: 
             if basics and finantially_sound: 
                 PER_level Low: A
@@ -375,12 +376,21 @@ class SectorAnalysis:
         if not self.is_index:
             print('Meta Data:')
             dprint(self.meta)
+            print('Shape:')
+            dprint(self.shape)
             print('Assess Data:')
             dprint(self.assess_data)
             print('Assess Result:')
             dprint(self.assess_result)
         else: 
             self._create_plot()
+
+    def _build_shape(self):  
+        self.shape['financials'] = {}
+        self.shape['financials']['revenue_4qtrs'] = round_sig(self.fr_data[-4:].sum().iat[0])
+        self.shape['financials']['opincome_4qtrs'] = round_sig(self.fr_data[-4:].sum().iat[1])
+        self.shape['financials']['revenue_qtr'] = round_sig(self.fr_data.iat[-1, 0])
+        self.shape['financials']['opincome_qtr'] = round_sig(self.fr_data.iat[-1, 1])
 
     def _build_assess_data(self):  
         if self.is_index: 
@@ -417,7 +427,7 @@ class SectorAnalysis:
         # opincome slope over the average of last 4 quarters
         opic_growth = opic_slope / opic.iloc[-4:].mean() 
 
-        res['opincome_health'] = {
+        res['opincome'] = {
             'positive_last_4qtrs': c1, 
             'higher_than_comp': c2, # higher than comparable quarters 
             'slope': round_sig(opic_slope), # measured from start_date given 
@@ -430,7 +440,10 @@ class SectorAnalysis:
         # last 4 quarter opmargin: date is quarter starting date
         # refer to note: the same situation applies here
         opms = (opic/rev).iloc[-4:].apply(round_sig).to_dict()
-        res['opmargin_last_4qtrs'] = {f'{k:%y}_{k.quarter}Q': v for k, v in opms.items()}
+        res['opmargin'] = {f'{k:%y}_{k.quarter}Q': v for k, v in opms.items()}
+        r = self.fr_data[-4:].sum().iat[0]
+        o = self.fr_data[-4:].sum().iat[1]
+        res['opmargin']['4qtrs'] = round_sig(o/r)
 
         # ------------------------------------------------------------------
         # PER
@@ -452,9 +465,9 @@ class SectorAnalysis:
         # ------------------------------------------------------------------
         # Volatility:
         # volality is measured as std(percent change of marcap for last MEASURE_DURATION days)
-        res['volatility_pct'] = calc_increment(self.ma_data['marcap'].pct_change().rolling(MEASURE_DURATION).std().dropna(), MEASURE_DURATION, BASE_DURATION)
+        res['volatility'] = calc_increment(self.ma_data['marcap'].pct_change().rolling(MEASURE_DURATION).std().dropna(), MEASURE_DURATION, BASE_DURATION)
         # Amount:
-        res['amount_daily'] = calc_increment(self.ma_data['amount_daily'], MEASURE_DURATION, BASE_DURATION)
+        res['amount'] = calc_increment(self.ma_data['amount_daily'], MEASURE_DURATION, BASE_DURATION)
 
         # ------------------------------------------------------------------
         # alpha and beta
@@ -470,7 +483,7 @@ class SectorAnalysis:
         self.assess_data = res
 
     def _perform_assess(self):
-        oh = self.assess_data['opincome_health']
+        oh = self.assess_data['opincome']
         basics = False
         if oh['positive_last_4qtrs'] and oh['higher_than_comp'] and oh['slope'] > 0:
             basics = True
@@ -479,7 +492,7 @@ class SectorAnalysis:
         if oh['growth_per_qtr'] >= OPINCOME_GROWTH_RATE: 
             finantially_sound = True
 
-        om = self.assess_data['opmargin_last_4qtrs'].values()
+        om = self.assess_data['opmargin'].values()
         if all(x > OPMARGIN_THRESHOLD for x in om):
             finantially_sound = True
 
@@ -490,13 +503,13 @@ class SectorAnalysis:
         else: PER_level = 'High'
 
         # volatility movement in measure period
-        vol = self.assess_data['volatility_pct']
+        vol = self.assess_data['volatility']
         if vol['measure_to_base'] < 1-VOLATILITY_THRESHOLD: volatility = 'Dn'
         elif vol['measure_to_base'] < 1+VOLATILITY_THRESHOLD: volatility = '-'
         else: volatility = 'Up'
 
         # amount movement in measure period
-        amt = self.assess_data['amount_daily']
+        amt = self.assess_data['amount']
         if amt['measure_to_base'] < 1-AMOUNT_DAILY_THRESHOLD: amount = 'Dn'
         elif amt['measure_to_base'] < 1+AMOUNT_DAILY_THRESHOLD: amount = '-'
         else: amount = 'Up'
@@ -537,12 +550,88 @@ class SectorAnalysis:
             'market_sentiment': market_sentiment,
             'category': category,
         }
+    
+    # =======================================================================================================================
+    # Sub SA analyses
+    # =======================================================================================================================
+    def _sub_sector_analyses(self):
+        if not self.sub_sas:
+            return
+
+        # Parent sector
+        self.shape['share'] = {
+            'revenue': '-',
+            '-r_rank': '-',
+            'opincome': '-',
+            '-o_rank': '-',
+        }
+
+        # Collect raw financial values
+        revenues = [
+            sa.shape['financials']['revenue_qtr'] * sa.meta['unit']
+            for sa in self.sub_sas
+        ]
+
+        opincomes = [
+            sa.shape['financials']['opincome_qtr'] * sa.meta['unit']
+            for sa in self.sub_sas
+        ]
+
+        # Ranking: include negative values
+        sorted_revenues = sorted(revenues, reverse=True)
+        sorted_opincomes = sorted(opincomes, reverse=True)
+
+        r_ranks = [
+            sorted_revenues.index(value) + 1
+            for value in revenues
+        ]
+
+        o_ranks = [
+            sorted_opincomes.index(value) + 1
+            for value in opincomes
+        ]
+
+        # Percentage calculation
+        total_revenue = sum(revenues)
+
+        # Only positive operating income contributes to shares
+        positive_opincomes = [
+            max(value, 0)
+            for value in opincomes
+        ]
+
+        total_opincome = sum(positive_opincomes)
+
+        # Populate each sub-sector
+        for i, sa in enumerate(self.sub_sas):
+
+            revenue = revenues[i]
+            opincome = opincomes[i]
+
+            sa.shape['share'] = {
+                'revenue': (
+                    round_sig(revenue / total_revenue)
+                    if total_revenue > 0 else '-'
+                ),
+
+                '-r_rank': r_ranks[i],
+
+                'opincome': (
+                    round_sig(opincome / total_opincome)
+                    if opincome > 0 and total_opincome > 0
+                    else '-'
+                ),
+
+                '-o_rank': o_ranks[i],
+            }
+
     # =======================================================================================================================
     # Display in html
     # =======================================================================================================================
     def get_combined_dict(self):
         combined_dict = {
             'meta': self.meta,
+            'shape': self.shape,
             'assess_data': self.assess_data,
             'assess_result': self.assess_result
         }
@@ -551,7 +640,6 @@ class SectorAnalysis:
     # =======================================================================================================================
     # Aggregation and plotting
     # =======================================================================================================================
-
     # cut data from start_date and define aggregation length
     def _create_plot(self, save_path: Path | None = None, aggregation: Literal['d', 'w', 'm', 'q'] = 'w'): 
         # business days in each aggregation
@@ -1004,8 +1092,8 @@ if __name__ == "__main__":
 
     # company profile
     code = '005930'
-    cp = pm.get_item(code)
-    sa = SectorAnalysis().process_profile(cp)
+    pr = pm.get_item(code)
+    sa = SectorAnalysis().process_profile(pr)
 
     # component
     name = "Memory"

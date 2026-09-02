@@ -14,14 +14,14 @@ class ValueChain(JsonModel):
     landscape: Landscape | None = Field(default_factory=Landscape)
     financials: dict | None = None
 
-    def _get_components(self):
+    def get_components(self):
         components = []
         for component_name in self.component_names:
             components.append(Component.load_from_prefix(component_name))
         return components
 
     def get_codelist(self):
-        components = self._get_components()
+        components = self.get_components()
         codelist = set()
         for c in components:
             codelist.update(c.get_codelist())
@@ -31,21 +31,21 @@ class ValueChainManager(JsonModelManager):
     MODEL = ValueChain
 
     def __init__(self):
-        self.component_manager = ComponentManager()
+        self.cm = ComponentManager()
         super().__init__()
 
     # ValueChain handlers defined here, as ComponentManager is necessary
     def get_components(self, vc: ValueChain):
         components = []
         for cn in vc.component_names:
-            cp = self.component_manager.get_item(cn)
+            cp = self.cm.get_item(cn)
             components.append(cp)
         return components
 
     def get_codelist(self, vc: ValueChain):
         codelist = set()
         for cn in vc.component_names:
-            codelist.update(self.component_manager.get_item(cn).get_codelist())
+            codelist.update(self.cm.get_item(cn).get_codelist())
         return list(codelist)
 
     def _create_new_item(self, key, existing_json: dict | None = None, **kwargs) -> ValueChain:
@@ -55,10 +55,10 @@ class ValueChainManager(JsonModelManager):
         component_namelist = kwargs.get("component_namelist") or []
 
         # Option 1) get (or create) all components
-        # components = [self.component_manager.get_item(cn) for cn in component_namelist]
+        # components = [self.cm.get_item(cn) for cn in component_namelist]
 
         # Option 2) proceed only if all components already exists
-        if any(c not in self.component_manager._items for c in component_namelist):
+        if any(c not in self.cm._items for c in component_namelist):
             raise ValueError(f"VC_Manager: for {key} given components not already created")
 
         vc = ValueChain(

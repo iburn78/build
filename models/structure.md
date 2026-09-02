@@ -1,6 +1,6 @@
 ## Models
 
-### CompanyProfile
+### Profile
 ---
 - ProfileManager access key: code
 - filename: code_filename.json

@@ -18,7 +18,9 @@ KRW_UNIT_KR = {
 # HTML 
 TEMPLATE_HTML = Path(THIS_PROJECT) / "analysis" / "templates"  / "dict_template.html"
 COLLAPSED_PATHS = {
-    'meta', 'assess_data.alpha_beta.from_start_date'
+    'meta', 
+    'assess_data.alpha_beta.from_start_date', 
+    'shape.financials'
 }
 
 def is_KRX_open(now=None, strict=False):
@@ -67,7 +69,7 @@ def get_slope_intercept(s: pd.Series):
     return slope, intercept
 
 # round up to n significant numbers
-def round_sig(x, n=4):
+def round_sig(x, n=3):
     return float(f"{x:.{n}g}")
 
 def dprint(d: dict):
@@ -201,7 +203,11 @@ def _fmt_value(key, value):
         return "-"
 
     if isinstance(value, bool):
-        return "✓" if value else "✗"
+        return (
+            '<span class="true_bool">✓</span>'
+            if value
+            else '<span class="false_bool">✗</span>'
+        )
 
     if isinstance(value, float):
         if "(pct)" in key.lower() or "(%)" in key.lower():
@@ -247,7 +253,7 @@ def _section_row(key, level=0, colspan=1, collapsed=False):
 def _value_row(key, values=None, level=0):
     values = values or []
     cells = "\n".join(
-        f'        <td class="value">{escape(_fmt_value(key, v))}</td>'
+        f'        <td class="value">{_fmt_value(key, v)}</td>'
         for v in values
     )
 
@@ -315,13 +321,18 @@ def _render_images(output_file, meta_dict):
     if sa_image.exists():
         images.append(sa_image)
 
-    code = meta_dict.get("code")
+    code = meta_dict.get('code')
+    # only profiles have string format code (otherwise meta['code'] is a list)
     if isinstance(code, str):
         url = f"{QUARTERLY_PERFORMANCES_URL}/data/{code}.png"
         if _url_exists(url):
             images.append(url)
+        else: 
+            print(f'url {url} not reached')
 
-    # may add additional images
+    # ------------------------------
+    # may add additional images here
+    # ------------------------------
 
     return "".join(
         f'''
