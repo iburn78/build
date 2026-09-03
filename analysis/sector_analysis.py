@@ -10,9 +10,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import FuncFormatter
-from data import load
-from data.tools import set_KoreanFonts
-from build.tools.settings import df_krx, sanitized_filename
+from data.util import load
+from data.util.tools import set_KoreanFonts
+from build.tools.settings import df_krx, sanitized_filename, BASE_DATA_DIR
 from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, dprint, render_html
 from build.models.profile import Profile, ProfileManager
 from build.models.component import Component, ComponentManager
@@ -301,8 +301,9 @@ class SectorAnalysis:
         self._sub_sector_analyses()
 
     def _create_html(self):
+        html_root = Path(BASE_DATA_DIR)
         sa_list = [self] + self.sub_sas if self.sub_sas is not None else [self]
-        name_list = [{'name': sa.meta['name'], 'link': sa.jsonmodel.get_json_path().with_suffix('.html')} for sa in sa_list]
+        name_list = [{'name': sa.meta['name'], 'link': sa.jsonmodel.get_json_path().with_suffix('.html').relative_to(html_root)} for sa in sa_list]
         dict_list = [sa.get_combined_dict() for sa in sa_list]
         qual_dict = self.jsonmodel.get_qualitative_dict()
         news_dir = self.jsonmodel.get_news_dir() 

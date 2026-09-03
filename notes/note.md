@@ -12,6 +12,7 @@
 
 ## ollama 
 > show gemma4
+* ollama serve should be on: nohup ollama serve
 
 #### Model core
 - architecture (gemma4)

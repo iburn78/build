@@ -1,7 +1,7 @@
 import os
 import re
 import json
-from data.load import get_df_krx
+from data.util.load import get_df_krx
 
 THIS_PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
 ppd_ = os.path.dirname(THIS_PROJECT) 

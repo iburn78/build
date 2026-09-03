@@ -17,9 +17,9 @@ cm.get_item('Folderable', namelist = ['KH바텍', '세경하이테크', '파인�
 pm = ProfileManager()
 for component in cm.get_itemlist(): 
     print(component.name)
+    # to generate json/plot/html for component itself
     SectorAnalysis().process_component(component)
+
+    # to cascading generation of profiles (e.g., update/create and news collection if necessary)
     codelist = component.get_codelist()
     pm.batch_process(codelist)
-    for code in codelist:
-        pr = pm.get_item(code)
-        SectorAnalysis().process_profile(pr)

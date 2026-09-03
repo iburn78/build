@@ -23,6 +23,7 @@ COLLAPSED_PATHS = {
     'assess_data.alpha_beta.from_start_date', 
     'shape.financials'
 }
+year = str(datetime.today().year)
 
 def is_KRX_open(now=None, strict=False):
     """
@@ -292,7 +293,7 @@ def _render_header(title, column_names):
         link = column.get("link")
 
         if link:
-            name = f'<a href="{escape(str(link))}">{name}</a>'
+            name = f'<a href="../{escape(str(link))}">{name}</a>'
 
         cells.append(f'''
                             <th class="value">{name}</th>''')
@@ -321,7 +322,7 @@ def _render_images(output_file, meta_dict):
 
     sa_image = Path(output_file).with_suffix(".png")
     if sa_image.exists():
-        images.append(sa_image)
+        images.append(sa_image.name)
 
     code = meta_dict.get('code')
     # only profiles have string format code (otherwise meta['code'] is a list)
@@ -483,6 +484,7 @@ def render_html(title, column_names: list, dict_list: list, qual_dict: dict, new
     news_section = _render_news(news_dir)
 
     html = template_html.read_text(encoding="utf-8")
+    html = html.replace("{{ year }}", year)
     html = html.replace("{{ financials }}", financials_section)
     html = html.replace("{{ qualitative }}", qual_section)
     html = html.replace("{{ news }}", news_section)
