@@ -2,17 +2,22 @@
 - should also focus on competitors 
 - identify value chains for companies
 
-<br><br>
+<br>
 
 ## Envs
 - Chrome downloaded to /Users/andy/Library/Caches/ms-playwright/chromium-1223
 - Scrapping from fnguide is easier
 
-<br><br>
+<br>
+
+## NodeJS
+- to access htmls, run node
+    - e.g., node server.js
 
 ## ollama 
-> show gemma4
-* ollama serve should be on: nohup ollama serve
+> ollama show gemma4
+- ollama should be running 
+    - e.g., ollama serve (in mac)
 
 #### Model core
 - architecture (gemma4)

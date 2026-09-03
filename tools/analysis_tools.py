@@ -7,7 +7,7 @@ import json
 from html import escape
 import holidays
 import requests
-from build.tools.settings import THIS_PROJECT, QUARTERLY_PERFORMANCES_URL
+from build.tools.settings import THIS_PROJECT, QUARTERLY_PERFORMANCES_URL, INDEX_HTML
 from pydantic import BaseModel
 
 KRW_UNIT_KR = {
@@ -299,7 +299,7 @@ def _render_header(title, column_names):
                             <th class="value">{name}</th>''')
 
     return f"""<tr class="header-row">
-                            <th class="label">{escape(str(title))}</th>
+                            <th class="label"><a href="{INDEX_HTML}">{escape(str(title))}</a></th>
                             {"".join(cells).strip()}
                         </tr>"""
 

@@ -11,6 +11,7 @@ NEWS_DIR = os.path.join(BASE_DATA_DIR, 'news')
 PROFILES_DIR = os.path.join(BASE_DATA_DIR, 'profiles')
 COMPONENTS_DIR = os.path.join(BASE_DATA_DIR, 'components')
 VALUECHAIN_DIR = os.path.join(BASE_DATA_DIR, 'valuechains')
+INDEX_HTML = "http://localhost:3000/"
 
 os.makedirs(BASE_DATA_DIR, exist_ok=True)
 os.makedirs(NEWS_DIR, exist_ok=True)
