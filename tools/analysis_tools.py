@@ -246,23 +246,24 @@ def _same_signature(*dicts):
     return passed
 
 def _section_row(key, level=0, colspan=1, collapsed=False):
-    return f"""    <tr class="section-row level-{level}{" collapsed" if collapsed else ""}">
-        <td class="label" colspan="{colspan}">{escape(str(key))}</td>
-    </tr>
-"""
+    return f"""    
+                        <tr class="section-row level-{level}{" collapsed" if collapsed else ""}">
+                            <td class="label" colspan="{colspan}">{escape(str(key))}</td>
+                        </tr>"""
 
 def _value_row(key, values=None, level=0):
     values = values or []
-    cells = "\n".join(
-        f'        <td class="value">{_fmt_value(key, v)}</td>'
+    cells = "".join(
+        f'''
+                            <td class="value">{_fmt_value(key, v)}</td>'''
         for v in values
-    )
+    ).strip()
 
-    return f"""    <tr class="value-row level-{level}">
-        <td class="label">{escape(str(key))}</td>
-{cells}
-    </tr>
-"""
+    return f"""        
+                        <tr class="value-row level-{level}">
+                            <td class="label">{escape(str(key))}</td>
+                            {cells}
+                        </tr>"""
 
 def _render_rows(dict_list, level=0, path="", collapsed_paths=None):
     """Flatten nested dictionaries into table rows."""
@@ -293,21 +294,21 @@ def _render_header(title, column_names):
         if link:
             name = f'<a href="{escape(str(link))}">{name}</a>'
 
-        cells.append(f'<th class="value">{name}</th>')
+        cells.append(f'''
+                            <th class="value">{name}</th>''')
 
-    return f"""    <tr class="header-row">
-        <th class="label">{escape(str(title))}</th>
-        {"".join(cells)}
-    </tr>"""
+    return f"""<tr class="header-row">
+                            <th class="label">{escape(str(title))}</th>
+                            {"".join(cells).strip()}
+                        </tr>"""
 
 def _render_table(header, rows): 
-    return f"""
-    <thead>
-{header}    
-    </thead>
-    <tbody>
-{"".join(rows)}    
-    </tbody>"""
+    return f"""<thead>
+                        {header}    
+                    </thead>
+                    <tbody>
+                        {"".join(rows).strip()}    
+                    </tbody>"""
 
 def _url_exists(url):
     try:
@@ -337,12 +338,35 @@ def _render_images(output_file, meta_dict):
 
     return "".join(
         f'''
-        <div class="chart-card">
-            <img src="{image}" class="analysis-image">
-        </div>
-        '''
+            <div class="chart-card">
+                <img src="{image}" class="analysis-image" onclick="openPopup('{image}');">
+            </div>'''
         for image in images
-    )
+    ).strip()
+
+def _render_financials(title, column_names: list, dict_list: list, output_file: Path, collapsed_paths=COLLAPSED_PATHS):
+    header = _render_header(title, column_names)
+    rows = _render_rows(dict_list, collapsed_paths=collapsed_paths)
+    table_content = _render_table(header, rows)
+    images = _render_images(output_file, dict_list[0].get('meta', {}))
+    return f"""<h3>Financials Analysis</h3>
+    <div class="dashboard">
+        <div class="table-panel">
+            <div class="table-wrapper">
+                <div class="table-controls">
+                    <button onclick="expandAll()">Expand All</button>
+                    <button onclick="collapseAll()">Collapse All</button>
+                </div>
+                <table class="dict-table">
+                    {table_content}
+                </table>
+            </div>
+        </div>
+        <div class="charts-panel">
+            { images }
+        </div>
+    </div>"""
+
 
 def _render_qualitative_value(value):
     """Recursively render dict, list, and scalar values as HTML."""
@@ -356,38 +380,32 @@ def _render_qualitative_value(value):
 
         for key, val in value.items():
             rows.append(f"""
-                <tr>
-                    <th>{escape(str(key))}</th>
-                    <td>{_render_qualitative_value(val)}</td>
-                </tr>
-            """)
+                            <tr>
+                                <th>{escape(str(key))}</th>
+                                <td>{_render_qualitative_value(val)}</td>
+                            </tr>""")
 
-        return f"""
-            <table class="qualitative-table">
-                <tbody>
-                    {"".join(rows)}
-                </tbody>
-            </table>
-        """
+        return f"""<table class="qualitative-table">
+                        <tbody>
+                            {"".join(rows).strip()}
+                        </tbody>
+                    </table>"""
 
     # List
     elif isinstance(value, list):
         rows = []
 
-        for i, item in enumerate(value, start=1):
+        for item in value:
             rows.append(f"""
-                <tr>
-                    <td>{_render_qualitative_value(item)}</td>
-                </tr>
-            """)
+                            <tr>
+                                <td>{_render_qualitative_value(item)}</td>
+                            </tr>""")
 
-        return f"""
-            <table class="qualitative-table">
-                <tbody>
-                    {"".join(rows)}
-                </tbody>
-            </table>
-        """
+        return f"""<table class="qualitative-table">
+                        <tbody>
+                            {"".join(rows).strip()}
+                        </tbody>
+                    </table>"""
 
     # Simple value
     else:
@@ -397,60 +415,58 @@ def _render_qualitative(qual_dict):
     if not qual_dict:
         return ""
 
-    sections = []
-
+    cards = []
     for key, value in qual_dict.items():
         title = escape(str(key))
         content = _render_qualitative_value(value)
 
-        sections.append(f"""
-        <div class="qualitative-card">
-            <h4>{title}</h4>
-            <div class="qualitative-content">
-                {content}
-            </div>
+        cards.append(f"""
+            <div class="qualitative-card">
+                <h4>{title}</h4>
+                <div class="qualitative-content">
+                    {content}
+                </div>
+            </div>""")
+
+    return f"""<h3>Qualitative Analysis</h3>
+    <div class="qualitative-section">
+        <div class="qualitative-grid">
+            {"".join(cards).strip()}
         </div>
+    </div>"""
+
+# list all news articles in the given folder newest first
+def _render_news(news_dir):
+    if news_dir is None or not news_dir.exists(): return ""
+    
+    paths = sorted(
+        news_dir.glob("*.md"),
+        key=lambda p: p.name,
+        reverse=True,  # yyyy-mm-dd prefix → newest first
+    )
+
+    if not paths:
+        return ""
+
+    rows = []
+
+    for path in paths:
+        rows.append(f"""
+            <div class="news-row">
+                <a href="#" onclick="openPopup('{path.as_uri()}'); return false;">
+                    {path.stem.replace('_', ' ')}
+                </a>
+            </div>
         """)
 
     return f"""
-        <h3>Qualitative Analysis</h3>
-        <div class="qualitative-grid">
-            {"".join(sections)}
-        </div>
+    <h3>News</h3>
+    <div class="news-section">
+        {"".join(rows).strip()}
+    </div>
     """
 
-# def _render_qualitative(qual_dict):
-#     if qual_dict is None: return ""
-
-#     sections = []
-
-#     for key, value in qual_dict.items():
-#         title = escape(str(key))
-
-#         if isinstance(value, list):
-#             content = "<ul>"
-#             for item in value:
-#                 content += f"<li>{escape(str(item))}</li>"
-#             content += "</ul>"
-
-#         else:
-#             content = f"<p>{escape(str(value))}</p>"
-
-#         sections.append(f"""
-#         <div class="qualitative-card">
-#             <h4>{title}</h4>
-#             {content}
-#         </div>
-#         """)
-
-#     return f"""
-#         <h4>Qualitative Analysis</h4>
-#         <div class="qualitative-grid">
-#             {"".join(sections)}
-#         </div>
-#     """
-
-def dict_to_html(title, column_names: list, dict_list: list, qual_dict: dict, 
+def render_html(title, column_names: list, dict_list: list, qual_dict: dict, news_dir: None,
                  output_file: Path, template_html:Path = TEMPLATE_HTML, 
                  collapsed_paths=COLLAPSED_PATHS):
     if not dict_list:
@@ -462,16 +478,14 @@ def dict_to_html(title, column_names: list, dict_list: list, qual_dict: dict,
     if not _same_signature(*dict_list):
         raise ValueError("signatures not matching")
 
-    header = _render_header(title, column_names)
-    rows = _render_rows(dict_list, collapsed_paths=collapsed_paths)
-    table_content = _render_table(header, rows)
-    image_section = _render_images(output_file, dict_list[0].get('meta', {}))
+    financials_section = _render_financials(title, column_names, dict_list, output_file, collapsed_paths)
     qual_section = _render_qualitative(qual_dict)
+    news_section = _render_news(news_dir)
 
-    template = template_html.read_text(encoding="utf-8")
-    html = template.replace("{{ content }}", table_content)
-    html = html.replace("{{ image }}", image_section)
+    html = template_html.read_text(encoding="utf-8")
+    html = html.replace("{{ financials }}", financials_section)
     html = html.replace("{{ qualitative }}", qual_section)
+    html = html.replace("{{ news }}", news_section)
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text(html, encoding="utf-8")

@@ -172,6 +172,16 @@ class Profile(JsonModel):
             'news_summary': self.news_summary,
         }
 
+    def get_news_dir(self):
+        paths = [
+            p for p in Path(NEWS_DIR).glob(f"{self.code}_*")
+            if p.is_dir()
+        ]
+        if len(paths) != 1:
+            print(f"cannot find unique news dir with {self.code}...")
+            return None 
+        return paths[0]
+
 class ProfileManager(JsonModelManager):
     MODEL = Profile
 

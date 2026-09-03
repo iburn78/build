@@ -7,27 +7,9 @@
 </head>
 
 <body>
-<div></div>
-<div class="dashboard">
-    <div class="table-panel">
-        <div class="table-wrapper">
-            <div class="table-controls">
-                <button onclick="expandAll()">Expand All</button>
-                <button onclick="collapseAll()">Collapse All</button>
-            </div>
-        
-            <table class="dict-table">
-{{ content }}
-            </table>
-        </div>
-    </div>
-    <div class="charts-panel">
-{{ image }}
-    </div>
-</div> 
-<div class="qualitative-section">
-{{ qualitative }}
-</div>
+    {{ financials }}
+    {{ qualitative }}
+    {{ news }}
 </body>
 <script>
 function getLevel(row) {
@@ -38,7 +20,6 @@ function getLevel(row) {
         ? Number(levelClass.replace("level-", ""))
         : null;
 }
-
 
 function updateVisibility() {
     const rows = document.querySelectorAll(".dict-table tr");
@@ -110,6 +91,15 @@ document.querySelectorAll(".dict-table .section-row")
 
 // Initial state
 updateVisibility();
+
+// news pop-up
+function openPopup(url) {
+    window.open(
+        url,
+        "_blank",
+        "width=1200,height=800,scrollbars=yes,resizable=yes"
+    );
+}
 </script>
 
 </html>

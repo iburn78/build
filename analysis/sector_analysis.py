@@ -13,7 +13,7 @@ from matplotlib.ticker import FuncFormatter
 from data import load
 from data.tools import set_KoreanFonts
 from build.tools.settings import df_krx, sanitized_filename
-from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, dprint, dict_to_html
+from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, dprint, render_html
 from build.models.profile import Profile, ProfileManager
 from build.models.component import Component, ComponentManager
 from build.models.valuechain import ValueChain, ValueChainManager
@@ -304,10 +304,11 @@ class SectorAnalysis:
         sa_list = [self] + self.sub_sas if self.sub_sas is not None else [self]
         name_list = [{'name': sa.meta['name'], 'link': sa.jsonmodel.get_json_path().with_suffix('.html')} for sa in sa_list]
         dict_list = [sa.get_combined_dict() for sa in sa_list]
-        qs = self.jsonmodel.get_qualitative_dict()
+        qual_dict = self.jsonmodel.get_qualitative_dict()
+        news_dir = self.jsonmodel.get_news_dir() 
         output_file = self.jsonmodel.get_json_path().with_suffix('.html')
 
-        dict_to_html(self.model_class.__name__, name_list, dict_list, qs, output_file)
+        render_html(self.model_class.__name__, name_list, dict_list, qual_dict, news_dir, output_file)
 
     # =======================================================================================================================
     # Assessment  

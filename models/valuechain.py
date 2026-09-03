@@ -29,7 +29,8 @@ class ValueChain(JsonModel):
 
     def get_qualitative_dict(self):
         return {
-            'to be implemented': 'to be'
+            'components': self.component_names,
+            'landscape': self.landscape,
         }
 
 class ValueChainManager(JsonModelManager):

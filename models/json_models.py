@@ -87,6 +87,10 @@ class JsonModel(BaseModel, ABC):
         # return a dict, which may contain BaseModels
         pass
 
+    # overrided in Profile
+    def get_news_dir(self):
+        return None
+
     # returns all instances in dict {key: json_model dict}
     @classmethod
     def load_all_validated(cls) -> dict[str, "JsonModel"]:

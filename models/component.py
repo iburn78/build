@@ -51,10 +51,8 @@ class Company(BaseModel):
             code=str(code)
         )
 
-    def get_qualitative_dict(self):
-        return {
-            'to be implemented': 'to be'
-        }
+    def __str__(self): 
+        return f'{self.name} ({self.code})'
 
 # company from name
 def cn(name):
@@ -80,6 +78,12 @@ class Component(JsonModel):
         for c in self.companies:
             codelist.append(c.code)
         return codelist
+
+    def get_qualitative_dict(self):
+        return {
+            'companies': [str(c) for c in self.companies],
+            'traits': self.traits,
+        }
 
 class ComponentManager(JsonModelManager):
     MODEL = Component
