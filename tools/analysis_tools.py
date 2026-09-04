@@ -369,7 +369,6 @@ def _render_financials(title, column_names: list, dict_list: list, output_file: 
         </div>
     </div>"""
 
-
 def _render_qualitative_value(value):
     """Recursively render dict, list, and scalar values as HTML."""
     # Pydantic BaseModel → dict
