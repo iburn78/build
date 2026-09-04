@@ -299,7 +299,7 @@ def _render_header(title, column_names):
                             <th class="value">{name}</th>''')
 
     return f"""<tr class="header-row">
-                            <th class="label"><a href="{INDEX_HTML}">{escape(str(title))}</a></th>
+                            <th class="label"><a href="{INDEX_HTML}/#{escape(str(title).lower())}s">{escape(str(title))}</a></th>
                             {"".join(cells).strip()}
                         </tr>"""
 
@@ -357,6 +357,7 @@ def _render_financials(title, column_names: list, dict_list: list, output_file: 
                 <div class="table-controls">
                     <button onclick="expandAll()">Expand All</button>
                     <button onclick="collapseAll()">Collapse All</button>
+                    <a class="qp-link" href="{INDEX_HTML}">QP</a>
                 </div>
                 <table class="dict-table">
                     {table_content}
@@ -364,7 +365,7 @@ def _render_financials(title, column_names: list, dict_list: list, output_file: 
             </div>
         </div>
         <div class="charts-panel">
-            { images }
+            {images}
         </div>
     </div>"""
 
