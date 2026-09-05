@@ -8,6 +8,20 @@
 - Chrome downloaded to /Users/andy/Library/Caches/ms-playwright/chromium-1223
 - Scrapping from fnguide is easier
 
+## Korean / Unicode Representation on macOS
+- NFC = composed form; NFD = decomposed form.
+- Korean Hangul syllables can be represented in both forms.
+- NFC and NFD are different Unicode strings:
+    Python: "삼" == "삼"  → False
+    Node:   "삼" === "삼"  → false
+- macOS filesystem APIs historically use decomposed normalization for filenames.
+  Finder and applications using those filesystem APIs can therefore expose
+  Korean filenames in NFD.
+- File contents are not necessarily affected; this is primarily a filename issue.
+- Normalize to NFC when doing string comparison/search.
+
+> ***should not let macOS saves Korean filename***
+
 <br>
 
 ## NodeJS
@@ -18,6 +32,8 @@
 > ollama show gemma4
 - ollama should be running 
     - e.g., ollama serve (in mac)
+    - nohup ollama serve &: puts in the background and survives terminal closes (later can be recalled in the jobs)
+    - or simply > ollama handles the same
 
 #### Model core
 - architecture (gemma4)

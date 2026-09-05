@@ -6,13 +6,15 @@ from data.util.load import get_df_krx
 THIS_PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
 ppd_ = os.path.dirname(THIS_PROJECT) 
 BASE_DATA_DIR = os.path.join(ppd_, 'data') # in global data repo
-GENERAL_DIR = os.path.join(BASE_DATA_DIR, 'general') # to be created when needed
-NEWS_DIR = os.path.join(BASE_DATA_DIR, 'news')
-PROFILES_DIR = os.path.join(BASE_DATA_DIR, 'profiles')
-COMPONENTS_DIR = os.path.join(BASE_DATA_DIR, 'components')
-VALUECHAIN_DIR = os.path.join(BASE_DATA_DIR, 'valuechains')
+BUILD_DIR = os.path.join(BASE_DATA_DIR, 'build') # in global data repo
+GENERAL_DIR = os.path.join(BUILD_DIR , 'general') # to be created when needed
+NEWS_DIR = os.path.join(BUILD_DIR , 'news')
+PROFILES_DIR = os.path.join(BUILD_DIR , 'profiles')
+COMPONENTS_DIR = os.path.join(BUILD_DIR , 'components')
+VALUECHAIN_DIR = os.path.join(BUILD_DIR , 'valuechains')
 
 os.makedirs(BASE_DATA_DIR, exist_ok=True)
+os.makedirs(BUILD_DIR , exist_ok=True)
 os.makedirs(NEWS_DIR, exist_ok=True)
 os.makedirs(PROFILES_DIR, exist_ok=True)
 os.makedirs(COMPONENTS_DIR, exist_ok=True)
