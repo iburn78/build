@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from build.tools.crawl_news import crawl_news
-from build.tools.settings import PROFILES_DIR, NEWS_DIR, get_name
+from build.tools.settings import PROFILES_DIR, NEWS_DIR, get_name, DEFAULT_BIZ_LLM, DEFAULT_NEWS_LLM
 from build.models.json_models import JsonModel, JsonModelManager, InfoSection
 from datetime import datetime, timedelta
 import requests
@@ -185,7 +185,7 @@ class Profile(JsonModel):
 class ProfileManager(JsonModelManager):
     MODEL = Profile
 
-    def __init__(self, biz_mode='local', news_mode='ollama'): 
+    def __init__(self, biz_mode=DEFAULT_BIZ_LLM, news_mode=DEFAULT_NEWS_LLM): 
         self.business_agent = self._make_agent(llm_mode=biz_mode, output_type=Business)
         self.news_agent = self._make_agent(llm_mode=news_mode, output_type=News)
         super().__init__()

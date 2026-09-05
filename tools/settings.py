@@ -27,8 +27,13 @@ with open(OPENAI_CONF, 'r') as json_file:
 OPENAI_API_KEY = config['openai_api_key']
 OLLAMA_API_KEY = config['ollama_api_key']
 
+# local, ollama, openai
+DEFAULT_BIZ_LLM = 'ollama' 
+DEFAULT_NEWS_LLM = 'ollama'
+
 QUARTERLY_PERFORMANCES_URL = 'http://10.245.110.101:3000'
 INDEX_HTML = "http://localhost:3000"
+
 
 df_krx = get_df_krx()
 
