@@ -110,6 +110,32 @@ class InfoSection(BaseModel):
     # - if reviewed == True, information survives through updates or (automatic) creations if filename matches
     # - if needed, AI agent will be provided
     reviewed: bool = False
+    updated: str | None = None
+
+def update_info_section(obj: JsonModel, section_name: str, values: dict):
+    section = getattr(obj, section_name)
+
+    if not isinstance(section, InfoSection):
+        raise ValueError(
+            f"{section_name} is not an InfoSection"
+        )
+
+    # Pydantic validation
+    updated_section = type(section).model_validate(values)
+
+    # Human's explicit reviewed state
+    updated_section.reviewed = values["reviewed"]
+
+    # Automatic edit timestamp
+    updated_section.updated = datetime.now().strftime(
+        "%Y-%m-%d %H:%M"
+    )
+
+    setattr(obj, section_name, updated_section)
+
+    obj.save_to_file()
+
+    return updated_section
 
 class JsonModelManager(ABC): 
     MODEL: type[JsonModel]

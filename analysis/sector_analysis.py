@@ -309,7 +309,7 @@ class SectorAnalysis:
         news_dir = self.jsonmodel.get_news_dir() 
         output_file = self.jsonmodel.get_json_path().with_suffix('.html')
 
-        render_html(self.model_class.__name__, name_list, dict_list, qual_dict, news_dir, output_file)
+        render_html(self.model_class.__name__, self.jsonmodel.key(), name_list, dict_list, qual_dict, news_dir, output_file)
 
     # =======================================================================================================================
     # Assessment  

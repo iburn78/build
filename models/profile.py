@@ -98,7 +98,6 @@ class Business(InfoSection):
     )
     search_specifier: str = "" # keyword specific to this company to add in all news search
     search_theme: list[str] = Field(default_factory=list)
-    updated: str # date current business is updated: yyyy-mm-dd
 
 class News(BaseModel):
     key_facts: list[str] = Field(
@@ -251,7 +250,7 @@ Rules:
         # ensure defaults again
         bs.search_specifier = ""
         bs.search_theme = []
-        bs.updated = datetime.now().strftime("%Y-%m-%d")
+        bs.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
         bs.reviewed = False
         return bs
 

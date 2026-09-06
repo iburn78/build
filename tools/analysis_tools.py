@@ -3,10 +3,10 @@ from zoneinfo import ZoneInfo
 from pathlib import Path
 import pandas as pd
 import numpy as np
-import json
 from html import escape
 import holidays
 import requests
+from build.models.json_models import InfoSection
 from build.tools.settings import THIS_PROJECT, QUARTERLY_PERFORMANCES_URL, INDEX_HTML
 from pydantic import BaseModel
 
@@ -281,7 +281,7 @@ def _render_rows(dict_list, level=0, path="", collapsed_paths=None):
     return rows
 
 # column_names = [{'name': , 'link': }, ...]
-def _render_header(title, column_names):
+def _render_header(object_type, column_names):
     cells = []
 
     for column in column_names:
@@ -295,7 +295,7 @@ def _render_header(title, column_names):
                             <th class="value">{name}</th>''')
 
     return f"""<tr class="header-row">
-                            <th class="label"><a href="{INDEX_HTML}/#{escape(str(title).lower())}s">{escape(str(title))}</a></th>
+                            <th class="label"><a href="{INDEX_HTML}/#{escape(str(object_type).lower())}s">{escape(str(object_type))}</a></th>
                             {"".join(cells).strip()}
                         </tr>"""
 
@@ -341,8 +341,8 @@ def _render_images(output_file, meta_dict):
         for image in images
     ).strip()
 
-def _render_financials(title, column_names: list, dict_list: list, output_file: Path, collapsed_paths=COLLAPSED_PATHS):
-    header = _render_header(title, column_names)
+def _render_financials(object_type, column_names: list, dict_list: list, output_file: Path, collapsed_paths=COLLAPSED_PATHS):
+    header = _render_header(object_type, column_names)
     rows = _render_rows(dict_list, collapsed_paths=collapsed_paths)
     table_content = _render_table(header, rows)
     images = _render_images(output_file, dict_list[0].get('meta', {}))
@@ -408,29 +408,187 @@ def _render_qualitative_value(value):
     else:
         return escape(str(value))
 
-def _render_qualitative(qual_dict):
+def _render_info_section(section):
+    """
+    Render an InfoSection.
+
+    The actual values are also embedded as data attributes so
+    JavaScript can populate the edit controls.
+    """
+
+    data = section.model_dump()
+
+    rows = []
+
+    for field_name, value in data.items():
+
+        # reviewed gets special visual treatment
+        if field_name == "reviewed":
+            status = "Reviewed" if value else "Not reviewed"
+            cls = "reviewed" if value else "not-reviewed"
+
+            rows.append(f"""
+                            <tr class="reviewed-row">
+                                <th>reviewed</th>
+                                <td>
+                                    <span class="reviewed-status {cls}">
+                                        {status}
+                                    </span>
+                                </td>
+                            </tr>
+            """)
+            continue
+
+        rows.append(f"""
+                            <tr>
+                                <th>{escape(str(field_name))}</th>
+                                <td>{_render_qualitative_value(value)}</td>
+                            </tr>
+        """)
+
+    return f"""
+                <div class="info-section-view">
+                    <table class="qualitative-table">
+                        <tbody>
+                            {"".join(rows).strip()}
+                        </tbody>
+                    </table>
+                </div>
+    """
+
+def _render_info_card(section_name, section, object_type, object_id):
+
+    reviewed = section.reviewed
+
+    if reviewed:
+        status_html = """
+                    <span class="reviewed-badge reviewed">
+                        ✓ Reviewed
+                    </span>
+        """
+    else:
+        status_html = """
+                    <span class="reviewed-badge not-reviewed">
+                        ○ Not reviewed
+                    </span>
+        """
+
+    content = _render_info_section(section)
+
+    start_marker = (
+                f"<!-- QUALITATIVE:{object_type}:{object_id}:{section_name} -->"
+    )
+
+    end_marker = (
+                f"<!-- /QUALITATIVE:{object_type}:{object_id}:{section_name} -->"
+    )
+
+    return f"""
+                {start_marker}
+
+                <div
+                    class="qualitative-card"
+                    data-section="{escape(str(section_name))}"
+                    data-object-type="{escape(str(object_type))}"
+                    data-object-id="{escape(str(object_id))}"
+                >
+
+                    <div class="qualitative-header">
+
+                        <h4>{escape(str(section_name))}</h4>
+
+                        <div class="qualitative-actions">
+
+                            {status_html}
+
+                            <input
+                                class="edit-password"
+                                type="password"
+                                maxlength="4"
+                                inputmode="numeric"
+                                placeholder="••••"
+                            >
+
+                            <button
+                                class="edit-button"
+                                type="button"
+                                title="Edit"
+                            >✎</button>
+
+                        </div>
+                    </div>
+
+                    <div class="qualitative-content">
+                        {content}
+                    </div>
+
+                </div>
+
+                {end_marker}
+    """
+
+def _render_qualitative(qual_dict, object_type, object_id):
     if not qual_dict:
         return ""
 
     cards = []
+
     for key, value in qual_dict.items():
+
         title = escape(str(key))
-        content = _render_qualitative_value(value)
 
-        cards.append(f"""
-            <div class="qualitative-card">
-                <h4>{title}</h4>
-                <div class="qualitative-content">
-                    {content}
+        if isinstance(value, InfoSection):
+
+            reviewed = value.reviewed
+
+            if reviewed:
+                status_html = """
+                    <span class="reviewed-badge reviewed">
+                        ✓ Reviewed
+                    </span>
+                """
+            else:
+                status_html = """
+                    <span class="reviewed-badge not-reviewed">
+                        ○ Not reviewed
+                    </span>
+                """
+            cards.append(
+                _render_info_card(
+                    key,
+                    value,
+                    object_type,
+                    object_id
+                )
+            )
+
+        else:
+
+            content = _render_qualitative_value(value)
+
+            cards.append(f"""
+                <div class="qualitative-card">
+
+                    <div class="qualitative-header">
+                        <h4>{title}</h4>
+                    </div>
+
+                    <div class="qualitative-content">
+                        {content}
+                    </div>
+
                 </div>
-            </div>""")
+            """)
 
-    return f"""<h3>Qualitative Analysis</h3>
-    <div class="qualitative-section">
-        <div class="qualitative-grid">
-            {"".join(cards).strip()}
+    return f"""
+        <h3>Qualitative Analysis</h3>
+
+        <div class="qualitative-section">
+            <div class="qualitative-grid">
+                {"".join(cards).strip()}
+            </div>
         </div>
-    </div>"""
+    """
 
 # list all news articles in the given folder newest first
 def _render_news(news_dir):
@@ -463,7 +621,7 @@ def _render_news(news_dir):
     </div>
     """
 
-def render_html(title, column_names: list, dict_list: list, qual_dict: dict, news_dir: None,
+def render_html(object_type, object_key, column_names: list, dict_list: list, qual_dict: dict, news_dir: None,
                  output_file: Path, template_html:Path = TEMPLATE_HTML, 
                  collapsed_paths=COLLAPSED_PATHS):
     if not dict_list:
@@ -475,8 +633,8 @@ def render_html(title, column_names: list, dict_list: list, qual_dict: dict, new
     if not _same_signature(*dict_list):
         raise ValueError("signatures not matching")
 
-    financials_section = _render_financials(title, column_names, dict_list, output_file, collapsed_paths)
-    qual_section = _render_qualitative(qual_dict)
+    financials_section = _render_financials(object_type, column_names, dict_list, output_file, collapsed_paths)
+    qual_section = _render_qualitative(qual_dict, object_type, object_key)
     news_section = _render_news(news_dir)
 
     html = template_html.read_text(encoding="utf-8")

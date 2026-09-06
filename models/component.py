@@ -115,7 +115,7 @@ class ComponentManager(JsonModelManager):
         )
 
         if fs:
-            if set(component.get_codelist()) == set((fs.get('meta') or {}).get('codelist')):
+            if set(component.get_codelist()) == set((fs.get('meta') or {}).get('code', [])):
                 component.financials = fs
             else: 
                 print(f'Component_Manager: codelist mismatching for {key} in financial section: discarding existing financial section')
