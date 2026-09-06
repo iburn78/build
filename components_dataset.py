@@ -3,7 +3,6 @@ from build.models.profile import ProfileManager
 from build.analysis.sector_analysis import SectorAnalysis
 
 cm = ComponentManager()
-
 cm.get_item('Memory', namelist = ['하이닉스', '삼성전자'])
 cm.get_item('Appliances', namelist = ['삼성전자', 'LG전자'])
 cm.get_item('Smart_glass', namelist = ['사피엔'])

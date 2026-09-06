@@ -63,9 +63,9 @@ class ValueChainManager(JsonModelManager):
         # Option 1) get (or create) all components
         # components = [self.cm.get_item(cn) for cn in component_namelist]
 
-        # Option 2) proceed only if all components already exists
-        if any(c not in self.cm._items for c in component_namelist):
-            raise ValueError(f"VC_Manager: for {key} given components not already created")
+        # Option 2) proceed only if all components already exists (this case: all components should be pre-loaded)
+        # if any(c not in self.cm._items for c in component_namelist):
+        #     raise ValueError(f"VC_Manager: for {key} given components not already created")
 
         vc = ValueChain(
             name = key,

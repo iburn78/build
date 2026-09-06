@@ -11,11 +11,11 @@ vc = vm.get_item(
     replace=True,
 )
 
-vc = vm.get_item(
-    key = "EV_Battery",
-    component_namelist=[],
-    replace=True,
-)
+# vc = vm.get_item(
+#     key = "EV_Battery",
+#     component_namelist=[],
+#     replace=True,
+# )
 
 # creation of SA(json, plot, html) for valuechains
 # cascading creation of SA for components within 

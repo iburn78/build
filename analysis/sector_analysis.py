@@ -11,9 +11,9 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import FuncFormatter
 from data.util import load
-from data.util.tools import set_KoreanFonts
-from build.tools.settings import df_krx, sanitized_filename, BASE_DATA_DIR
-from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, dprint, render_html
+from data.util.tools import set_KoreanFonts, dprint
+from build.tools.settings import df_krx, sanitized_filename, BUILD_DIR
+from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, render_html
 from build.models.profile import Profile, ProfileManager
 from build.models.component import Component, ComponentManager
 from build.models.valuechain import ValueChain, ValueChainManager
@@ -301,7 +301,7 @@ class SectorAnalysis:
         self._sub_sector_analyses()
 
     def _create_html(self):
-        html_root = Path(BASE_DATA_DIR)
+        html_root = Path(BUILD_DIR)
         sa_list = [self] + self.sub_sas if self.sub_sas is not None else [self]
         name_list = [{'name': sa.meta['name'], 'link': sa.jsonmodel.get_json_path().with_suffix('.html').relative_to(html_root)} for sa in sa_list]
         dict_list = [sa.get_combined_dict() for sa in sa_list]
@@ -425,7 +425,9 @@ class SectorAnalysis:
         # check point 2: is latest opincome higher than prev year, quarter (전년동기, 직전분기)
         # note: current quarter may be the same as the prev quarter due to ffill (on assumption that the performance stays)
         #       this is necessary, since some companies' financials may not be updated yet within a sector
-        c2 = bool(opic.iloc[-1] >= max(opic.iloc[-2], opic.iloc[-5]))
+        vals = opic.iloc[[-1, -2, -5]]
+
+        c2 = bool(vals.notna().all() and vals.iloc[0] >= vals.iloc[[1, 2]].max())
 
         # opincome slope over the average of last 4 quarters
         opic_growth = opic_slope / opic.iloc[-4:].mean() 
@@ -442,8 +444,11 @@ class SectorAnalysis:
         # ------------------------------------------------------------------
         # last 4 quarter opmargin: date is quarter starting date
         # refer to note: the same situation applies here
-        opms = (opic/rev).iloc[-4:].apply(round_sig).to_dict()
-        res['opmargin'] = {f'{k:%y}_{k.quarter}Q': v for k, v in opms.items()}
+        opms = (opic / rev).iloc[-4:].apply(round_sig).to_dict()
+        res['opmargin'] = {
+            f'{k:%y}_{k.quarter}Q': (None if pd.isna(v) else v)
+            for k, v in opms.items()
+        }
         r = self.fr_data[-4:].sum().iat[0]
         o = self.fr_data[-4:].sum().iat[1]
         res['opmargin']['4qtrs'] = round_sig(o/r)
@@ -496,7 +501,7 @@ class SectorAnalysis:
             finantially_sound = True
 
         om = self.assess_data['opmargin'].values()
-        if all(x > OPMARGIN_THRESHOLD for x in om):
+        if all(x is not None and x > OPMARGIN_THRESHOLD for x in om):
             finantially_sound = True
 
         # PER_level

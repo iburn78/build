@@ -74,10 +74,6 @@ def get_slope_intercept(s: pd.Series):
 def round_sig(x, n=3):
     return float(f"{x:.{n}g}")
 
-def dprint(d: dict):
-    if isinstance(d, dict):
-        print(json.dumps(d, indent=4, ensure_ascii=False))
-
 def calc_increment(s: pd.Series, measure_duration, base_duration): 
     # designed only for non-negative series
     # args: 

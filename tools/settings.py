@@ -1,7 +1,7 @@
 import os
 import re
 import json
-from data.util.load import get_df_krx
+from data.util.load import df_krx, get_name
 
 THIS_PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
 ppd_ = os.path.dirname(THIS_PROJECT) 
@@ -34,11 +34,8 @@ DEFAULT_NEWS_LLM = 'ollama'
 QUARTERLY_PERFORMANCES_URL = 'http://10.245.110.101:3000'
 INDEX_HTML = "http://localhost:3000"
 
-
-df_krx = get_df_krx()
-
-def get_name(code): 
-    return str(df_krx.loc[code,'Name'])
+df_krx = df_krx
+get_name = get_name
 
 def sanitized_filename(name): 
     if name is None or "": raise ValueError(f'name should be given: {name}')
