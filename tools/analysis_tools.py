@@ -7,7 +7,7 @@ from html import escape
 import holidays
 import requests
 from build.models.json_models import InfoSection
-from build.tools.settings import THIS_PROJECT, QUARTERLY_PERFORMANCES_URL, INDEX_HTML
+from build.tools.settings import THIS_PROJECT, QUARTERLY_PERFORMANCES_URL, INDEX_HTML, BASE_DATA_DIR
 from pydantic import BaseModel
 
 KRW_UNIT_KR = {
@@ -592,12 +592,13 @@ def _render_qualitative(qual_dict, object_type, object_id):
 
 # list all news articles in the given folder newest first
 def _render_news(news_dir):
-    if news_dir is None or not news_dir.exists(): return ""
-    
+    if news_dir is None or not news_dir.exists():
+        return ""
+
     paths = sorted(
         news_dir.glob("*.md"),
         key=lambda p: p.name,
-        reverse=True,  # yyyy-mm-dd prefix → newest first
+        reverse=True,
     )
 
     if not paths:
@@ -606,9 +607,12 @@ def _render_news(news_dir):
     rows = []
 
     for path in paths:
+        # URL path served by Node, NOT file://
+        url = "/" + path.relative_to(BASE_DATA_DIR).as_posix()
+
         rows.append(f"""
             <div class="news-row">
-                <a href="#" onclick="openPopup('{path.as_uri()}'); return false;">
+                <a href="#" onclick="openPopup('{url}'); return false;">
                     {path.stem.replace('_', ' ')}
                 </a>
             </div>
