@@ -244,7 +244,11 @@ class SectorAnalysis:
 
     # function that sums multiple serieses
     def _add_dfs(self, df_list, fill=False):
-        return reduce(lambda a, b: a.add(b, fill_value=0 if fill else None), df_list)
+        return reduce(
+            lambda a, b: a.fillna(0).add(b.fillna(0), fill_value=0)
+            if fill else a.add(b),
+            df_list
+        )
 
     def _post_process(self):
         self._build_shape() 
@@ -981,7 +985,7 @@ class SectorAnalysis:
         # -----------------------------------------------------
         # opmargin
         # -----------------------------------------------------
-        scale_factor = np.nanmax(np.abs(opincome))
+        scale_factor = opincome.abs().max()
 
         if scale_factor == 0 or np.isnan(scale_factor):
             scale_factor = 1
@@ -1011,13 +1015,11 @@ class SectorAnalysis:
         # -----------------------------------------------------
         # baseline
         # -----------------------------------------------------
-        ax.set_ylim(
-            bottom=min(0, np.nanmin(opincome))
-        )
+        if opincome.notna().any():
+            ax.set_ylim(bottom=min(0, opincome.min()))
 
-        ax_r.set_ylim(
-            bottom=min(0, np.nanmin(per))
-        )
+        if per.notna().any():
+            ax_r.set_ylim(bottom=min(0, per.min()))
 
         # -----------------------------------------------------
         # annotations
