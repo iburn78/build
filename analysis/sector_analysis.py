@@ -394,6 +394,7 @@ class SectorAnalysis:
 
     def _build_shape(self):  
         self.shape['financials'] = {}
+        self.shape['financials']['marcap'] = round_sig(self.ma_data.iat[-1,0])
         self.shape['financials']['revenue_4qtrs'] = round_sig(self.fr_data[-4:].sum().iat[0])
         self.shape['financials']['opincome_4qtrs'] = round_sig(self.fr_data[-4:].sum().iat[1])
         self.shape['financials']['revenue_qtr'] = round_sig(self.fr_data.iat[-1, 0])
@@ -572,6 +573,8 @@ class SectorAnalysis:
 
         # Parent sector
         self.shape['share'] = {
+            'marcap': '-',
+            '-m_rank':'-',
             'revenue': '-',
             '-r_rank': '-',
             'opincome': '-',
@@ -579,6 +582,11 @@ class SectorAnalysis:
         }
 
         # Collect raw financial values
+        marcaps = [
+            sa.shape['financials']['marcap'] * sa.meta['unit']
+            for sa in self.sub_sas
+        ]
+
         revenues = [
             sa.shape['financials']['revenue_qtr'] * sa.meta['unit']
             for sa in self.sub_sas
@@ -590,8 +598,14 @@ class SectorAnalysis:
         ]
 
         # Ranking: include negative values
+        sorted_marcaps = sorted(marcaps, reverse=True)
         sorted_revenues = sorted(revenues, reverse=True)
         sorted_opincomes = sorted(opincomes, reverse=True)
+
+        m_ranks = [
+            sorted_marcaps.index(value) + 1
+            for value in marcaps
+        ]
 
         r_ranks = [
             sorted_revenues.index(value) + 1
@@ -604,6 +618,7 @@ class SectorAnalysis:
         ]
 
         # Percentage calculation
+        total_marcap = sum(marcaps)
         total_revenue = sum(revenues)
 
         # Only positive operating income contributes to shares
@@ -617,10 +632,17 @@ class SectorAnalysis:
         # Populate each sub-sector
         for i, sa in enumerate(self.sub_sas):
 
+            marcap = marcaps[i]
             revenue = revenues[i]
             opincome = opincomes[i]
 
             sa.shape['share'] = {
+                'marcap': (
+                    round_sig(marcap / total_marcap)
+                    if total_marcap > 0 else '-'
+                ), 
+                '-m_rank': m_ranks[i],
+
                 'revenue': (
                     round_sig(revenue / total_revenue)
                     if total_revenue > 0 else '-'

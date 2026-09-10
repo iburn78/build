@@ -7,7 +7,7 @@ from html import escape
 import holidays
 import requests
 from build.models.json_models import InfoSection
-from build.tools.settings import THIS_PROJECT, QUARTERLY_PERFORMANCES_URL, INDEX_HTML, BASE_DATA_DIR
+from build.tools.settings import THIS_PROJECT, QUARTERLY_PERFORMANCES_URL, INDEX_HTML, BASE_DATA_DIR, get_FN_GUIDE_url, get_NAVER_url
 from pydantic import BaseModel
 
 KRW_UNIT_KR = {
@@ -341,19 +341,35 @@ def _render_images(output_file, meta_dict):
         for image in images
     ).strip()
 
+def _get_ext_links(code):
+    if isinstance(code, str): 
+        return f'''
+                    <div class="ext-links">
+                        <a class="ext-link" href="{INDEX_HTML}">QP</a>
+                        <a class="ext-link" href="#" onclick="openPopup('{get_NAVER_url(code)}', true); return false;">NV</a>
+                        <a class="ext-link" href="#" onclick="openPopup('{get_FN_GUIDE_url(code)}', true); return false;">FN</a>
+                    </div>'''
+    return f'''
+                    <div class="ext-links">
+                        <a class="ext-link" href="{INDEX_HTML}">QP</a>
+                    </div>'''
+
 def _render_financials(object_type, column_names: list, dict_list: list, output_file: Path, collapsed_paths=COLLAPSED_PATHS):
+    meta_dict = dict_list[0].get('meta', {})
     header = _render_header(object_type, column_names)
     rows = _render_rows(dict_list, collapsed_paths=collapsed_paths)
     table_content = _render_table(header, rows)
-    images = _render_images(output_file, dict_list[0].get('meta', {}))
+    images = _render_images(output_file, meta_dict)
+    ext_links = _get_ext_links(meta_dict.get('code'))
+
     return f"""<h3>Financials Analysis</h3>
     <div class="dashboard">
         <div class="table-panel">
             <div class="table-wrapper">
                 <div class="table-controls">
-                    <button onclick="expandAll()">Expand All</button>
-                    <button onclick="collapseAll()">Collapse All</button>
-                    <a class="qp-link" href="{INDEX_HTML}">QP</a>
+                    <button onclick="expandAll()">+</button>
+                    <button onclick="collapseAll()">-</button>
+                    {ext_links}
                 </div>
                 <table class="dict-table">
                     {table_content}

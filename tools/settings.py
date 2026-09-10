@@ -37,6 +37,14 @@ INDEX_HTML = "http://localhost:3000"
 df_krx = df_krx
 get_name = get_name
 
+def get_FN_GUIDE_url(code):
+    return (
+            "https://wcomp.fnguide.com/CompanyInfo/Snapshot"
+            f"?c_id=AA&menu_type=01&cmp_cd={code}"
+    )
+def get_NAVER_url(code):
+    return f"https://stock.naver.com/domestic/stock/{code}/price"
+
 def sanitized_filename(name): 
     if name is None or "": raise ValueError(f'name should be given: {name}')
     name = re.sub(r'[<>:"/\\|?*]+', "", name)

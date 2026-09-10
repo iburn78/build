@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from build.tools.crawl_news import crawl_news
-from build.tools.settings import PROFILES_DIR, NEWS_DIR, get_name, DEFAULT_BIZ_LLM, DEFAULT_NEWS_LLM
+from build.tools.settings import PROFILES_DIR, NEWS_DIR, get_name, DEFAULT_BIZ_LLM, DEFAULT_NEWS_LLM, get_FN_GUIDE_url
 from build.models.json_models import JsonModel, JsonModelManager, InfoSection
 from datetime import datetime, timedelta
 import requests
@@ -33,10 +33,7 @@ class Overview(BaseModel):
 
     @classmethod
     def fetch(cls, code):
-        url = (
-            "https://wcomp.fnguide.com/CompanyInfo/Snapshot"
-            f"?c_id=AA&menu_type=01&cmp_cd={code}"
-        )
+        url = get_FN_GUIDE_url(code)
 
         headers = {
             "User-Agent": "Mozilla/5.0"
@@ -96,7 +93,7 @@ class Business(InfoSection):
         description="Direct competing companies in the same industry",
         max_length=MAX_COMPETITORS
     )
-    search_specifier: str = "" # keyword specific to this company to add in all news search
+    search_specifier: str | None = None # keyword specific to this company to add in all news search
     search_theme: list[str] = Field(default_factory=list)
 
 class News(BaseModel):
