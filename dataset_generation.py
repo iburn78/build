@@ -1,7 +1,7 @@
 #%% 
 import pandas as pd
 from build.tools.settings import get_name
-from data.util.tools import dprint
+from data.tools.tools import dprint
 
 ev = pd.read_excel('analysis/refs/이차전지_밸류체인_Excel.xlsx')
 kr_ev = ev.loc[ev['티커'].str.contains('KS', na=False)]
@@ -45,6 +45,7 @@ for vc in vm.get_itemlist():
 
 ###_ 
 
+# 1) change html tab name to ... 
 # 2) to add some scaling factor... or only to include department
 # 3) EV value chain, study why PER chart is broken - fix and make it robust 
 # 4) 에코프로머티(450080) Dart API check, why it is broken, and not collected (2023 listed, maybe CFS issue)
@@ -54,7 +55,6 @@ for vc in vm.get_itemlist():
 # notice fill role, and 
 # study why 에코프로머티 below chart is still empty when fill
 # maybe add_dfs is not the right place to fill? 
-
 
 # to check ---------------------
 # - maybe manually assign the start date: (check!)
