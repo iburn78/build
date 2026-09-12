@@ -23,6 +23,11 @@ COLLAPSED_PATHS = {
     'assess_data.alpha_beta.from_start_date', 
     'shape.financials'
 }
+NO_CHART_KEYS = {
+    '-m_rank', 
+    '-r_rank',
+    '-o_rank',
+}
 year = str(datetime.today().year)
 
 def is_KRX_open(now=None, strict=False):
@@ -248,23 +253,88 @@ def _section_row(key, level=0, colspan=1, collapsed=False):
                             <td class="label" colspan="{colspan}">{escape(str(key))}</td>
                         </tr>"""
 
-def _value_row(key, values=None, level=0):
-    values = values or []
-    cells = "".join(
-        f'''
-                            <td class="value">{_fmt_value(key, v)}</td>'''
-        for v in values
-    ).strip()
+# simpler core func 
+# def _value_row(key, values=None, level=0):
+#     values = values or []
+#     cells = "".join(
+#         f'''
+#                             <td class="value">{_fmt_value(key, v)}</td>'''
+#         for v in values
+#     ).strip()
 
-    return f"""        
+#     return f"""        
+#                         <tr class="value-row level-{level}">
+#                             <td class="label">{escape(str(key))}</td>
+#                             {cells}
+#                         </tr>"""
+def _value_row(key, values=None, level=0, chart=True):
+    values = values or []
+
+    nums = []
+    for v in values:
+        if isinstance(v, bool):
+            nums.append(None)
+        else:
+            try:
+                nums.append(float(v))
+            except (TypeError, ValueError):
+                nums.append(None)
+
+    valid = [v for v in nums if v is not None]
+    total = sum(valid)
+    max_abs = max((abs(v) for v in valid), default=0)
+    has_negative = any(v < 0 for v in valid)
+    is_proportion = not has_negative and abs(total - 1) < 0.001
+
+    cells = []
+
+    for original, v in zip(values, nums):
+        bar = ""
+
+        if chart and v is not None and max_abs:
+            if is_proportion:
+                height = v * 100
+                position = "bottom: 0"
+                cls = "value-bar proportion-bar"
+
+            elif has_negative:
+                height = abs(v) / max_abs * 50
+
+                if v >= 0:
+                    position = "bottom: 50%"
+                    cls = "value-bar"
+                else:
+                    position = "top: 50%"
+                    cls = "value-bar negative-bar"
+
+            else:
+                height = v / max_abs * 100
+                position = "bottom: 0"
+                cls = "value-bar"
+
+            bar = (
+                f'<div class="{cls}" '
+                f'style="height:{height:.1f}%; {position}"></div>'
+            )
+
+        cells.append(f'''
+                            <td class="value">
+                                <span>{_fmt_value(key, original)}</span>
+                                <div class="value-bar-container">
+                                    {bar}
+                                </div>
+                            </td>''')
+
+    return f"""
                         <tr class="value-row level-{level}">
                             <td class="label">{escape(str(key))}</td>
-                            {cells}
+                            {"".join(cells).strip()}
                         </tr>"""
 
-def _render_rows(dict_list, level=0, path="", collapsed_paths=None):
+def _render_rows(dict_list, level=0, path="", collapsed_paths=None, no_chart_keys=None):
     """Flatten nested dictionaries into table rows."""
     collapsed_paths = collapsed_paths or set()
+    no_chart_keys = no_chart_keys or set()
     rows = []
     for key, value in dict_list[0].items():
         current_path = f"{path}.{key}" if path else str(key)
@@ -273,10 +343,10 @@ def _render_rows(dict_list, level=0, path="", collapsed_paths=None):
         if isinstance(value, dict):
             collapsed = current_path in collapsed_paths
             rows.append(_section_row(key, level=level, colspan=len(dict_list)+1, collapsed=collapsed))
-            rows.extend(_render_rows(values, level=level + 1, path=current_path, collapsed_paths=collapsed_paths))
+            rows.extend(_render_rows(values, level=level + 1, path=current_path, collapsed_paths=collapsed_paths, no_chart_keys=no_chart_keys))
 
         else:
-            rows.append(_value_row(key, values, level=level))
+            rows.append(_value_row(key, values, level=level, chart=key not in no_chart_keys))
 
     return rows
 
@@ -354,10 +424,10 @@ def _get_ext_links(code):
                         <a class="ext-link" href="{INDEX_HTML}">QP</a>
                     </div>'''
 
-def _render_financials(object_type, column_names: list, dict_list: list, output_file: Path, collapsed_paths=COLLAPSED_PATHS):
+def _render_financials(object_type, column_names: list, dict_list: list, output_file: Path, collapsed_paths=COLLAPSED_PATHS, no_chart_keys=NO_CHART_KEYS):
     meta_dict = dict_list[0].get('meta', {})
     header = _render_header(object_type, column_names)
-    rows = _render_rows(dict_list, collapsed_paths=collapsed_paths)
+    rows = _render_rows(dict_list, collapsed_paths=collapsed_paths, no_chart_keys=no_chart_keys)
     table_content = _render_table(header, rows)
     images = _render_images(output_file, meta_dict)
     ext_links = _get_ext_links(meta_dict.get('code'))
@@ -653,11 +723,13 @@ def render_html(object_type, object_key, column_names: list, dict_list: list, qu
     if not _same_signature(*dict_list):
         raise ValueError("signatures not matching")
 
+    page_name = f"[{escape(str(object_type).lower())}] {escape(str(column_names[0]['name']))}"
     financials_section = _render_financials(object_type, column_names, dict_list, output_file, collapsed_paths)
     qual_section = _render_qualitative(qual_dict, object_type, object_key)
     news_section = _render_news(news_dir)
 
     html = template_html.read_text(encoding="utf-8")
+    html = html.replace("{{ page_name }}", page_name)
     html = html.replace("{{ year }}", year)
     html = html.replace("{{ financials }}", financials_section)
     html = html.replace("{{ qualitative }}", qual_section)
