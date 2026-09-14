@@ -48,8 +48,8 @@ vm = ValueChainManager()
 
 ###_ 
 
-
-# 1) study why 세코닉스 no news (due to freshness threshold? no news ---)
+# check gen-market-dbs would be normally working or not
+# check if current way of making the price db is OK 
 # 2) to add some scaling factor... or only to include department
 # 3) EV value chain, study why PER chart is broken - fix and make it robust 
 # 4) 에코프로머티(450080) Dart API check, why it is broken, and not collected (2023 listed, maybe CFS issue)
