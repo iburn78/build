@@ -114,26 +114,31 @@ class CodeData:
             for year, q in (col.split('_') for col in QCOLS)
         ]
 
-        # get CFS(consolidated) if not empty
-        fr_target = fr_main_db.loc[fr_main_db['code']==self.code]
-        fr_db_for_code = fr_target.loc[fr_target['fs_div'] == "CFS"]
-        cfs_qcols = fr_db_for_code.loc[(fr_db_for_code['account'] == 'revenue') | (fr_db_for_code['account'] == 'operating_income'), QCOLS]
-        if cfs_qcols.isna().all().all():
-            fr_db_for_code = fr_target.loc[fr_target['fs_div'] == "OFS"] 
+        fr_target = fr_main_db.loc[fr_main_db['code'] == self.code]
 
-        row_r = fr_db_for_code.loc[fr_db_for_code['account'] == 'revenue', QCOLS].iloc[0].copy() # series
-        row_r = (row_r/self.unit)
+        cfs = fr_target.loc[fr_target['fs_div'] == 'CFS']
+        ofs = fr_target.loc[fr_target['fs_div'] == 'OFS']
+
+        # Use CFS where available, fill missing values with OFS
+        row_r = cfs.loc[cfs['account'] == 'revenue', QCOLS].iloc[0].copy()
+        ofs_r = ofs.loc[ofs['account'] == 'revenue', QCOLS].iloc[0]
+        row_r = row_r.fillna(ofs_r)
+
+        row_o = cfs.loc[cfs['account'] == 'operating_income', QCOLS].iloc[0].copy()
+        ofs_o = ofs.loc[ofs['account'] == 'operating_income', QCOLS].iloc[0]
+        row_o = row_o.fillna(ofs_o)
+
+        row_r = row_r / self.unit
+        row_o = row_o / self.unit
+
         row_r.index = DATECOLS
-
-        row_o = fr_db_for_code.loc[fr_db_for_code['account'] == 'operating_income', QCOLS].iloc[0].copy() # series
-        row_o = (row_o/self.unit)
         row_o.index = DATECOLS
+
         fr_data = pd.DataFrame({
             'revenue_qtr': row_r,
             'opincome_qtr': row_o,
         })
 
-        # return with ffill 
         return fr_data.ffill()
 
 class SectorAnalysis: 
@@ -179,7 +184,7 @@ class SectorAnalysis:
     # -------------------------------------------------------------------------------------------------------
     # public interfaces
     # -------------------------------------------------------------------------------------------------------
-    def process_profile(self, pr: Profile, unit=None, fill=False, start_date=DEFAULT_START_DATE):
+    def process_profile(self, pr: Profile, unit=None, fill=True, start_date=DEFAULT_START_DATE):
         self.jsonmodel = pr
         self.model_class = Profile
         self.meta['name'] = df_krx.at[pr.code, 'Name']
@@ -188,7 +193,7 @@ class SectorAnalysis:
         self._process_codelist(unit=unit, fill=fill, start_date=start_date)
         return self
 
-    def process_component(self, cp: Component, unit=None, fill=False, start_date=DEFAULT_START_DATE): 
+    def process_component(self, cp: Component, unit=None, fill=True, start_date=DEFAULT_START_DATE): 
         self.jsonmodel = cp
         self.model_class = Component
         self.meta['name'] = cp.name
@@ -197,7 +202,7 @@ class SectorAnalysis:
         self._process_codelist(unit=unit, fill=fill, start_date=start_date)
         return self
 
-    def process_valuechain(self, vc: ValueChain, unit=None, fill=False, start_date=DEFAULT_START_DATE): 
+    def process_valuechain(self, vc: ValueChain, unit=None, fill=True, start_date=DEFAULT_START_DATE): 
         self.jsonmodel = vc
         self.model_class = ValueChain
         self.meta['name'] = vc.name
@@ -418,6 +423,7 @@ class SectorAnalysis:
 
         opic = fr['opincome_qtr'] 
         rev = fr['revenue_qtr']
+        
         opic_slope , _ = get_slope_intercept(opic)
 
         res = {}

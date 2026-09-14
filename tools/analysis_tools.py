@@ -125,7 +125,8 @@ def calc_alpha_beta(
     df = pd.concat([stock, market], axis=1, join="inner").dropna()
     df.columns = ["stock", "market"]
 
-    ret = df.pct_change().dropna()
+    ret = df.pct_change()
+    ret = ret.replace([np.inf, -np.inf], np.nan).dropna()
 
     beta = ret["stock"].cov(ret["market"]) / ret["market"].var()
     _alpha = ret["stock"].mean() - beta * ret["market"].mean()
