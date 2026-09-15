@@ -24,22 +24,21 @@ class JsonModel(BaseModel, ABC):
     DIR: ClassVar[str] # ClassVars is not included in json file, not validate when loaded
     name: str # used as the json filename (except for a company profile: code_name)
     updated: str = ""
-    _json_path: Path | None = PrivateAttr(default=None)
 
     def model_post_init(self, context: Any) -> None:
         self.name = sanitized_filename(self.name)
         return super().model_post_init(context)
 
-    def save_to_file(self, prefix = None):
-        filename = self.name
-        if prefix: filename = prefix+'_'+filename
+    def get_json_path(self) -> Path:
+        return Path(self.DIR) / f"{self.name}.json"
 
-        path = Path(self.DIR) / f"{filename}.json"
-        path.write_text(
+    def save_to_file(self):
+        jp = self.get_json_path()
+        print(f"{self.__class__.__name__} is saved: {jp}", file=sys.stderr)
+        jp.write_text(
             self.model_dump_json(indent=4, exclude_none=True),
             encoding="utf-8",
         )
-        self._json_path = path
 
     @classmethod
     def load_from_file(cls, path: str | Path):
@@ -49,16 +48,17 @@ class JsonModel(BaseModel, ABC):
             obj = cls.model_validate_json(
                 path.read_text(encoding="utf-8")
             )
-            obj._json_path = path
         except Exception as e:
             print(f"jsonmodel validation failed: {path} | {e}")
             obj = None
         return obj
 
     # search within cls.DIR for a unique file starts with prefix...
+    # default is to find exactly one, and this can be overriden
     @classmethod
-    def get_json_filename_from_prefix(cls, prefix: str): 
-        paths = list(Path(cls.DIR).glob(f"{prefix}*.json"))
+    def get_json_path_from_prefix(cls, prefix: str): 
+        prefix = sanitized_filename(prefix)
+        paths = [p for p in Path(cls.DIR).glob("*.json") if p.name.startswith(prefix)]
         if len(paths) != 1:
             print(f"cannot load json file with prefix {prefix}...")
             return None 
@@ -66,17 +66,12 @@ class JsonModel(BaseModel, ABC):
 
     @classmethod
     def load_from_prefix(cls, prefix: str): 
-        json_filename = cls.get_json_filename_from_prefix(prefix)
+        prefix = sanitized_filename(prefix)
+        json_filename = cls.get_json_path_from_prefix(prefix)
         if json_filename is not None:
             return cls.load_from_file(json_filename)
         else: 
             return None
-
-    def get_json_path(self) -> Path:
-        if not self._json_path: 
-            print("Instance doesn't have json file...") 
-            return None
-        return self._json_path
 
     # key for the json_model dict
     def key(self) -> str:
@@ -85,7 +80,7 @@ class JsonModel(BaseModel, ABC):
     @abstractmethod
     def get_qualitative_dict(self):
         # return a dict, which may contain BaseModels
-        pass
+        return {}
 
     # overrided in Profile
     def get_news_dir(self):
@@ -167,7 +162,7 @@ class JsonModelManager(ABC):
     # - if financials_section exists, this will load it
     def get_item(self, key, **kwargs):
         self._validate_key(key)
-        json_filename = self.MODEL.get_json_filename_from_prefix(key)
+        json_filename = self.MODEL.get_json_path_from_prefix(key)
 
         if json_filename is not None:
             item = self.MODEL.load_from_file(json_filename)

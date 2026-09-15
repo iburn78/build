@@ -14,7 +14,7 @@ from data.tools import load
 from data.tools.tools import set_KoreanFonts, dprint
 from build.tools.settings import df_krx, sanitized_filename, BUILD_DIR
 from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, render_html
-from build.models.profile import Profile, ProfileManager
+from build.models.profile import Profile, ProfileManager, Segment, FinancialsAdjuster
 from build.models.component import Component, ComponentManager
 from build.models.valuechain import ValueChain, ValueChainManager
 
@@ -61,6 +61,7 @@ class CodeData:
     fr_data: pd.DataFrame | None = None
 
     unit: float = DEFAULT_KRW_UNIT
+    financials_adjuster: FinancialsAdjuster | None = None
 
     def __post_init__(self):
         self.time = pd.Timestamp.now()
@@ -187,7 +188,7 @@ class SectorAnalysis:
     def process_profile(self, pr: Profile, unit=None, fill=True, start_date=DEFAULT_START_DATE):
         self.jsonmodel = pr
         self.model_class = Profile
-        self.meta['name'] = df_krx.at[pr.code, 'Name']
+        self.meta['name'] = pr.name
         self.codelist = [pr.code]
         self.meta['code'] = pr.code 
         self._process_codelist(unit=unit, fill=fill, start_date=start_date)
@@ -247,7 +248,7 @@ class SectorAnalysis:
         self._post_process()
         return self
 
-    # function that sums multiple serieses
+    # function that sums multiple serises
     def _add_dfs(self, df_list, fill=False):
         return reduce(
             lambda a, b: a.fillna(0).add(b.fillna(0), fill_value=0)
@@ -266,25 +267,14 @@ class SectorAnalysis:
 
     # create or append to/replace existing json
     def _create_json(self):
-        if self.model_class is Profile:
-            key = self.codelist[0]
-            json_filename = f'{key}_{sanitized_filename(self.meta['name'])}.json'
-        else:
-            key = sanitized_filename(self.meta['name'])
-            json_filename = f'{key}.json'
+        json_path = self.jsonmodel.get_json_path_from_prefix(self.jsonmodel.key())
 
-        files = list(Path(self.jsonmodel.DIR).glob(f'{key}*.json'))
-
-        if len(files) > 1:
-            raise ValueError(f"Expected 1 file for {key}, found {len(files)}")
-
-        if files:
-            json_file = files[0]
-            with open(json_file, 'r', encoding='utf-8') as f:
+        if json_path:
+            with open(json_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
         else:
-            json_file = Path(self.jsonmodel.DIR) / json_filename
-            print(f"json file with {self.model_class.__name__} {key} does not exist: {json_filename} to be created")
+            json_path = self.jsonmodel.get_json_path()
+            print(f"json file with {self.model_class.__name__} {self.jsonmodel.key()} does not exist: {json_path} to be created")
             data = {}
 
         data['financials'] = {
@@ -294,7 +284,7 @@ class SectorAnalysis:
             'assess_result': self.assess_result,
         }
 
-        with open(json_file, 'w', encoding='utf-8') as f:
+        with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
     # recursively refreshing profiles and components
