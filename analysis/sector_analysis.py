@@ -211,6 +211,7 @@ class SectorAnalysis:
         self.meta['code'] = pr.code 
         adjuster = None
         if isinstance(pr, Segment):
+            self.model_class = Segment
             adjuster = pr.financials_adjuster
         self._process_codelist(unit=unit, fill=fill, start_date=start_date, adjuster=adjuster)
         return self
@@ -312,8 +313,7 @@ class SectorAnalysis:
     def _build_sub_sector_analyses(self):
         if self.model_class is Profile:
             self.sub_sas = []
-            for s in self.jsonmodel.business.segments:
-                self.sub_sas = SectorAnalysis().get_segment_sas(self.jsonmodel)
+            self.sub_sas = SectorAnalysis().get_segment_sas(self.jsonmodel)
         elif self.model_class is Component:
             self.sub_sas = []
             for code in self.jsonmodel.get_codelist():

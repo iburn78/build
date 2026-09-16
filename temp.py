@@ -3,15 +3,11 @@
 # may add update button
 # Analysis first, and then think what to do
 
-from build.models.profile import ProfileManager, Profile, Segment
+from build.models.profile import ProfileManager
 from build.analysis.sector_analysis import SectorAnalysis
-pm = ProfileManager()
 
+pm = ProfileManager()
 code = '005930'
-pr = pm.get_item(code)
-sg = Segment.load_from_prefix('005930(A)')
-print(sg)
+pr = pm.get_item(code, update=True)
 
 SectorAnalysis().process(pr)
-# SectorAnalysis().process(sg)
-SectorAnalysis().process(sg)

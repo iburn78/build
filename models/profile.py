@@ -145,9 +145,9 @@ class Profile(JsonModel):
         others = [p for p in paths if p not in base]
 
         segment_paths = []
-        for i, s in enumerate(self.business.segments):
+        for i, sg in enumerate(self.business.segments):
             segment = Segment(
-                name = self.name+'_'+s,
+                name = sg,
                 code = self.code, 
                 id = chr(ord('A')+i), # 0 to A, 1 to B, etc
                 business= Business(segments=[], key_products=[], competitors=[])
@@ -155,16 +155,21 @@ class Profile(JsonModel):
             path = segment.get_json_path()
             segment_paths.append(path)
 
-            if manage and path not in others or not Segment.load_from_file(path).business.reviewed:
-                segment.save_to_file()
+            if manage:  
+                if path in others: 
+                    if not Segment.load_from_file(path).business.reviewed:
+                        segment.save_to_file()
+                else:
+                    segment.save_to_file()
 
-        if not manage: return segment_paths
+        if manage: 
+            # remove json, html, png, etc... 
+            to_remove = [p for p in others if p not in segment_paths] 
+            for p in to_remove:
+                for _p in p.parent.glob(f"{p.stem}.*"):
+                    _p.unlink(missing_ok=True)
 
-        # remove json, html, png, etc... 
-        to_remove = [p for p in others if p not in segment_paths] 
-        for p in to_remove:
-            for _p in p.parent.glob(f"{p.stem}.*"):
-                _p.unlink(missing_ok=True)
+        return segment_paths
 
     @classmethod
     def get_json_path_from_prefix(cls, prefix: str): 
@@ -202,16 +207,6 @@ class Profile(JsonModel):
             'business': self.business,
             'news_summary': self.news_summary,
         }
-
-    def get_news_dir(self):
-        paths = [
-            p for p in Path(NEWS_DIR).glob("*")
-            if p.is_dir() and p.name.startswith(f"{self.key()}_")
-        ]
-        if len(paths) != 1:
-            print(f"cannot find unique news dir with {self.code}...")
-            return None 
-        return paths[0]
 
 class FinancialsAdjuster(InfoSection):
     ###_ logic should be developed carefully

@@ -9,13 +9,14 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from build.models.profile import Profile
+from build.models.profile import Profile, Segment
 from build.models.component import Component
 from build.models.valuechain import ValueChain
 from build.models.json_models import InfoSection
 from build.analysis.sector_analysis import SectorAnalysis
 
 MODELS = {
+    "Segment": Segment, 
     "Profile": Profile,
     "Component": Component,
     "ValueChain": ValueChain,
@@ -32,7 +33,7 @@ def update_info(data):
     if model_class is None:
         raise ValueError(f"Unknown object type: {object_type}")
 
-    if object_type == "Profile":
+    if object_type == "Profile" or object_type == "Segment":
         obj = model_class.load_from_prefix(object_id)
     else:
         path = Path(model_class.DIR) / f"{object_id}.json"
@@ -59,7 +60,7 @@ def update_info(data):
     setattr(obj, section_name, updated_section)
 
     obj.save_to_file()
-    print(f"SAVING: {obj.get_json_path()} and .html", file=sys.stderr) # use stderr to print in node.js
+    print(f"SAVING: {obj.get_json_path()} and .html")
     SectorAnalysis().process(obj)
 
     return {
@@ -75,16 +76,16 @@ if __name__ == "__main__":
 
     try:
         result = update_info(data)
-        print(json.dumps(result))
+        print(json.dumps(result), file=sys.stderr)
 
     except Exception as e:
         import traceback
 
-        traceback.print_exc(file=sys.stderr)
+        traceback.print_exc(file=sys.stdout)
 
         print(json.dumps({
             "ok": False,
             "error": str(e),
-        }))
+        }), file=sys.stderr)
 
         sys.exit(1)

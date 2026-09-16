@@ -11,7 +11,7 @@ from build.tools.settings import llm_selector
 import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from build.tools.settings import sanitized_filename
+from build.tools.settings import sanitized_filename, NEWS_DIR
 
 AGENT_RETRIES = 5 
 NUM_THREAD_TO_RUN = 4
@@ -34,7 +34,7 @@ class JsonModel(BaseModel, ABC):
 
     def save_to_file(self):
         jp = self.get_json_path()
-        print(f"{self.__class__.__name__} is saved: {jp}", file=sys.stderr) # stderr used, to be compatible when called by nodejs
+        print(f"{self.__class__.__name__} is saved: {jp}")
         jp.write_text(
             self.model_dump_json(indent=4, exclude_none=True),
             encoding="utf-8",
@@ -80,7 +80,14 @@ class JsonModel(BaseModel, ABC):
         return {}
 
     def get_news_dir(self):
-        return None
+        paths = [
+            p for p in Path(NEWS_DIR).glob("*")
+            if p.is_dir() and p.name.startswith(f"{self.key()}_")
+        ]
+        if len(paths) != 1:
+            print(f"cannot find unique news dir with {self.key()}...")
+            return None 
+        return paths[0]
 
     # returns all instances in dict {key: json_model dict}
     @classmethod
@@ -156,7 +163,7 @@ class JsonModelManager(ABC):
     # - if update needed, this will triger update 
     # - if reviewed info_section exists, this will load it
     # - if financials_section exists, this will load it
-    def get_item(self, key, **kwargs):
+    def get_item(self, key, update=False, **kwargs):
         self._validate_key(key)
         json_filename = self.MODEL.get_json_path_from_prefix(key)
 
@@ -181,7 +188,7 @@ class JsonModelManager(ABC):
             item = self._create_new_item(key, None, **kwargs)
             changed = True
             
-        if changed: 
+        if update or changed: 
             item.updated = datetime.now().strftime("%Y-%m-%d") 
             item.save_to_file()
 

@@ -9,6 +9,7 @@ import requests
 from build.models.json_models import InfoSection
 from build.tools.settings import THIS_PROJECT, QUARTERLY_PERFORMANCES_URL, INDEX_HTML, BASE_DATA_DIR, get_FN_GUIDE_url, get_NAVER_url
 from pydantic import BaseModel
+import sys
 
 KRW_UNIT_KR = {
     1e12: 'jo',
