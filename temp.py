@@ -9,9 +9,9 @@ pm = ProfileManager()
 
 code = '005930'
 pr = pm.get_item(code)
-sg = Segment.load_from_prefix('005930[A]')
+sg = Segment.load_from_prefix('005930(A)')
 print(sg)
 
-SectorAnalysis().process_profile(pr)
-# SectorAnalysis().process_segment(sg)
-SectorAnalysis().process_profile(sg)
+SectorAnalysis().process(pr)
+# SectorAnalysis().process(sg)
+SectorAnalysis().process(sg)

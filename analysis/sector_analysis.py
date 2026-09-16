@@ -12,7 +12,7 @@ import matplotlib.dates as mdates
 from matplotlib.ticker import FuncFormatter
 from data.tools import load
 from data.tools.tools import set_KoreanFonts, dprint
-from build.tools.settings import df_krx, sanitized_filename, BUILD_DIR
+from build.tools.settings import df_krx, BUILD_DIR
 from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, render_html
 from build.models.profile import Profile, ProfileManager, Segment, FinancialsAdjuster
 from build.models.component import Component, ComponentManager
@@ -61,12 +61,13 @@ class CodeData:
     fr_data: pd.DataFrame | None = None
 
     unit: float = DEFAULT_KRW_UNIT
-    financials_adjuster: FinancialsAdjuster | None = None
+    adjuster: FinancialsAdjuster | None = None
 
     def __post_init__(self):
         self.time = pd.Timestamp.now()
         self.ma_data = self.get_ma_data()
         self.fr_data = self.get_fr_data()
+        self.adjust_data()
 
     # ma: MarCap, Amount in daily basis
     def get_ma_data(self):
@@ -79,13 +80,7 @@ class CodeData:
             'amount_daily': volumes[self.code] * prices[self.code] / self.unit,
         })
 
-        ###_ checker (temporary)
         if ma_data.iloc[-1].isna().any():
-            print(f'{self.code}: price, volume, outshare ----------------------------')
-            print(prices[self.code].iloc[-3:])
-            print(volumes[self.code].iloc[-3:])
-            print(outshares)
-            print(ma_data.iloc[-3:])
             raise ValueError(f"ma data for code {self.code} is nan for last row - check")
 
         # ffill - nan could exist only in the beginning
@@ -100,7 +95,7 @@ class CodeData:
             ma_data = ma_data[ma_data.index.date != now.date()]
 
         return ma_data
-    
+
     # fr: financial records in quarterly basis
     def get_fr_data(self):
         QCOLS = sorted(c for c in fr_main_db.columns if 'Q' in c)
@@ -142,6 +137,12 @@ class CodeData:
 
         return fr_data.ffill()
 
+    def adjust_data(self):
+        if self.adjuster is None: return 
+        self.ma_data['marcap'] = self.ma_data['marcap']*self.adjuster.marcap_share
+        self.fr_data['revenue_qtr'] = self.fr_data['revenue_qtr']*self.adjuster.revenue_share
+        self.fr_data['opincome_qtr'] = self.fr_data['opincome_qtr']*self.adjuster.opincome_share
+
 class SectorAnalysis: 
     # a sector analysis
     def __init__(self):
@@ -165,36 +166,56 @@ class SectorAnalysis:
     # Creation
     # =======================================================================================================================
     @classmethod
+    def get_segment_sas(cls, pr: Profile, **kwargs):
+        paths = pr.manage_segment_jsons(manage=False)
+        sas = []
+        for p in paths:
+            _sa = cls()
+            sas.append(_sa.process(Segment.load_from_file(p)))
+        return sas
+
+    @classmethod
     def get_from_code(cls, code, **kwargs):
         sa = cls()
         pr = sa.pm.get_item(code)
-        return sa.process_profile(pr, **kwargs)
+        return sa.process(pr, **kwargs)
 
     @classmethod
     def get_from_component_name(cls, name, **kwargs):
         sa = cls()
         cp = sa.cm.get_item(name)
-        return sa.process_component(cp, **kwargs)
+        return sa.process(cp, **kwargs)
     
     @classmethod
     def get_from_valuechain_name(cls, name, **kwargs):
         sa = cls()
         vm = sa.vm.get_item(name)
-        return sa.process_valuechain(vm, **kwargs)
+        return sa.process(vm, **kwargs)
     
     # -------------------------------------------------------------------------------------------------------
     # public interfaces
     # -------------------------------------------------------------------------------------------------------
-    def process_profile(self, pr: Profile, unit=None, fill=True, start_date=DEFAULT_START_DATE):
+    def process(self, jm, unit=None, fill=True, start_date=DEFAULT_START_DATE):
+        if type(jm) is Profile or type(jm) is Segment:
+            return self._process_profile(jm, unit, fill, start_date)
+        if type(jm) is Component:
+            return self._process_component(jm, unit, fill, start_date)
+        if type(jm) is ValueChain:
+            return self._process_valuechain(jm, unit, fill, start_date)
+
+    def _process_profile(self, pr: Profile, unit=None, fill=True, start_date=DEFAULT_START_DATE):
         self.jsonmodel = pr
         self.model_class = Profile
         self.meta['name'] = pr.name
         self.codelist = [pr.code]
         self.meta['code'] = pr.code 
-        self._process_codelist(unit=unit, fill=fill, start_date=start_date)
+        adjuster = None
+        if isinstance(pr, Segment):
+            adjuster = pr.financials_adjuster
+        self._process_codelist(unit=unit, fill=fill, start_date=start_date, adjuster=adjuster)
         return self
 
-    def process_component(self, cp: Component, unit=None, fill=True, start_date=DEFAULT_START_DATE): 
+    def _process_component(self, cp: Component, unit=None, fill=True, start_date=DEFAULT_START_DATE): 
         self.jsonmodel = cp
         self.model_class = Component
         self.meta['name'] = cp.name
@@ -203,7 +224,7 @@ class SectorAnalysis:
         self._process_codelist(unit=unit, fill=fill, start_date=start_date)
         return self
 
-    def process_valuechain(self, vc: ValueChain, unit=None, fill=True, start_date=DEFAULT_START_DATE): 
+    def _process_valuechain(self, vc: ValueChain, unit=None, fill=True, start_date=DEFAULT_START_DATE): 
         self.jsonmodel = vc
         self.model_class = ValueChain
         self.meta['name'] = vc.name
@@ -231,7 +252,7 @@ class SectorAnalysis:
     # private 
     # -------------------------------------------------------------------------------------------------------
     # codelist: target sector -> returns an SA for the group of the codelist
-    def _process_codelist(self, unit=None, fill=False, start_date=DEFAULT_START_DATE):
+    def _process_codelist(self, unit=None, fill=False, start_date=DEFAULT_START_DATE, adjuster:FinancialsAdjuster|None=None):
         if len(self.codelist) != len(set(self.codelist)): raise ValueError(f'codelist should not contain any duplications: {self.codelist}')
 
         self.meta = self.meta | {
@@ -239,7 +260,7 @@ class SectorAnalysis:
             'start_date': start_date, # start date in "yyyy-mm-dd" format
         }
 
-        cd_list = [CodeData(code=code, unit=self.meta['unit']) for code in self.codelist]
+        cd_list = [CodeData(code=code, unit=self.meta['unit'], adjuster=adjuster) for code in self.codelist]
 
         # ma_data, fr_data stay as raw
         self.ma_data = self._add_dfs([cd.ma_data for cd in cd_list], fill) # daily basis
@@ -289,7 +310,11 @@ class SectorAnalysis:
 
     # recursively refreshing profiles and components
     def _build_sub_sector_analyses(self):
-        if self.model_class is Component:
+        if self.model_class is Profile:
+            self.sub_sas = []
+            for s in self.jsonmodel.business.segments:
+                self.sub_sas = SectorAnalysis().get_segment_sas(self.jsonmodel)
+        elif self.model_class is Component:
             self.sub_sas = []
             for code in self.jsonmodel.get_codelist():
                 self.sub_sas.append(SectorAnalysis().get_from_code(code))
@@ -1121,17 +1146,17 @@ if __name__ == "__main__":
     # company profile
     code = '005930'
     pr = pm.get_item(code)
-    sa = SectorAnalysis().process_profile(pr)
+    sa = SectorAnalysis().process(pr)
 
     # component
     name = "Memory"
     cp = cm.get_item(name)
-    sa = SectorAnalysis().process_component(cp)
+    sa = SectorAnalysis().process(cp)
 
     # valuechain
     name = "Electronics"
     vc = vm.get_item(name)
-    sa = SectorAnalysis().process_valuechain(vc)
+    sa = SectorAnalysis().process(vc)
 
     # index
     sa = SectorAnalysis().process_index('KOSDAQ')

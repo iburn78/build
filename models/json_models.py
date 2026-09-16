@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from pydantic import BaseModel, PrivateAttr
+from pydantic import BaseModel
 from datetime import datetime
 from typing import Any, ClassVar
 from pydantic_ai import Agent
@@ -22,7 +22,7 @@ class JsonModel(BaseModel, ABC):
     # - data format is validated when loaded
 
     DIR: ClassVar[str] # ClassVars is not included in json file, not validate when loaded
-    name: str # used as the json filename (except for a company profile: code_name)
+    name: str # used as the json filename
     updated: str = ""
 
     def model_post_init(self, context: Any) -> None:
@@ -30,11 +30,11 @@ class JsonModel(BaseModel, ABC):
         return super().model_post_init(context)
 
     def get_json_path(self) -> Path:
-        return Path(self.DIR) / f"{self.name}.json"
+        return Path(self.DIR) / f"{self.key()}.json"
 
     def save_to_file(self):
         jp = self.get_json_path()
-        print(f"{self.__class__.__name__} is saved: {jp}", file=sys.stderr)
+        print(f"{self.__class__.__name__} is saved: {jp}", file=sys.stderr) # stderr used, to be compatible when called by nodejs
         jp.write_text(
             self.model_dump_json(indent=4, exclude_none=True),
             encoding="utf-8",
@@ -53,8 +53,6 @@ class JsonModel(BaseModel, ABC):
             obj = None
         return obj
 
-    # search within cls.DIR for a unique file starts with prefix...
-    # default is to find exactly one, and this can be overriden
     @classmethod
     def get_json_path_from_prefix(cls, prefix: str): 
         prefix = sanitized_filename(prefix)
@@ -66,14 +64,13 @@ class JsonModel(BaseModel, ABC):
 
     @classmethod
     def load_from_prefix(cls, prefix: str): 
-        prefix = sanitized_filename(prefix)
         json_filename = cls.get_json_path_from_prefix(prefix)
         if json_filename is not None:
             return cls.load_from_file(json_filename)
         else: 
             return None
 
-    # key for the json_model dict
+    # unique identifier
     def key(self) -> str:
         return self.name
 
@@ -82,7 +79,6 @@ class JsonModel(BaseModel, ABC):
         # return a dict, which may contain BaseModels
         return {}
 
-    # overrided in Profile
     def get_news_dir(self):
         return None
 

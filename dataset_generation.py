@@ -63,4 +63,4 @@ for cp in cm.get_itemlist():
 # --------------------------------------------------
 # - json financials section, plot, and html
 for vc in vm.get_itemlist(): 
-    SectorAnalysis().process_valuechain(vc)
+    SectorAnalysis().process(vc)

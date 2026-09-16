@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 import requests
 from bs4 import BeautifulSoup
 import os
-import sys
 from pathlib import Path
 
 OVERVIEW_REFRESH_THRES = 30 # days
@@ -137,46 +136,39 @@ class Profile(JsonModel):
 
     def save_to_file(self):
         if self.business.reviewed:
-            ###_ logic should be revisited / when to be saved and when to be newly created
-            for i, segment in enumerate(self.business.segments):
-                sg = Segment(
-                    name = self.name+'_'+segment,
-                    code = self.code, 
-                    id = chr(ord('A')+i), # 0 to A, 1 to B, etc
-                    business= Business(segments=[], key_products=[], competitors=[])
-                )
-                sg.save_to_file()
-        else: 
-            self.remove_segment_jsons()
+            self.manage_segment_jsons()
         return super().save_to_file()
 
-    def remove_segment_jsons(self):
-        for path in Path(self.DIR).iterdir():
-            if path.name.startswith(f"{self.key()}["): 
-                path.unlink(missing_ok=True)
-
-    @classmethod
-    def get_json_path_from_prefix(cls, prefix: str):
-        prefix = sanitized_filename(prefix)
-        base, _ = cls._get_json_paths(prefix)
-        if len(base) == 1:
-            return base[0]
-        print(f"cannot load json file with prefix {prefix}...")
-        return None
-
-    # below if segment prefix is entered, still works
-    @classmethod
-    def _get_json_paths(cls, prefix: str):
-        paths = [p for p in Path(cls.DIR).glob("*.json") if p.name.startswith(prefix)]
-        base = [p for p in paths if p.name.startswith(f"{prefix}_")]
+    def manage_segment_jsons(self, manage=True):
+        paths = [p for p in Path(self.DIR).glob("*.json") if p.name.startswith(self.key())]
+        base = [p for p in paths if p.name.startswith(f"{self.key()}_")]
         others = [p for p in paths if p not in base]
-        segments = [p for p in others if 
-                p.name.startswith(f"{prefix}[") and
-                p.name[len(prefix) + 1] in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" and
-                p.name[len(prefix) + 2] == "]"]
-        if not (len(base) == 0 and len(others) == 0) and not (len(base) == 1 and len(others) == len(segments)):
-            raise ValueError(f'not consistent file system for {prefix} in Profile')
-        return base, segments
+
+        segment_paths = []
+        for i, s in enumerate(self.business.segments):
+            segment = Segment(
+                name = self.name+'_'+s,
+                code = self.code, 
+                id = chr(ord('A')+i), # 0 to A, 1 to B, etc
+                business= Business(segments=[], key_products=[], competitors=[])
+            )
+            path = segment.get_json_path()
+            segment_paths.append(path)
+
+            if manage and path not in others or not Segment.load_from_file(path).business.reviewed:
+                segment.save_to_file()
+
+        if not manage: return segment_paths
+
+        # remove json, html, png, etc... 
+        to_remove = [p for p in others if p not in segment_paths] 
+        for p in to_remove:
+            for _p in p.parent.glob(f"{p.stem}.*"):
+                _p.unlink(missing_ok=True)
+
+    @classmethod
+    def get_json_path_from_prefix(cls, prefix: str): 
+        return super().get_json_path_from_prefix(prefix+'_')
         
     def key(self) -> str:
         return self.code
@@ -222,16 +214,19 @@ class Profile(JsonModel):
         return paths[0]
 
 class FinancialsAdjuster(InfoSection):
+    ###_ logic should be developed carefully
+    # PER: float | None = None 
+    marcap_share: float | None = None
     revenue_share: float | None = None
-    opmargin: float | None = None
+    # opmargin: float | None = None
+    opincome_share: float | None = None
 
 class Segment(Profile):
     id: str
-    # financials_adjuster: FinancialsAdjuster | None = None
-    financials_adjuster: FinancialsAdjuster = Field(default_factory=FinancialsAdjuster)
+    financials_adjuster: FinancialsAdjuster | None = None
 
     def key(self) -> str:
-        return self.code + f'[{self.id}]'
+        return self.code + f'({self.id})'
 
     def save_to_file(self):
         return JsonModel.save_to_file(self)
@@ -289,16 +284,6 @@ class ProfileManager(JsonModelManager):
             item.news_summary = self._gen_news(item)
             changed = True
 
-        if item.business.reviewed:
-            ###_ logic should be revisited / when to be saved and when to be newly created
-            _, segments = Profile._get_json_paths(item.key())
-            if set([f'{item.name}_{sanitized_filename(s)}.json' for s in item.business.segments]) != set([str(s.name)[10:] for s in segments]):
-                print(f'segments need update - recreating... {item.code}')
-                item.remove_segment_jsons()
-                changed = True
-
-        ###_ FORCD TRUE - to be deleted
-        return True
         return changed
 
     def _gen_business(self, overview: Overview):

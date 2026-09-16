@@ -13,7 +13,7 @@ from build.models.profile import Profile
 from build.models.component import Component
 from build.models.valuechain import ValueChain
 from build.models.json_models import InfoSection
-from build.tools.analysis_tools import _render_info_card
+from build.analysis.sector_analysis import SectorAnalysis
 
 MODELS = {
     "Profile": Profile,
@@ -54,29 +54,22 @@ def update_info(data):
     updated_section = type(section).model_validate(values)
 
     # Server-generated timestamp
-    updated_section.updated = datetime.now().strftime(
-        "%Y-%m-%d %H:%M"
-    )
+    updated_section.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     setattr(obj, section_name, updated_section)
 
     obj.save_to_file()
     print(f"SAVING: {obj.get_json_path()} and .html", file=sys.stderr) # use stderr to print in node.js
+    SectorAnalysis().process(obj)
 
-    html = _render_info_card(
-        section_name,
-        updated_section,
-        object_type,
-        object_id
-    ) 
     return {
         "ok": True,
         "updated": updated_section.updated,
-        "html": html,
         "json_path": str(obj.get_json_path()),
     }
 
 
+# below is executed by nodejs
 if __name__ == "__main__":
     data = json.load(sys.stdin)
 
