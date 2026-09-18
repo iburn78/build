@@ -146,7 +146,7 @@ class CodeData:
 class SectorAnalysis: 
     # a sector analysis
     def __init__(self):
-        self.meta = {'name': '','updated': pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")}
+        self.meta = {'name': '','updated': pd.Timestamp.now().strftime("%Y-%m-%d %H:%M"), 'id': ''}
         self.codelist = [] 
         self.shape = {}
         self.assess_data = {}
@@ -154,7 +154,6 @@ class SectorAnalysis:
 
         # this class basically assumes a group of code (a sector, codelist, or component), but can handle company and index too
         self.jsonmodel = None
-        self.model_class = None
         self.sub_sas = None
         self.is_index = False # fr_data not available
 
@@ -171,7 +170,9 @@ class SectorAnalysis:
         sas = []
         for p in paths:
             _sa = cls()
-            sas.append(_sa.process(Segment.load_from_file(p)))
+            loaded = Segment.load_from_file(p)
+            if loaded is not None:
+                sas.append(_sa.process(loaded))
         return sas
 
     @classmethod
@@ -205,20 +206,19 @@ class SectorAnalysis:
 
     def _process_profile(self, pr: Profile, unit=None, fill=True, start_date=DEFAULT_START_DATE):
         self.jsonmodel = pr
-        self.model_class = Profile
         self.meta['name'] = pr.name
         self.codelist = [pr.code]
         self.meta['code'] = pr.code 
         adjuster = None
         if isinstance(pr, Segment):
-            self.model_class = Segment
+            self.meta['name'] = f"({pr.id}){pr.segment_name}"
             adjuster = pr.financials_adjuster
+            self.meta['id'] = pr.id
         self._process_codelist(unit=unit, fill=fill, start_date=start_date, adjuster=adjuster)
         return self
 
     def _process_component(self, cp: Component, unit=None, fill=True, start_date=DEFAULT_START_DATE): 
         self.jsonmodel = cp
-        self.model_class = Component
         self.meta['name'] = cp.name
         self.codelist = cp.get_codelist()
         self.meta['code'] = self.codelist
@@ -227,7 +227,6 @@ class SectorAnalysis:
 
     def _process_valuechain(self, vc: ValueChain, unit=None, fill=True, start_date=DEFAULT_START_DATE): 
         self.jsonmodel = vc
-        self.model_class = ValueChain
         self.meta['name'] = vc.name
         self.codelist = vc.get_codelist()
         self.meta['code'] = self.codelist
@@ -296,7 +295,7 @@ class SectorAnalysis:
                 data = json.load(f)
         else:
             json_path = self.jsonmodel.get_json_path()
-            print(f"json file with {self.model_class.__name__} {self.jsonmodel.key()} does not exist: {json_path} to be created")
+            print(f"json file with {type(self.jsonmodel).__name__} {self.jsonmodel.key()} does not exist: {json_path} to be created")
             data = {}
 
         data['financials'] = {
@@ -311,14 +310,15 @@ class SectorAnalysis:
 
     # recursively refreshing profiles and components
     def _build_sub_sector_analyses(self):
-        if self.model_class is Profile:
+        model_class = type(self.jsonmodel)
+        if model_class is Profile:
             self.sub_sas = []
             self.sub_sas = SectorAnalysis().get_segment_sas(self.jsonmodel)
-        elif self.model_class is Component:
+        elif model_class is Component:
             self.sub_sas = []
             for code in self.jsonmodel.get_codelist():
                 self.sub_sas.append(SectorAnalysis().get_from_code(code))
-        elif self.model_class is ValueChain:
+        elif model_class is ValueChain:
             self.sub_sas = []
             for component_name in self.jsonmodel.component_names:
                 self.sub_sas.append(SectorAnalysis().get_from_component_name(component_name))
@@ -333,7 +333,7 @@ class SectorAnalysis:
         news_dir = self.jsonmodel.get_news_dir() 
         output_file = self.jsonmodel.get_json_path().with_suffix('.html')
 
-        render_html(self.model_class.__name__, self.jsonmodel.key(), name_list, dict_list, qual_dict, news_dir, output_file)
+        render_html(type(self.jsonmodel).__name__, self.jsonmodel.key(), name_list, dict_list, qual_dict, news_dir, output_file)
 
     # =======================================================================================================================
     # Assessment  

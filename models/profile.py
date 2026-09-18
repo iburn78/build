@@ -147,9 +147,10 @@ class Profile(JsonModel):
         segment_paths = []
         for i, sg in enumerate(self.business.segments):
             segment = Segment(
-                name = sg,
+                name = self.name,
                 code = self.code, 
                 id = chr(ord('A')+i), # 0 to A, 1 to B, etc
+                segment_name=sg,
                 business= Business(segments=[], key_products=[], competitors=[])
             )
             path = segment.get_json_path()
@@ -218,6 +219,7 @@ class FinancialsAdjuster(InfoSection):
 
 class Segment(Profile):
     id: str
+    segment_name: str
     financials_adjuster: FinancialsAdjuster | None = None
 
     def key(self) -> str:
