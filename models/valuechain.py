@@ -20,12 +20,13 @@ class ValueChain(JsonModel):
             components.append(Component.load_from_prefix(component_name))
         return components
 
-    def get_codelist(self):
+    ###_ NEED REVISE: NAME AND DUPLICATION, both 005030 and 005030(A) should not be included
+    def get_endkey_list(self):
         components = self.get_components()
-        codelist = set()
+        keylist = set()
         for c in components:
-            codelist.update(c.get_codelist())
-        return list(codelist)
+            keylist.update(c.get_keylist())
+        return list(keylist)
 
     def get_qualitative_dict(self):
         return {
@@ -36,23 +37,9 @@ class ValueChain(JsonModel):
 class ValueChainManager(JsonModelManager):
     MODEL = ValueChain
 
-    def __init__(self):
-        self.cm = ComponentManager()
-        super().__init__()
-
-    # ValueChain handlers defined here, as ComponentManager is necessary
-    def get_components(self, vc: ValueChain):
-        components = []
-        for cn in vc.component_names:
-            cp = self.cm.get_item(cn)
-            components.append(cp)
-        return components
-
-    def get_codelist(self, vc: ValueChain):
-        codelist = set()
-        for cn in vc.component_names:
-            codelist.update(self.cm.get_item(cn).get_codelist())
-        return list(codelist)
+    # def __init__(self):
+    #     self.cm = ComponentManager()
+    #     super().__init__()
 
     def _create_new_item(self, key, existing_json: dict | None = None, **kwargs) -> ValueChain:
         ls, fs = self._extract_from_json(key, existing_json, 'landscape', Landscape)
@@ -68,15 +55,16 @@ class ValueChainManager(JsonModelManager):
         #     raise ValueError(f"VC_Manager: for {key} given components not already created")
 
         vc = ValueChain(
-            name = key,
+            key = key,
+            filename = key,
             component_names = component_namelist,
             landscape = ls,
             financials = None,
         )
 
         if fs:
-            # codelevel confirmation
-            if set(self.get_codelist(vc)) == set((fs.get('meta', {})).get('code', [])):
+            # key-level confirmation
+            if set(vc.get_endkey_list()) == set((fs.get('meta', {})).get('key', [])):
                 vc.financials = fs
             else: 
                 print(f'VC_Manager: component list mismatching for {key} in financial section: discarding existing financial section')

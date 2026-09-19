@@ -13,7 +13,7 @@ from matplotlib.ticker import FuncFormatter
 from data.tools import load
 from data.tools.tools import set_KoreanFonts, dprint
 from build.tools.settings import df_krx, BUILD_DIR
-from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, render_html
+from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, render_html, get_id
 from build.models.profile import Profile, ProfileManager, Segment, FinancialsAdjuster
 from build.models.component import Component, ComponentManager
 from build.models.valuechain import ValueChain, ValueChainManager
@@ -47,11 +47,10 @@ VOLATILITY_THRESHOLD = 0.33 # 0.33 for 33% volality up/down
 AMOUNT_DAILY_THRESHOLD = 0.33 # 0.33 for 33% amount up/down
 ALPHA_DAILY_THRESHOLD = 0.0004 # to convert yearly: x 250 (busines days), 0.0004 if 10% +/- compared to index
 
-
 @dataclass
-class CodeData:
-    # single code data that contains raw data for max period
-    code: str
+class FinancialsData:
+    #  contains raw data for max period for a single key
+    key: str
     time: pd.Timestamp | None = None # creation time
 
     # daily marcap and amount data
@@ -64,6 +63,7 @@ class CodeData:
     adjuster: FinancialsAdjuster | None = None
 
     def __post_init__(self):
+        self.code, self.id = get_id(self.key)
         self.time = pd.Timestamp.now()
         self.ma_data = self.get_ma_data()
         self.fr_data = self.get_fr_data()
@@ -72,7 +72,7 @@ class CodeData:
     # ma: MarCap, Amount in daily basis
     def get_ma_data(self):
         if self.code not in df_krx.index: 
-            raise Exception(f'check code {self.code}')
+            raise Exception(f'check code in key {self.key}')
 
         outshares = df_krx.at[self.code, 'Stocks']
         ma_data = pd.DataFrame({
@@ -81,7 +81,7 @@ class CodeData:
         })
 
         if ma_data.iloc[-1].isna().any():
-            raise ValueError(f"ma data for code {self.code} is nan for last row - check")
+            raise ValueError(f"ma data for code in key {self.key} is nan for last row - check")
 
         # ffill - nan could exist only in the beginning
         ma_data = ma_data.ffill()
@@ -137,8 +137,10 @@ class CodeData:
 
         return fr_data.ffill()
 
+    ###_ needs improvement
     def adjust_data(self):
-        if self.adjuster is None: return 
+        if self.id is None: return 
+        ###_ utilize self.adjuster
         self.ma_data['marcap'] = self.ma_data['marcap']*self.adjuster.marcap_share
         self.fr_data['revenue_qtr'] = self.fr_data['revenue_qtr']*self.adjuster.revenue_share
         self.fr_data['opincome_qtr'] = self.fr_data['opincome_qtr']*self.adjuster.opincome_share
@@ -146,13 +148,12 @@ class CodeData:
 class SectorAnalysis: 
     # a sector analysis
     def __init__(self):
-        self.meta = {'name': '','updated': pd.Timestamp.now().strftime("%Y-%m-%d %H:%M"), 'id': ''}
-        self.codelist = [] 
+        self.meta = {'name': '', 'code': '', 'segment_name': '', 'id': '', 'updated': pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")}
+        self.endkey_list = [] 
         self.shape = {}
         self.assess_data = {}
         self.assess_result = {}
 
-        # this class basically assumes a group of code (a sector, codelist, or component), but can handle company and index too
         self.jsonmodel = None
         self.sub_sas = None
         self.is_index = False # fr_data not available
@@ -161,12 +162,14 @@ class SectorAnalysis:
         self.cm = ComponentManager()
         self.vm = ValueChainManager()
 
+        self.adjuster = None
+
     # =======================================================================================================================
     # Creation
     # =======================================================================================================================
     @classmethod
     def get_segment_sas(cls, pr: Profile, **kwargs):
-        paths = pr.manage_segment_jsons(manage=False)
+        paths = pr.manage_segment_jsons()
         sas = []
         for p in paths:
             _sa = cls()
@@ -190,49 +193,48 @@ class SectorAnalysis:
     @classmethod
     def get_from_valuechain_name(cls, name, **kwargs):
         sa = cls()
-        vm = sa.vm.get_item(name)
-        return sa.process(vm, **kwargs)
+        vc = sa.vm.get_item(name)
+        return sa.process(vc, **kwargs)
     
-    # -------------------------------------------------------------------------------------------------------
-    # public interfaces
-    # -------------------------------------------------------------------------------------------------------
-    def process(self, jm, unit=None, fill=True, start_date=DEFAULT_START_DATE):
-        if type(jm) is Profile or type(jm) is Segment:
-            return self._process_profile(jm, unit, fill, start_date)
+    def process(self, jm, unit=DEFAULT_KRW_UNIT, fill=True, start_date=DEFAULT_START_DATE):
+        self.jsonmodel = jm
+        self.endkey_list = jm.get_endkey_list()
+        ###_ may check duplication here company and subsegemnt
+        if len(self.endkey_list) != len(set(self.endkey_list)): raise ValueError(f'keylist should not contain any duplications: {self.endkey_list}')
+
+        if type(jm) is Profile:
+            self.meta['name'] = jm.name
+        if type(jm) is Segment:
+            self.meta['name'] = jm.name
+            self.meta['id'] = jm.id
+            self.meta['segment_name'] = jm.segment_name
+            self.adjuster = jm.financials_adjuster
         if type(jm) is Component:
-            return self._process_component(jm, unit, fill, start_date)
+            self.meta['name'] = jm.key
         if type(jm) is ValueChain:
-            return self._process_valuechain(jm, unit, fill, start_date)
+            self.meta['name'] = jm.key
 
-    def _process_profile(self, pr: Profile, unit=None, fill=True, start_date=DEFAULT_START_DATE):
-        self.jsonmodel = pr
-        self.meta['name'] = pr.name
-        self.codelist = [pr.code]
-        self.meta['code'] = pr.code 
-        adjuster = None
-        if isinstance(pr, Segment):
-            self.meta['name'] = f"({pr.id}){pr.segment_name}"
-            adjuster = pr.financials_adjuster
-            self.meta['id'] = pr.id
-        self._process_codelist(unit=unit, fill=fill, start_date=start_date, adjuster=adjuster)
+        self.meta = self.meta | {
+            'unit': unit,
+            'start_date': start_date, # start date in "yyyy-mm-dd" format
+        }
+
+        fd_list = [FinancialsData(key=key, unit=unit, adjuster=self.adjuster) for key in self.endkey_list]
+
+        self.ma_data = self._add_dfs([cd.ma_data for cd in fd_list], fill) # daily basis
+        self.fr_data = self._add_dfs([cd.fr_data for cd in fd_list], fill) # quarterly basis
+
+        self._build_shape() 
+        self._build_assess_data()
+        self._perform_assess()
+        self._create_json()
+        self._create_plot()
+        self._build_sub_sector_analyses()
+        self._create_html() 
+
         return self
 
-    def _process_component(self, cp: Component, unit=None, fill=True, start_date=DEFAULT_START_DATE): 
-        self.jsonmodel = cp
-        self.meta['name'] = cp.name
-        self.codelist = cp.get_codelist()
-        self.meta['code'] = self.codelist
-        self._process_codelist(unit=unit, fill=fill, start_date=start_date)
-        return self
-
-    def _process_valuechain(self, vc: ValueChain, unit=None, fill=True, start_date=DEFAULT_START_DATE): 
-        self.jsonmodel = vc
-        self.meta['name'] = vc.name
-        self.codelist = vc.get_codelist()
-        self.meta['code'] = self.codelist
-        self._process_codelist(unit=unit, fill=fill, start_date=start_date)
-        return self
-
+    ###_ review this too
     def process_index(self, name: str, unit=1e12, start_date=DEFAULT_START_DATE):
         self.meta = self.meta | {
             'name': name,
@@ -248,27 +250,6 @@ class SectorAnalysis:
         self.is_index = True
         return self
 
-    # -------------------------------------------------------------------------------------------------------
-    # private 
-    # -------------------------------------------------------------------------------------------------------
-    # codelist: target sector -> returns an SA for the group of the codelist
-    def _process_codelist(self, unit=None, fill=False, start_date=DEFAULT_START_DATE, adjuster:FinancialsAdjuster|None=None):
-        if len(self.codelist) != len(set(self.codelist)): raise ValueError(f'codelist should not contain any duplications: {self.codelist}')
-
-        self.meta = self.meta | {
-            'unit': unit if unit else DEFAULT_KRW_UNIT, # KRW unit
-            'start_date': start_date, # start date in "yyyy-mm-dd" format
-        }
-
-        cd_list = [CodeData(code=code, unit=self.meta['unit'], adjuster=adjuster) for code in self.codelist]
-
-        # ma_data, fr_data stay as raw
-        self.ma_data = self._add_dfs([cd.ma_data for cd in cd_list], fill) # daily basis
-        self.fr_data = self._add_dfs([cd.fr_data for cd in cd_list], fill) # quarterly basis
-
-        self._post_process()
-        return self
-
     # function that sums multiple serises
     def _add_dfs(self, df_list, fill=False):
         return reduce(
@@ -277,25 +258,16 @@ class SectorAnalysis:
             df_list
         )
 
-    def _post_process(self):
-        self._build_shape() 
-        self._build_assess_data()
-        self._perform_assess()
-        self._create_json()
-        self._create_plot()
-        self._build_sub_sector_analyses()
-        self._create_html() 
-
     # create or append to/replace existing json
     def _create_json(self):
-        json_path = self.jsonmodel.get_json_path_from_prefix(self.jsonmodel.key())
+        json_path = self.jsonmodel.get_json_path_from_prefix(self.jsonmodel.key)
 
         if json_path:
             with open(json_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
         else:
             json_path = self.jsonmodel.get_json_path()
-            print(f"json file with {type(self.jsonmodel).__name__} {self.jsonmodel.key()} does not exist: {json_path} to be created")
+            print(f"json file with {type(self.jsonmodel).__name__} {self.jsonmodel.key} does not exist: {json_path} to be created")
             data = {}
 
         data['financials'] = {
@@ -311,15 +283,14 @@ class SectorAnalysis:
     # recursively refreshing profiles and components
     def _build_sub_sector_analyses(self):
         model_class = type(self.jsonmodel)
+        self.sub_sas = []
         if model_class is Profile:
-            self.sub_sas = []
-            self.sub_sas = SectorAnalysis().get_segment_sas(self.jsonmodel)
+            if self.jsonmodel.business.reviewed:
+                self.sub_sas = SectorAnalysis().get_segment_sas(self.jsonmodel)
         elif model_class is Component:
-            self.sub_sas = []
-            for code in self.jsonmodel.get_codelist():
-                self.sub_sas.append(SectorAnalysis().get_from_code(code))
+            for key in self.jsonmodel.get_keylist():
+                self.sub_sas.append(SectorAnalysis().get_from_code(key))
         elif model_class is ValueChain:
-            self.sub_sas = []
             for component_name in self.jsonmodel.component_names:
                 self.sub_sas.append(SectorAnalysis().get_from_component_name(component_name))
         self._sub_sector_analyses()
@@ -333,7 +304,7 @@ class SectorAnalysis:
         news_dir = self.jsonmodel.get_news_dir() 
         output_file = self.jsonmodel.get_json_path().with_suffix('.html')
 
-        render_html(type(self.jsonmodel).__name__, self.jsonmodel.key(), name_list, dict_list, qual_dict, news_dir, output_file)
+        render_html(type(self.jsonmodel).__name__, self.jsonmodel.key, name_list, dict_list, qual_dict, news_dir, output_file)
 
     # =======================================================================================================================
     # Assessment  
@@ -960,12 +931,12 @@ class SectorAnalysis:
 
         ax.grid(True, linestyle='--', alpha=0.3)
 
-        _codelist = self.codelist if not self.is_index else ''
-        if len(_codelist) > 5:
-            _codelist = f"[{_codelist[0]}, {_codelist[1]}, ... : {len(_codelist)} codes]"
+        _keylist = self.endkey_list if not self.is_index else ''
+        if len(_keylist) > 5:
+            _keylist = f"[{_keylist[0]}, {_keylist[1]}, ... : {len(_keylist)} codes]"
 
         ax.set_title(
-            f"{self.meta['name']} {_codelist} | "
+            f"{self.meta['name']} {_keylist} | "
             f"{self.meta['updated']} | "
             f"aggr: {self.meta['aggregation']}"
         )

@@ -1,66 +1,70 @@
 from pydantic import BaseModel, Field
 from build.tools.settings import df_krx, COMPONENTS_DIR
+from build.tools.analysis_tools import get_id
 from build.models.json_models import JsonModel, JsonModelManager, InfoSection
 
+
+# for segments: code(A), name(A), etc...
 class Company(BaseModel):
-    # simple vehicle that carries only name and code
+    # simple vehicle that carries only key and name 
+    key: str 
     name: str
-    code: str
 
     @classmethod
     def from_name(cls, name, df_krx=df_krx):
-        # 1. exact match first
-        matched = df_krx[df_krx["Name"] == name]
+        def _get_code_name(name, df_krx=df_krx):
+            # 1. exact match first
+            matched = df_krx[df_krx["Name"] == name]
+            if len(matched) == 1:
+                return str(matched.index[0]), matched.iloc[0]["Name"] 
 
-        if len(matched) == 1:
-            return cls(
-                name=matched.iloc[0]["Name"],
-                code=str(matched.index[0])
-            )
+            # 2. fallback to contains
+            matched = df_krx[df_krx["Name"].str.contains(
+                name,
+                case=False,
+                na=False
+            )]
 
-        # 2. fallback to contains
-        matched = df_krx[df_krx["Name"].str.contains(
-            name,
-            case=False,
-            na=False
-        )]
+            if len(matched) == 1:
+                return str(matched.index[0]), matched.iloc[0]["Name"] 
 
-        if len(matched) == 1:
-            return cls(
-                name=matched.iloc[0]["Name"],
-                code=str(matched.index[0])
-            )
+            if len(matched) == 0:
+                raise ValueError(
+                    f"No company found matching name: '{name}'"
+                )
 
-        if len(matched) == 0:
             raise ValueError(
-                f"No company found matching name: '{name}'"
+                f"Ambiguous company name '{name}': "
+                f"{matched['Name'].tolist()}"
             )
 
-        raise ValueError(
-            f"Ambiguous company name '{name}': "
-            f"{matched['Name'].tolist()}"
+        _name, id = get_id(name)
+        code, company_name = _get_code_name(_name)
+        key = f"{code}({id})" if id else code
+        return cls(
+            key = key,
+            name = company_name
         )
 
     @classmethod
-    def from_code(cls, code, df_krx=df_krx):
+    def from_key(cls, key, df_krx=df_krx):
+        code, id = get_id(key)
+         
         if code not in df_krx.index:
             raise ValueError(f"Invalid code: {code}")
 
         return cls(
-            name=str(df_krx.loc[code, "Name"]),
-            code=str(code)
+            key = f"{code}({id})" if id else code,
+            name=str(df_krx.loc[code, "Name"])
         )
-
-    def __str__(self): 
-        return f'{self.name} ({self.code})'
 
 # company from name
 def cn(name):
     return Company.from_name(name)
 
 # company from code
-def cc(code):
-    return Company.from_code(code)
+def ck(code):
+    return Company.from_key(code)
 
 class Traits(InfoSection):
     competition: str = "" # m/s, leader, competitive advatages
@@ -73,11 +77,12 @@ class Component(JsonModel):
     traits: Traits | None = Field(default_factory=Traits)
     financials: dict | None = None
 
-    def get_codelist(self):
-        codelist = []
+    ###_ NEED REVISE: NAME AND DUPLICATION, both 005030 and 005030(A) should not be included
+    def get_endkey_list(self):
+        keylist = []
         for c in self.companies:
-            codelist.append(c.code)
-        return codelist
+            keylist.append(c.key)
+        return keylist
 
     def get_qualitative_dict(self):
         return {
@@ -89,36 +94,37 @@ class ComponentManager(JsonModelManager):
     MODEL = Component
 
     # to create an component
-    # use .get_item with codelist or namelist given
+    # use .get_item with keylist or namelist given
     # to completely overwrite, delete existing json file
     def _create_new_item(self, key, existing_json: dict | None = None, **kwargs) -> Component:
         ts, fs = self._extract_from_json(key, existing_json, 'traits', Traits)
 
-        codelist = kwargs.get("codelist") or []
+        keylist = kwargs.get("keylist") or []
         namelist = kwargs.get("namelist") or []
 
-        if len(codelist) != len(set(codelist)) or len(namelist) != len(set(namelist)): 
-            raise ValueError(f'codelist or namelist should not contain any duplications: {codelist}{namelist}')
+        if len(keylist) != len(set(keylist)) or len(namelist) != len(set(namelist)): 
+            raise ValueError(f'keylist or namelist should not contain any duplications: {keylist}{namelist}')
 
-        if codelist and namelist:
-            print(f'both codelist and namelist is given, using codelist only {codelist}')
+        if keylist and namelist:
+            print(f'both keylist and namelist is given, using keylist only {keylist}')
             namelist = []
 
-        companies = [Company.from_code(code) for code in codelist]
-        companies += [Company.from_name(name) for name in namelist]
+        companies = [Company.from_key(k) for k in keylist]
+        companies += [Company.from_name(n) for n in namelist]
 
         component = Component(
-            name = key,
+            key = key,
+            filename = key,
             companies = companies,
             traits = ts,
             financials = None,
         )
 
         if fs:
-            if set(component.get_codelist()) == set((fs.get('meta') or {}).get('code', [])):
+            if set(component.get_endkey_list()) == set((fs.get('meta') or {}).get('key', [])):
                 component.financials = fs
             else: 
-                print(f'Component_Manager: codelist mismatching for {key} in financial section: discarding existing financial section')
+                print(f'Component_Manager: keylist mismatching for {key} in financial section: discarding existing financial section')
 
         return component
 

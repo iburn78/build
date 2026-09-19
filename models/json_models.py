@@ -22,26 +22,27 @@ class JsonModel(BaseModel, ABC):
     # - data format is validated when loaded
 
     DIR: ClassVar[str] # ClassVars is not included in json file, not validate when loaded
-    name: str # used as the json filename
+    key: str # unqiue identifier
+    filename: str # json filename (key + additional information)
     updated: str = ""
 
     def model_post_init(self, context: Any) -> None:
-        self.name = sanitized_filename(self.name)
+        self.filename = sanitized_filename(self.filename)
         return super().model_post_init(context)
 
     def get_json_path(self) -> Path:
-        return Path(self.DIR) / f"{self.key()}.json"
+        return Path(self.DIR) / f"{self.filename}.json"
 
     def save_to_file(self):
         jp = self.get_json_path()
-        print(f"{self.__class__.__name__} is saved: {jp}")
+        print(f"{type(self).__name__} is saved: {jp}")
         jp.write_text(
             self.model_dump_json(indent=4, exclude_none=True),
             encoding="utf-8",
         )
 
     @classmethod
-    def load_from_file(cls, path: str | Path):
+    def load_from_file(cls, path: str | Path) -> JsonModel:
         path = Path(path)
         try:
             # default: extra = "ignore"
@@ -49,7 +50,7 @@ class JsonModel(BaseModel, ABC):
                 path.read_text(encoding="utf-8")
             )
         except Exception as e:
-            print(f"jsonmodel validation failed: {path} | {e}")
+            print(f"[load from file] jsonmodel validation failed: {path} | {e}")
             obj = None
         return obj
 
@@ -64,15 +65,15 @@ class JsonModel(BaseModel, ABC):
 
     @classmethod
     def load_from_prefix(cls, prefix: str): 
-        json_filename = cls.get_json_path_from_prefix(prefix)
-        if json_filename is not None:
-            return cls.load_from_file(json_filename)
+        json_path = cls.get_json_path_from_prefix(prefix)
+        if json_path is not None:
+            return cls.load_from_file(json_path)
         else: 
             return None
 
-    # unique identifier
-    def key(self) -> str:
-        return self.name
+    @abstractmethod
+    def get_endkey_list(self):
+        return []
 
     @abstractmethod
     def get_qualitative_dict(self):
@@ -82,14 +83,14 @@ class JsonModel(BaseModel, ABC):
     def get_news_dir(self):
         paths = [
             p for p in Path(NEWS_DIR).glob("*")
-            if p.is_dir() and p.name.startswith(f"{self.key()}_")
+            if p.is_dir() and (p.name == self.key or p.name.startswith(f"{self.key}_"))
         ]
         if len(paths) != 1:
-            print(f"cannot find unique news dir with {self.key()}...")
+            print(f"cannot find unique news dir with {self.key}...")
             return None 
         return paths[0]
 
-    # returns all instances in dict {key: json_model dict}
+    # returns all instances in dict {key: instance}
     @classmethod
     def load_all_validated(cls) -> dict[str, "JsonModel"]:
         objects_dict = {}
@@ -97,7 +98,7 @@ class JsonModel(BaseModel, ABC):
         for path in Path(cls.DIR).glob("*.json"):
             try:
                 obj = cls.load_from_file(path)
-                objects_dict[obj.key()] = obj
+                objects_dict[obj.key] = obj
             except Exception as e:
                 print(f"Skipping {path}: {e}")
 
@@ -121,9 +122,6 @@ def update_info_section(obj: JsonModel, section_name: str, values: dict):
     # Pydantic validation
     updated_section = type(section).model_validate(values)
 
-    # Human's explicit reviewed state
-    updated_section.reviewed = values["reviewed"]
-
     # Automatic edit timestamp
     updated_section.updated = datetime.now().strftime(
         "%Y-%m-%d %H:%M"
@@ -135,11 +133,12 @@ def update_info_section(obj: JsonModel, section_name: str, values: dict):
 
     return updated_section
 
+
 class JsonModelManager(ABC): 
-    MODEL: type[JsonModel]
+    MODEL: type[JsonModel] # class not an instance
 
     def __init__(self):
-        self._items = {} # {obj.key(): obj, ...}
+        self._items = {} # {obj.key: obj, ...}
 
     @abstractmethod
     def _create_new_item(self, key, existing_json: dict | None = None, **kwargs) -> JsonModel:
@@ -151,11 +150,6 @@ class JsonModelManager(ABC):
         # and return True if item content changed
         return False
 
-    # override if needed
-    def _validate_key(self, key):
-        if key != sanitized_filename(key): 
-            raise ValueError(f"Invalid key: {key}")
-
     def get_itemlist(self) -> list[JsonModel]:
         return list(self._items.values())
 
@@ -164,17 +158,16 @@ class JsonModelManager(ABC):
     # - if reviewed info_section exists, this will load it
     # - if financials_section exists, this will load it
     def get_item(self, key, update=False, **kwargs):
-        self._validate_key(key)
-        json_filename = self.MODEL.get_json_path_from_prefix(key)
+        json_path = self.MODEL.get_json_path_from_prefix(key)
 
-        if json_filename is not None:
-            item = self.MODEL.load_from_file(json_filename)
+        if json_path is not None:
+            item = self.MODEL.load_from_file(json_path)
 
             if item is not None:
                 changed = self._update(item)
             else: 
                 try: 
-                    existing_json = json.loads(json_filename.read_text(encoding="utf-8"))
+                    existing_json = json.loads(json_path.read_text(encoding="utf-8"))
                     print(f"Importing existing json for {key}")
                 except:
                     existing_json = None
@@ -192,7 +185,7 @@ class JsonModelManager(ABC):
             item.updated = datetime.now().strftime("%Y-%m-%d") 
             item.save_to_file()
 
-        self._items[item.key()] = item
+        self._items[item.key] = item
         return item
 
     def _extract_from_json(self, key, existing_json = None, info_section_key="", validation_class = InfoSection):

@@ -125,50 +125,55 @@ class News(BaseModel):
 class Profile(JsonModel):
     DIR = PROFILES_DIR
     code: str
+    name: str
 
     overview: Overview | None = None
     business: Business 
     news_summary: News | None = None
     financials: dict | None = None
 
-    def get_json_path(self) -> Path:
-        return Path(self.DIR) / f"{self.key()}_{self.name}.json"
-
     def save_to_file(self):
         if self.business.reviewed:
             self.manage_segment_jsons()
         return super().save_to_file()
 
-    def manage_segment_jsons(self, manage=True):
-        paths = [p for p in Path(self.DIR).glob("*.json") if p.name.startswith(self.key())]
-        base = [p for p in paths if p.name.startswith(f"{self.key()}_")]
+    ###_ correct? include segemtns? maybe no
+    def get_endkey_list(self):
+        return [self.key]
+
+    def manage_segment_jsons(self):
+        paths = [p for p in Path(self.DIR).glob("*.json") if p.name.startswith(self.key)]
+        base = [p for p in paths if p.name.startswith(f"{self.key}_")]
         others = [p for p in paths if p not in base]
 
         segment_paths = []
         for i, sg in enumerate(self.business.segments):
+            id = chr(ord('A')+i) # 0 to A, 1 to B, etc
+            key = self.code + f'({id})'
+            filename = f"{key}_{sg}"
             segment = Segment(
-                name = self.name,
+                key = key, 
+                filename = filename,
                 code = self.code, 
-                id = chr(ord('A')+i), # 0 to A, 1 to B, etc
+                name = self.name,
+                id = id,
                 segment_name=sg,
                 business= Business(segments=[], key_products=[], competitors=[])
             )
             path = segment.get_json_path()
             segment_paths.append(path)
 
-            if manage:  
-                if path in others: 
-                    if not Segment.load_from_file(path).business.reviewed:
-                        segment.save_to_file()
-                else:
+            if path in others: 
+                if not Segment.load_from_file(path).business.reviewed:
                     segment.save_to_file()
+            else:
+                segment.save_to_file()
 
-        if manage: 
-            # remove json, html, png, etc... 
-            to_remove = [p for p in others if p not in segment_paths] 
-            for p in to_remove:
-                for _p in p.parent.glob(f"{p.stem}.*"):
-                    _p.unlink(missing_ok=True)
+        # remove json, html, png, etc... 
+        to_remove = [p for p in others if p not in segment_paths] 
+        for p in to_remove:
+            for _p in p.parent.glob(f"{p.stem}.*"):
+                _p.unlink(missing_ok=True)
 
         return segment_paths
 
@@ -176,9 +181,6 @@ class Profile(JsonModel):
     def get_json_path_from_prefix(cls, prefix: str): 
         return super().get_json_path_from_prefix(prefix+'_')
         
-    def key(self) -> str:
-        return self.code
-
     def scrape_news(self):
         search_set = self.business.search_theme + DEFAULT_SEARCH_THEME
         search_set = [f"{self.business.search_specifier} {k}" if self.business.search_specifier else k for k in search_set]
@@ -222,9 +224,6 @@ class Segment(Profile):
     segment_name: str
     financials_adjuster: FinancialsAdjuster | None = None
 
-    def key(self) -> str:
-        return self.code + f'({self.id})'
-
     def save_to_file(self):
         return JsonModel.save_to_file(self)
 
@@ -243,11 +242,6 @@ class ProfileManager(JsonModelManager):
         self.news_agent = self._make_agent(llm_mode=news_mode, output_type=News)
         super().__init__()
 
-    # key: code
-    def _validate_key(self, key):
-        if len(key) != 6 or not key[0].isdigit():
-            raise ValueError(f"Invalid key: {key}")
-
     def _create_new_item(self, key, existing_json: dict | None = None, **kwargs) -> Profile:
         bs, fs = self._extract_from_json(key, existing_json, 'business', Business)
 
@@ -255,9 +249,14 @@ class ProfileManager(JsonModelManager):
         if bs is None: 
             bs = self._gen_business(ov)
 
+        name = get_name(key)
+        filename = f"{key}_{name}"
+
         profile = Profile(
+            key=key,
+            filename=filename,
             code=key,
-            name=get_name(key),
+            name=name,
             overview=ov,
             business=bs,
             financials=fs,
@@ -283,7 +282,7 @@ class ProfileManager(JsonModelManager):
 
         return changed
 
-    def _gen_business(self, overview: Overview):
+    def _gen_business(self, overview: Overview) -> Business:
 #----------------------------------------------------------------------------------------------------
         request_text = f"""
 Extract a company profile from the recent business summary below.
@@ -337,15 +336,15 @@ Articles:
 
 if __name__ == "__main__":
     pm = ProfileManager(biz_mode='ollama', news_mode='ollama')
-    # single code
-    code = '001570'
-    profile = pm.get_item(code)
+    # single key
+    key = '001570'
+    profile = pm.get_item(key)
 
-    # multiple codes
-    codelist = ['001520', '251970', '020150', '055490', '950160', '000660', '005930', '021240', '462980', '011200']
-    pm.batch_process(codelist)
+    # multiple keys
+    keylist = ['001520', '251970', '020150', '055490', '950160', '000660', '005930', '021240', '462980', '011200']
+    pm.batch_process(keylist)
 
     # from component
     # cm = ComponentManager()
-    # codelist = cm.get_item('Memory').get_codelist()
-    # pm.batch_process(codelist)
+    # keylist = cm.get_item('Memory').get_keylist()
+    # pm.batch_process(keylist)

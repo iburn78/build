@@ -9,7 +9,7 @@ import requests
 from build.models.json_models import InfoSection
 from build.tools.settings import THIS_PROJECT, QUARTERLY_PERFORMANCES_URL, INDEX_HTML, BASE_DATA_DIR, get_FN_GUIDE_url, get_NAVER_url
 from pydantic import BaseModel
-import sys
+import re
 
 KRW_UNIT_KR = {
     1e12: 'jo',
@@ -19,12 +19,15 @@ KRW_UNIT_KR = {
 
 # HTML 
 TEMPLATE_HTML = Path(THIS_PROJECT) / "analysis" / "templates"  / "dict_template.html"
+
 COLLAPSED_PATHS = {
     'meta', 
     'assess_data.alpha_beta.from_start_date', 
     'shape.financials'
 }
 NO_CHART_KEYS = {
+    'key',
+    'unit',
     '-m_rank', 
     '-r_rank',
     '-o_rank',
@@ -740,3 +743,11 @@ def render_html(object_type, object_key, column_names: list, dict_list: list, qu
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text(html, encoding="utf-8")
     print(f"file {output_file} is written...")
+
+# returns name/code, id:char in name(id) or code(id)
+def get_id(s: str) -> tuple[str, str | None]:
+    m = re.search(r"\(([A-Za-z])\)$", s)
+    if not m:
+        return s, None
+
+    return s[:m.start()], m.group(1)

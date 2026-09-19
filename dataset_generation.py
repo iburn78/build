@@ -27,7 +27,7 @@ cm.get_item('MLCC', namelist = ['삼성전기', '삼화콘덴서'])
 cm.get_item('Display', namelist = ['덕산네오룩스', '이녹스첨단소재', '피엔에이치테크', 'PI첨단소재', 'LX세미콘'])
 cm.get_item('Folderable', namelist = ['KH바텍', '세경하이테크', '파인엠텍'])
 
-vc = vm.get_item(
+vm.get_item(
     key = "Electronics",
     component_namelist=['Memory', 'Appliances', 'Smart_glass', 'Camera_module', 'PCB', 'MLCC', 'Display', 'Folderable'],
     replace=True,
@@ -45,7 +45,7 @@ name_dict = {category: [get_name(ticker.replace(" KS", "")) for ticker in ticker
 for key, val in name_dict.items():
     cp = cm.get_item(key, namelist=val)
 
-vc = vm.get_item(
+vm.get_item(
     key = "EV_Battery", 
     component_namelist=list(name_dict.keys()),
     replace=True,
@@ -55,8 +55,9 @@ vc = vm.get_item(
 # Profiles creation / update (jsons files)
 # --------------------------------------------------
 for cp in cm.get_itemlist(): 
-    print(cp.name, cp.get_codelist())
-    pm.batch_process(cp.get_codelist())
+    print(cp.key, cp.get_endkey_list())
+    ###_ to be modifed so that only profiles to be created and to be cascaded
+    pm.batch_process(cp.get_endkey_list())
 
 # --------------------------------------------------
 # Sector Analysis Creation / Cacaded for components
