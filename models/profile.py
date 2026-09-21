@@ -266,6 +266,7 @@ class ProfileManager(JsonModelManager):
         return profile
 
     def _update(self, item) -> bool:
+        ###_ may move manage_segment to here
         changed = False
         if item.overview.needs_refresh():
             print(f"Updating overview for {item.code}")
@@ -336,15 +337,16 @@ Articles:
 
 if __name__ == "__main__":
     pm = ProfileManager(biz_mode='ollama', news_mode='ollama')
+    ###_ sgement has no get_item()
     # single key
     key = '001570'
     profile = pm.get_item(key)
 
     # multiple keys
-    keylist = ['001520', '251970', '020150', '055490', '950160', '000660', '005930', '021240', '462980', '011200']
-    pm.batch_process(keylist)
+    codes = ['001520', '251970', '020150', '055490', '950160', '000660', '005930', '021240', '462980', '011200']
+    pm.batch_process(codes)
 
     # from component
     # cm = ComponentManager()
-    # keylist = cm.get_item('Memory').get_keylist()
+    # keylist = cm.get_item('Memory').get_endkey_list()
     # pm.batch_process(keylist)

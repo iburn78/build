@@ -93,6 +93,13 @@ class Component(JsonModel):
 class ComponentManager(JsonModelManager):
     MODEL = Component
 
+    
+    ###_ need implementation
+    def _update(self, item) -> bool:
+        ###_ auto-create content and info_section (if not reviewed)
+        ###_ should check memebers are identical at least
+        return True
+
     # to create an component
     # use .get_item with keylist or namelist given
     # to completely overwrite, delete existing json file

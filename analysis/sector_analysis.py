@@ -169,7 +169,11 @@ class SectorAnalysis:
     # =======================================================================================================================
     @classmethod
     def get_segment_sas(cls, pr: Profile, **kwargs):
+        ###_ check if this is proper
+        ###_ check if this is proper
+        ###_ check if this is proper
         paths = pr.manage_segment_jsons()
+
         sas = []
         for p in paths:
             _sa = cls()
@@ -178,6 +182,7 @@ class SectorAnalysis:
                 sas.append(_sa.process(loaded))
         return sas
 
+    ###_ needs fix
     @classmethod
     def get_from_code(cls, code, **kwargs):
         sa = cls()
@@ -190,16 +195,12 @@ class SectorAnalysis:
         cp = sa.cm.get_item(name)
         return sa.process(cp, **kwargs)
     
-    @classmethod
-    def get_from_valuechain_name(cls, name, **kwargs):
-        sa = cls()
-        vc = sa.vm.get_item(name)
-        return sa.process(vc, **kwargs)
-    
     def process(self, jm, unit=DEFAULT_KRW_UNIT, fill=True, start_date=DEFAULT_START_DATE):
         self.jsonmodel = jm
         self.endkey_list = jm.get_endkey_list()
-        ###_ may check duplication here company and subsegemnt
+        ###_ -----------------------------------------------------
+        ###_ may check duplication here company and subsegemnts
+        ###_ -----------------------------------------------------
         if len(self.endkey_list) != len(set(self.endkey_list)): raise ValueError(f'keylist should not contain any duplications: {self.endkey_list}')
 
         if type(jm) is Profile:
@@ -218,7 +219,7 @@ class SectorAnalysis:
             'unit': unit,
             'start_date': start_date, # start date in "yyyy-mm-dd" format
         }
-
+        ###_ maybe should be named as endkey
         fd_list = [FinancialsData(key=key, unit=unit, adjuster=self.adjuster) for key in self.endkey_list]
 
         self.ma_data = self._add_dfs([cd.ma_data for cd in fd_list], fill) # daily basis
@@ -281,6 +282,7 @@ class SectorAnalysis:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
     # recursively refreshing profiles and components
+    ###_ leveling is not consistent
     def _build_sub_sector_analyses(self):
         model_class = type(self.jsonmodel)
         self.sub_sas = []
@@ -288,7 +290,7 @@ class SectorAnalysis:
             if self.jsonmodel.business.reviewed:
                 self.sub_sas = SectorAnalysis().get_segment_sas(self.jsonmodel)
         elif model_class is Component:
-            for key in self.jsonmodel.get_keylist():
+            for key in self.jsonmodel.get_endkey_list():
                 self.sub_sas.append(SectorAnalysis().get_from_code(key))
         elif model_class is ValueChain:
             for component_name in self.jsonmodel.component_names:

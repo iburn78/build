@@ -25,7 +25,7 @@ class ValueChain(JsonModel):
         components = self.get_components()
         keylist = set()
         for c in components:
-            keylist.update(c.get_keylist())
+            keylist.update(c.get_endkey_list())
         return list(keylist)
 
     def get_qualitative_dict(self):
@@ -40,6 +40,12 @@ class ValueChainManager(JsonModelManager):
     # def __init__(self):
     #     self.cm = ComponentManager()
     #     super().__init__()
+
+    ###_ need implementation
+    def _update(self, item) -> bool:
+        ###_ auto-create content and info_section (if not reviewed)
+        ###_ should check memebers are identical at least
+        return True
 
     def _create_new_item(self, key, existing_json: dict | None = None, **kwargs) -> ValueChain:
         ls, fs = self._extract_from_json(key, existing_json, 'landscape', Landscape)

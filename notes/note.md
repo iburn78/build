@@ -12,8 +12,9 @@
 - NFC = composed form; NFD = decomposed form.
 - Korean Hangul syllables can be represented in both forms.
 - NFC and NFD are different Unicode strings:
-    Python: "삼" == "삼"  → False
-    Node:   "삼" === "삼"  → false
+    > Python: "삼" == "삼"  → False
+
+    > Node:   "삼" === "삼"  → false
 - macOS filesystem APIs historically use decomposed normalization for filenames.
   Finder and applications using those filesystem APIs can therefore expose
   Korean filenames in NFD.

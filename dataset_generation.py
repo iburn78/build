@@ -30,7 +30,6 @@ cm.get_item('Folderable', namelist = ['KH바텍', '세경하이테크', '파인�
 vm.get_item(
     key = "Electronics",
     component_namelist=['Memory', 'Appliances', 'Smart_glass', 'Camera_module', 'PCB', 'MLCC', 'Display', 'Folderable'],
-    replace=True,
 )
 
 # --------------------------------------------------
@@ -48,7 +47,6 @@ for key, val in name_dict.items():
 vm.get_item(
     key = "EV_Battery", 
     component_namelist=list(name_dict.keys()),
-    replace=True,
 )
 
 # --------------------------------------------------

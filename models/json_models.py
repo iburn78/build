@@ -145,10 +145,11 @@ class JsonModelManager(ABC):
         # Create a valid MODEL with info from existing json if any
         ...
 
+    @abstractmethod
     def _update(self, item) -> bool:
         # Perform update if content needs refresh
         # and return True if item content changed
-        return False
+        return True
 
     def get_itemlist(self) -> list[JsonModel]:
         return list(self._items.values())
@@ -188,6 +189,7 @@ class JsonModelManager(ABC):
         self._items[item.key] = item
         return item
 
+    # this assumes only one info_section
     def _extract_from_json(self, key, existing_json = None, info_section_key="", validation_class = InfoSection):
         info_section_instance = None
         financials_section_data = None
