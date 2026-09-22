@@ -177,7 +177,7 @@ class SectorAnalysis:
         sas = []
         for p in paths:
             _sa = cls()
-            loaded = Segment.load_from_file(p)
+            loaded = Segment._load_from_path(p)
             if loaded is not None:
                 sas.append(_sa.process(loaded))
         return sas

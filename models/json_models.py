@@ -1,39 +1,50 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from pydantic import BaseModel
+from pydantic import BaseModel, PrivateAttr
 from datetime import datetime
 from typing import Any, ClassVar
-from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.openai import OpenAIProvider
-from openai import AsyncOpenAI
-from build.tools.settings import llm_selector
 import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from build.tools.settings import sanitized_filename, NEWS_DIR
+from build.tools.settings import sanitized_filename
 
-AGENT_RETRIES = 5 
 NUM_THREAD_TO_RUN = 4
+
+class InfoSection(BaseModel):
+    # to provide human-review-needed information to JsonModels
+    # - if reviewed is True, information survives through updates or (automatic) creations if json path matches
+    # - if needed, AI agent can be used
+    reviewed: bool = False
+    updated: str | None = None
 
 class JsonModel(BaseModel, ABC):
     # to provide a basic pydantic structure to subclasses
     # - a json file is maintained per a model instance
     # - data format is validated when loaded
 
-    DIR: ClassVar[str] # ClassVars is not included in json file, not validate when loaded
+    DIR: ClassVar[str] # ClassVars is not included in json file, not validated when loading
+    info_section_name: ClassVar[str] 
+    info_section_class: ClassVar[object]
+
     key: str # unqiue identifier
-    filename: str # json filename (key + additional information)
+    filename: str # json filename (key_additional information)
     updated: str = ""
+
+    info_section: InfoSection   
+    financials: dict | None = None
+
+    _sub_items: dict = PrivateAttr(default_factory=dict) # PrivateAttr is not included in json file, not validated when loading
 
     def model_post_init(self, context: Any) -> None:
         self.filename = sanitized_filename(self.filename)
+        self.assign_sub_items_keys()
         return super().model_post_init(context)
 
     def get_json_path(self) -> Path:
         return Path(self.DIR) / f"{self.filename}.json"
 
     def save_to_file(self):
+        self.updated = datetime.now().strftime("%Y-%m-%d") 
         jp = self.get_json_path()
         print(f"{type(self).__name__} is saved: {jp}")
         jp.write_text(
@@ -41,8 +52,55 @@ class JsonModel(BaseModel, ABC):
             encoding="utf-8",
         )
 
+    # endkey: keys for profiles and segments (i.e., each endkey contains standalone financials data), excluding self.key
+    def get_endkey_list(self) -> list:
+        if self._sub_items.keys():
+            return list(self._sub_items.keys())
+        return []
+    
+    @abstractmethod
+    def assign_sub_items_keys(self):
+        ###_ role split required with (**********)
+        # assign sub_items_keys (only keys)
+        # manage sub item files if necessary (e.g., segments)
+        ...
+
+    @abstractmethod
+    def get_qualitative_dict(self) -> dict:
+        # return a dict, which contain BaseModels to be shown in html
+        # single InfoSection is included in the dict
+        ...
+
+    @abstractmethod
+    def get_news_dir(self) -> Path | None:
+        ...
+
+    @abstractmethod
+    def update(self) -> bool:
+        # perform update in self if content needs refresh
+        # and return True if item content changed
+        # save is handled in get_item
+        ...
+
     @classmethod
-    def load_from_file(cls, path: str | Path) -> JsonModel:
+    @abstractmethod
+    def _create_new_item(cls, key, isection: InfoSection | None, fsection: dict | None, **kwargs) -> JsonModel:
+        # create a valid MODEL with info from existing json if any
+        # save is handled in get_item
+        ...
+
+    @classmethod
+    def _get_json_path_from_prefix(cls, prefix: str) -> Path | None: 
+        prefix = sanitized_filename(prefix)
+        paths = [p for p in Path(cls.DIR).glob("*.json") if p.name.split('_')[0] == prefix]
+        if len(paths) != 1:
+            print(f"cannot load json file with prefix {prefix}...")
+            return None 
+        return paths[0]
+
+    # should not be used as standalone as sub_items are not populated
+    @classmethod
+    def _load_from_path(cls, path: str | Path) -> JsonModel | None:
         path = Path(path)
         try:
             # default: extra = "ignore"
@@ -54,172 +112,66 @@ class JsonModel(BaseModel, ABC):
             obj = None
         return obj
 
+    # this assumes only one info_section and one financials_section
     @classmethod
-    def get_json_path_from_prefix(cls, prefix: str): 
-        prefix = sanitized_filename(prefix)
-        paths = [p for p in Path(cls.DIR).glob("*.json") if p.name.startswith(prefix)]
-        if len(paths) != 1:
-            print(f"cannot load json file with prefix {prefix}...")
-            return None 
-        return paths[0]
-
-    @classmethod
-    def load_from_prefix(cls, prefix: str): 
-        json_path = cls.get_json_path_from_prefix(prefix)
-        if json_path is not None:
-            return cls.load_from_file(json_path)
-        else: 
-            return None
-
-    @abstractmethod
-    def get_endkey_list(self):
-        return []
-
-    @abstractmethod
-    def get_qualitative_dict(self):
-        # return a dict, which may contain BaseModels
-        return {}
-
-    def get_news_dir(self):
-        paths = [
-            p for p in Path(NEWS_DIR).glob("*")
-            if p.is_dir() and (p.name == self.key or p.name.startswith(f"{self.key}_"))
-        ]
-        if len(paths) != 1:
-            print(f"cannot find unique news dir with {self.key}...")
-            return None 
-        return paths[0]
-
-    # returns all instances in dict {key: instance}
-    @classmethod
-    def load_all_validated(cls) -> dict[str, "JsonModel"]:
-        objects_dict = {}
-
-        for path in Path(cls.DIR).glob("*.json"):
-            try:
-                obj = cls.load_from_file(path)
-                objects_dict[obj.key] = obj
-            except Exception as e:
-                print(f"Skipping {path}: {e}")
-
-        return objects_dict
-
-class InfoSection(BaseModel):
-    # to provide human-review-needed information to JsonModels
-    # - if reviewed == True, information survives through updates or (automatic) creations if filename matches
-    # - if needed, AI agent will be provided
-    reviewed: bool = False
-    updated: str | None = None
-
-def update_info_section(obj: JsonModel, section_name: str, values: dict):
-    section = getattr(obj, section_name)
-
-    if not isinstance(section, InfoSection):
-        raise ValueError(
-            f"{section_name} is not an InfoSection"
-        )
-
-    # Pydantic validation
-    updated_section = type(section).model_validate(values)
-
-    # Automatic edit timestamp
-    updated_section.updated = datetime.now().strftime(
-        "%Y-%m-%d %H:%M"
-    )
-
-    setattr(obj, section_name, updated_section)
-
-    obj.save_to_file()
-
-    return updated_section
-
-
-class JsonModelManager(ABC): 
-    MODEL: type[JsonModel] # class not an instance
-
-    def __init__(self):
-        self._items = {} # {obj.key: obj, ...}
-
-    @abstractmethod
-    def _create_new_item(self, key, existing_json: dict | None = None, **kwargs) -> JsonModel:
-        # Create a valid MODEL with info from existing json if any
-        ...
-
-    @abstractmethod
-    def _update(self, item) -> bool:
-        # Perform update if content needs refresh
-        # and return True if item content changed
-        return True
-
-    def get_itemlist(self) -> list[JsonModel]:
-        return list(self._items.values())
-
-    # main function to get an item from loaded
-    # - if update needed, this will triger update 
-    # - if reviewed info_section exists, this will load it
-    # - if financials_section exists, this will load it
-    def get_item(self, key, update=False, **kwargs):
-        json_path = self.MODEL.get_json_path_from_prefix(key)
-
-        if json_path is not None:
-            item = self.MODEL.load_from_file(json_path)
-
-            if item is not None:
-                changed = self._update(item)
-            else: 
-                try: 
-                    existing_json = json.loads(json_path.read_text(encoding="utf-8"))
-                    print(f"Importing existing json for {key}")
-                except:
-                    existing_json = None
-                    print(f"Overwriting existing json for {key}")
-
-                item = self._create_new_item(key, existing_json, **kwargs)
-                changed = True
-
-        else:
-            print(f"Creating new json for {key}")
-            item = self._create_new_item(key, None, **kwargs)
-            changed = True
-            
-        if update or changed: 
-            item.updated = datetime.now().strftime("%Y-%m-%d") 
-            item.save_to_file()
-
-        self._items[item.key] = item
-        return item
-
-    # this assumes only one info_section
-    def _extract_from_json(self, key, existing_json = None, info_section_key="", validation_class = InfoSection):
+    def _extract_from_json(cls, existing_json = None):
         info_section_instance = None
         financials_section_data = None
 
         if existing_json:
             # RETRIEVING 1)
-            info_section = existing_json.get(info_section_key) 
+            info_section = existing_json.get(cls.info_section_name) 
             if info_section and info_section.get('reviewed'): 
                 try: 
-                    info_section_instance = validation_class.model_validate(info_section) 
+                    info_section_instance = cls.info_section_class.model_validate(info_section) 
                 except Exception as e:
-                    print(f'Invalid info section in existing json for {key} - ignored: {e}')
+                    pass
 
             # RETRIEVING 2)
             financials_section_data = existing_json.get('financials')
 
         return info_section_instance, financials_section_data
 
-    def _make_agent(self, llm_mode, output_type): # llm_selector parameter - local, ollama, openai, etc
-        u, k, m = llm_selector(llm_mode)
-        client = AsyncOpenAI(base_url=u, api_key=k)
-        model = OpenAIChatModel(
-            model_name=m,
-            provider=OpenAIProvider(openai_client=client),
-        )
-        return Agent(
-            model=model,
-            output_type=output_type,
-            retries=AGENT_RETRIES,
-        )
+    # main function to get an item 
+    # - if update needed, this will triger update 
+    # - if reviewed info_section exists, this will load it
+    # - if financials_section exists, this will load it
+    @classmethod
+    def get_item(cls, key, update=False, **kwargs):
+        json_path = cls._get_json_path_from_prefix(key)
+
+        if json_path:
+            item = cls._load_from_path(json_path)
+
+            if item:
+                changed = item.update()
+            else: 
+                # below handles when a valid json_path exists but failed to validate, retrieving partial info therein
+                try: 
+                    existing_json = json.loads(json_path.read_text(encoding="utf-8"))
+                    isection, fsection = cls._extract_from_json(existing_json)
+                except:
+                    isection = None
+                    fsection = None
+                    print(f"Overwriting existing json for {key}")
+
+                item = cls._create_new_item(key, isection, fsection, **kwargs)
+                changed = True
+
+        else:
+            print(f"Creating new json for {key}")
+            item = cls._create_new_item(key, None, None, **kwargs)
+            changed = True
+            
+        if update or changed: 
+            item.save_to_file()
+
+        ###_ role split required with (**********)
+        # recursively refresh sub_items 
+        for key, _ in item._sub_items:
+            item._sub_items[key] = cls.get_item(key, update=update, **kwargs)
+
+        return item
 
     # batch processing on get_item()
     # python 3.14 + pydantic_ai on windows yield: asyncio ProactorEventLoop / overlapped I/O cleanup errors, etc. 

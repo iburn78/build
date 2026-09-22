@@ -37,7 +37,8 @@ def update_info(data):
         obj = model_class.load_from_prefix(object_id)
     else:
         path = Path(model_class.DIR) / f"{object_id}.json"
-        obj = model_class.load_from_file(path)
+        ###_ needs fix
+        obj = model_class.load_from_path(path)
 
     if obj is None:
         raise ValueError(

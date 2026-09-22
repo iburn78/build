@@ -1,8 +1,8 @@
 from pydantic import BaseModel, Field
 from build.tools.settings import df_krx, COMPONENTS_DIR
 from build.tools.analysis_tools import get_id
-from build.models.json_models import JsonModel, JsonModelManager, InfoSection
-
+from build.models.json_models import JsonModel, InfoSection
+from pathlib import Path
 
 # for segments: code(A), name(A), etc...
 class Company(BaseModel):
@@ -73,39 +73,28 @@ class Traits(InfoSection):
 
 class Component(JsonModel): 
     DIR = COMPONENTS_DIR
-    companies: list[Company] 
-    traits: Traits | None = Field(default_factory=Traits)
-    financials: dict | None = None
+    info_section_name = 'traits'
+    info_section_class = Traits
+    companies: list = Field(default_factory=list)
 
-    ###_ NEED REVISE: NAME AND DUPLICATION, both 005030 and 005030(A) should not be included
-    def get_endkey_list(self):
-        keylist = []
+    def assign_sub_items_keys(self):
+        ###_ need implementation
         for c in self.companies:
-            keylist.append(c.key)
-        return keylist
+            self._sub_items[c.key] = None # GET_ITEM 
 
-    def get_qualitative_dict(self):
+    def get_qualitative_dict(self) -> dict:
         return {
-            'companies': [str(c) for c in self.companies],
-            'traits': self.traits,
+            self.info_section_name: self.info_section,
         }
 
-class ComponentManager(JsonModelManager):
-    MODEL = Component
+    def get_news_dir(self) -> Path | None:
+        return None
 
-    
-    ###_ need implementation
-    def _update(self, item) -> bool:
-        ###_ auto-create content and info_section (if not reviewed)
-        ###_ should check memebers are identical at least
-        return True
+    def update(self) -> bool:
+        return False
 
-    # to create an component
-    # use .get_item with keylist or namelist given
-    # to completely overwrite, delete existing json file
-    def _create_new_item(self, key, existing_json: dict | None = None, **kwargs) -> Component:
-        ts, fs = self._extract_from_json(key, existing_json, 'traits', Traits)
-
+    @classmethod
+    def _create_new_item(cls, key, isection: InfoSection | None, fsection: dict | None, **kwargs):
         keylist = kwargs.get("keylist") or []
         namelist = kwargs.get("namelist") or []
 
@@ -123,13 +112,13 @@ class ComponentManager(JsonModelManager):
             key = key,
             filename = key,
             companies = companies,
-            traits = ts,
-            financials = None,
+            info_section = isection if isection else Traits(),
+            financials = fsection,
         )
 
-        if fs:
-            if set(component.get_endkey_list()) == set((fs.get('meta') or {}).get('key', [])):
-                component.financials = fs
+        if fsection:
+            if set(component.get_endkey_list()) == set((fsection.get('meta') or {}).get('key', [])):
+                component.financials = fsection
             else: 
                 print(f'Component_Manager: keylist mismatching for {key} in financial section: discarding existing financial section')
 

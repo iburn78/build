@@ -1,13 +1,19 @@
-from pydantic import BaseModel, Field
-from build.tools.crawl_news import crawl_news
-from build.tools.settings import PROFILES_DIR, NEWS_DIR, get_name, DEFAULT_BIZ_LLM, DEFAULT_NEWS_LLM, get_FN_GUIDE_url
-from build.models.json_models import JsonModel, JsonModelManager, InfoSection
-from build.tools.settings import sanitized_filename
-from datetime import datetime, timedelta
-import requests
-from bs4 import BeautifulSoup
 import os
 from pathlib import Path
+import requests
+from bs4 import BeautifulSoup
+from datetime import datetime, timedelta
+from typing import ClassVar
+from pydantic import BaseModel, Field
+from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.openai import OpenAIProvider
+from openai import AsyncOpenAI
+from build.models.json_models import JsonModel, InfoSection
+from build.models.segment import Segment, FinancialsAdjuster
+from build.tools.settings import llm_selector
+from build.tools.settings import PROFILES_DIR, NEWS_DIR, get_name, DEFAULT_BIZ_LLM, DEFAULT_NEWS_LLM, get_FN_GUIDE_url
+from build.tools.crawl_news import crawl_news
 
 OVERVIEW_REFRESH_THRES = 30 # days
 NEWS_REFRESH_THRES = 3 # days
@@ -18,6 +24,7 @@ MAX_COMPETITORS = 3
 DEFAULT_SEARCH_THEME = ['실적', '전망']
 NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
 NUM_TO_FEED_LLM = 5 # number of articles to provide to LLM
+AGENT_RETRIES = 5 
 
 class Overview(BaseModel):
     # crawled from fnguide
@@ -122,166 +129,23 @@ class News(BaseModel):
             )
         return True
 
-class Profile(JsonModel):
-    DIR = PROFILES_DIR
-    code: str
-    name: str
-
-    overview: Overview | None = None
-    business: Business 
-    news_summary: News | None = None
-    financials: dict | None = None
-
-    def save_to_file(self):
-        if self.business.reviewed:
-            self.manage_segment_jsons()
-        return super().save_to_file()
-
-    ###_ correct? include segemtns? maybe no
-    def get_endkey_list(self):
-        return [self.key]
-
-    def manage_segment_jsons(self):
-        paths = [p for p in Path(self.DIR).glob("*.json") if p.name.startswith(self.key)]
-        base = [p for p in paths if p.name.startswith(f"{self.key}_")]
-        others = [p for p in paths if p not in base]
-
-        segment_paths = []
-        for i, sg in enumerate(self.business.segments):
-            id = chr(ord('A')+i) # 0 to A, 1 to B, etc
-            key = self.code + f'({id})'
-            filename = f"{key}_{sg}"
-            segment = Segment(
-                key = key, 
-                filename = filename,
-                code = self.code, 
-                name = self.name,
-                id = id,
-                segment_name=sg,
-                business= Business(segments=[], key_products=[], competitors=[])
-            )
-            path = segment.get_json_path()
-            segment_paths.append(path)
-
-            if path in others: 
-                if not Segment.load_from_file(path).business.reviewed:
-                    segment.save_to_file()
-            else:
-                segment.save_to_file()
-
-        # remove json, html, png, etc... 
-        to_remove = [p for p in others if p not in segment_paths] 
-        for p in to_remove:
-            for _p in p.parent.glob(f"{p.stem}.*"):
-                _p.unlink(missing_ok=True)
-
-        return segment_paths
-
-    @classmethod
-    def get_json_path_from_prefix(cls, prefix: str): 
-        return super().get_json_path_from_prefix(prefix+'_')
-        
-    def scrape_news(self):
-        search_set = self.business.search_theme + DEFAULT_SEARCH_THEME
-        search_set = [f"{self.business.search_specifier} {k}" if self.business.search_specifier else k for k in search_set]
-        _code_name = self.code + '_' + self.name
-
-        for k in search_set:
-            _request = self.name + ' ' + k
-            crawl_news(_request, dest_dir=_code_name, max_result=NUM_TO_CRAWL)
-
-        return self._get_news_collection()
-
-    def _get_news_collection(self):
-        _code_name = self.code + '_' + self.name
-        _dest = Path(os.path.join(NEWS_DIR, _code_name))
-
-        # choose latest INPUT_FILE_NUM articles
-        combined = "\n".join(
-            md_file.read_text(encoding="utf-8")
-            for md_file in sorted(_dest.glob("*.md"), reverse=True)[:NUM_TO_FEED_LLM]
-        )
-
-        return combined
-
-    def get_qualitative_dict(self):
-        return {
-            'overview': self.overview,
-            'business': self.business,
-            'news_summary': self.news_summary,
-        }
-
-class FinancialsAdjuster(InfoSection):
-    ###_ logic should be developed carefully
-    # PER: float | None = None 
-    marcap_share: float | None = None
-    revenue_share: float | None = None
-    # opmargin: float | None = None
-    opincome_share: float | None = None
-
-class Segment(Profile):
-    id: str
-    segment_name: str
-    financials_adjuster: FinancialsAdjuster | None = None
-
-    def save_to_file(self):
-        return JsonModel.save_to_file(self)
-
-    def get_qualitative_dict(self):
-        return {
-            'business': self.business,
-            'news_summary': self.news_summary,
-            'financials_adjuster': self.financials_adjuster,
-        }
-
-class ProfileManager(JsonModelManager):
-    MODEL = Profile
-
+class Profile_LLM_Manager:
     def __init__(self, biz_mode=DEFAULT_BIZ_LLM, news_mode=DEFAULT_NEWS_LLM): 
         self.business_agent = self._make_agent(llm_mode=biz_mode, output_type=Business)
         self.news_agent = self._make_agent(llm_mode=news_mode, output_type=News)
-        super().__init__()
 
-    def _create_new_item(self, key, existing_json: dict | None = None, **kwargs) -> Profile:
-        bs, fs = self._extract_from_json(key, existing_json, 'business', Business)
-
-        ov = Overview.fetch(key)
-        if bs is None: 
-            bs = self._gen_business(ov)
-
-        name = get_name(key)
-        filename = f"{key}_{name}"
-
-        profile = Profile(
-            key=key,
-            filename=filename,
-            code=key,
-            name=name,
-            overview=ov,
-            business=bs,
-            financials=fs,
+    def _make_agent(self, llm_mode, output_type): # llm_selector parameter - local, ollama, openai, etc
+        u, k, m = llm_selector(llm_mode)
+        client = AsyncOpenAI(base_url=u, api_key=k)
+        model = OpenAIChatModel(
+            model_name=m,
+            provider=OpenAIProvider(openai_client=client),
         )
-        # news summary is filled after profile creation
-        profile.news_summary = self._gen_news(profile)
-        return profile
-
-    def _update(self, item) -> bool:
-        ###_ may move manage_segment to here
-        changed = False
-        if item.overview.needs_refresh():
-            print(f"Updating overview for {item.code}")
-            item.overview = Overview.fetch(item.code)
-
-            if not item.business.reviewed:
-                item.business = self._gen_business(item.overview)
-            changed = True
-
-        if item.news_summary is None or item.news_summary.needs_refresh():
-            print(f"Generating news_summary for {item.code}")
-            item.news_summary = self._gen_news(item)
-            changed = True
-
-        return changed
+        return Agent(
+            model=model,
+            output_type=output_type,
+            retries=AGENT_RETRIES,
+        )
 
     def _gen_business(self, overview: Overview) -> Business:
 #----------------------------------------------------------------------------------------------------
@@ -335,18 +199,109 @@ Articles:
         res.updated = datetime.now().strftime("%Y-%m-%d") 
         return res
 
-if __name__ == "__main__":
-    pm = ProfileManager(biz_mode='ollama', news_mode='ollama')
-    ###_ sgement has no get_item()
-    # single key
-    key = '001570'
-    profile = pm.get_item(key)
+class Profile(JsonModel):
+    DIR = PROFILES_DIR
+    info_section_name = 'business'
+    info_section_class = Business
 
-    # multiple keys
-    codes = ['001520', '251970', '020150', '055490', '950160', '000660', '005930', '021240', '462980', '011200']
-    pm.batch_process(codes)
+    code: str
+    name: str
 
-    # from component
-    # cm = ComponentManager()
-    # keylist = cm.get_item('Memory').get_endkey_list()
-    # pm.batch_process(keylist)
+    overview: Overview | None = None
+    news_summary: News | None = None
+
+    llm_manager: ClassVar[Profile_LLM_Manager] = Profile_LLM_Manager()
+
+    def assign_sub_items_keys(self):
+        for i, sg in enumerate(self.info_section.segments):
+            id = chr(ord('A')+i) # 0 to A, 1 to B, etc
+            key = self.code + f'({id})'
+            self._sub_items[key] = Segment.get_item(key, segment_name = sg)
+
+        # removing unnecessaries
+        paths = [p for p in Path(self.DIR).glob("*.json") if p.name.startswith(self.key)]
+        base = [self.get_json_path()] + [v.get_json_path() for v in self._sub_items.values()]
+        to_remove = [p for p in paths if p not in base]
+        # removing not only json, but also html, png, etc
+        for p in to_remove:
+            for _p in p.parent.glob(f"{p.stem}.*"):
+                _p.unlink(missing_ok=True)
+
+    def get_qualitative_dict(self):
+        return {
+            'overview': self.overview,
+            self.info_section_name: self.info_section,
+            'news_summary': self.news_summary,
+        }
+
+    def get_news_dir(self):
+        paths = [
+            p for p in Path(NEWS_DIR).glob("*")
+            if p.is_dir() and p.name.startswith(f"{self.key}_")
+        ]
+        if len(paths) != 1:
+            print(f"cannot find unique news dir with {self.key}...")
+            return None 
+        return paths[0]
+
+    def update(self):
+        changed = False
+        if self.overview.needs_refresh():
+            print(f"Updating overview for {self.key}")
+            self.overview = Overview.fetch(self.key)
+
+            if not self.info_section.reviewed:
+                self.info_section = self.llm_manager._gen_business(self.overview)
+            changed = True
+
+        if self.news_summary is None or self.news_summary.needs_refresh():
+            print(f"Generating news_summary for {self.key}")
+            self.news_summary = self.llm_manager._gen_news(self)
+            changed = True
+
+        return changed
+
+    @classmethod
+    def _create_new_item(cls, key, isection: InfoSection | None, fsection: dict | None , **kwargs):
+        ov = Overview.fetch(key)
+        if isection is None: 
+            isection = cls.llm_manager._gen_business(ov)
+
+        name = get_name(key)
+        filename = f"{key}_{name}"
+
+        profile = Profile(
+            key=key,
+            filename=filename,
+            code=key,
+            name=name,
+            overview=ov,
+            info_section=isection,
+            financials=fsection,
+        )
+        # news summary is filled after profile creation
+        profile.news_summary = cls.llm_manager._gen_news(profile)
+        return profile
+
+    def scrape_news(self):
+        search_set = self.info_section.search_theme + DEFAULT_SEARCH_THEME
+        search_set = [f"{self.info_section.search_specifier} {k}" if self.info_section.search_specifier else k for k in search_set]
+        _code_name = self.code + '_' + self.name
+
+        for k in search_set:
+            _request = self.name + ' ' + k
+            crawl_news(_request, dest_dir=_code_name, max_result=NUM_TO_CRAWL)
+
+        return self._get_news_collection()
+
+    def _get_news_collection(self):
+        _code_name = self.code + '_' + self.name
+        _dest = Path(os.path.join(NEWS_DIR, _code_name))
+
+        # choose latest INPUT_FILE_NUM articles
+        combined = "\n".join(
+            md_file.read_text(encoding="utf-8")
+            for md_file in sorted(_dest.glob("*.md"), reverse=True)[:NUM_TO_FEED_LLM]
+        )
+
+        return combined
