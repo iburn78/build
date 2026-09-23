@@ -4,9 +4,8 @@ from build.tools.analysis_tools import get_id
 from build.models.json_models import JsonModel, InfoSection
 from pathlib import Path
 
-# for segments: code(A), name(A), etc...
-class Company(BaseModel):
-    # simple vehicle that carries only key and name 
+class Member(BaseModel):
+    # simple vehicle that carries only key and company name 
     key: str 
     name: str
 
@@ -58,13 +57,13 @@ class Company(BaseModel):
             name=str(df_krx.loc[code, "Name"])
         )
 
-# company from name
+# member from company name (for segments: append (id))
 def cn(name):
-    return Company.from_name(name)
+    return Member.from_name(name)
 
-# company from code
-def ck(code):
-    return Company.from_key(code)
+# member from key 
+def ck(key):
+    return Member.from_key(key)
 
 class Traits(InfoSection):
     competition: str = "" # m/s, leader, competitive advatages
@@ -73,28 +72,23 @@ class Traits(InfoSection):
 
 class Component(JsonModel): 
     DIR = COMPONENTS_DIR
-    info_section_name = 'traits'
     info_section_class = Traits
     companies: list = Field(default_factory=list)
 
-    def assign_sub_items_keys(self):
+    def _build_sub_items_info(self):
         ###_ need implementation
-        for c in self.companies:
-            self._sub_items[c.key] = None # GET_ITEM 
+        ###_ Segments should be already built (CORRECT? think through)
+        ###_ or handle in segment to create new appropriately (raise issue there)
+        ###_ think Profile to Segment creation and Component to Segment creation (by recursive get_item... )
 
-    def get_qualitative_dict(self) -> dict:
-        return {
-            self.info_section_name: self.info_section,
-        }
+        self._sub_items_info = dict.fromkeys([c.key for c in self.companies])
 
-    def get_news_dir(self) -> Path | None:
-        return None
-
-    def update(self) -> bool:
+    def _update(self, **kwargs) -> bool:
+        ###_ to compare kwargs... 
         return False
 
     @classmethod
-    def _create_new_item(cls, key, isection: InfoSection | None, fsection: dict | None, **kwargs):
+    def _create_new_item(cls, key, isection: InfoSection | None, **kwargs):
         keylist = kwargs.get("keylist") or []
         namelist = kwargs.get("namelist") or []
 
@@ -105,22 +99,15 @@ class Component(JsonModel):
             print(f'both keylist and namelist is given, using keylist only {keylist}')
             namelist = []
 
-        companies = [Company.from_key(k) for k in keylist]
-        companies += [Company.from_name(n) for n in namelist]
+        companies = [Member.from_key(k) for k in keylist]
+        companies += [Member.from_name(n) for n in namelist]
 
         component = Component(
             key = key,
             filename = key,
             companies = companies,
             info_section = isection if isection else Traits(),
-            financials = fsection,
         )
-
-        if fsection:
-            if set(component.get_endkey_list()) == set((fsection.get('meta') or {}).get('key', [])):
-                component.financials = fsection
-            else: 
-                print(f'Component_Manager: keylist mismatching for {key} in financial section: discarding existing financial section')
 
         return component
 

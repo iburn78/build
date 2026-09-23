@@ -89,10 +89,16 @@ class Overview(BaseModel):
         )
 
 class Business(InfoSection):
+    ###_ needs update
     segments: list[str] = Field(
         description="Core business areas of the company (NOT products or competitors)",
         max_length=MAX_SEGMENTS
     )
+    segment_share: list[float] = Field(
+        description="Relative revenue size of segments of this company (total is 1)",
+        max_length=MAX_SEGMENTS
+    )
+    create_segments: bool = False
     key_products: list[str] = Field(
         description="Actual products or services offered by the company",
         max_length=MAX_PRODUCTS
@@ -147,6 +153,7 @@ class Profile_LLM_Manager:
             retries=AGENT_RETRIES,
         )
 
+###_ needs update
     def _gen_business(self, overview: Overview) -> Business:
 #----------------------------------------------------------------------------------------------------
         request_text = f"""
@@ -156,6 +163,7 @@ Extract a company profile from the recent business summary below.
 
 Rules:
 - segments: extract 1 to {MAX_SEGMENTS} core business areas.
+- segment_share: estimate relative revenue size for each segment as a number, where the company total revenue is 1
 - key_products: extract 1 to {MAX_PRODUCTS} representative products or services.
 - competitors: list up to {MAX_COMPETITORS} direct competitors. Use company names only.
 - Keep answers concise and structured.
@@ -164,7 +172,9 @@ Rules:
 #----------------------------------------------------------------------------------------------------
         # returns Business instance
         bs = self.business_agent.run_sync(request_text).output
+
         # ensure defaults again
+        bs.create_segments = False
         bs.search_specifier = ""
         bs.search_theme = []
         bs.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -201,7 +211,6 @@ Articles:
 
 class Profile(JsonModel):
     DIR = PROFILES_DIR
-    info_section_name = 'business'
     info_section_class = Business
 
     code: str
@@ -212,12 +221,25 @@ class Profile(JsonModel):
 
     llm_manager: ClassVar[Profile_LLM_Manager] = Profile_LLM_Manager()
 
-    def assign_sub_items_keys(self):
-        for i, sg in enumerate(self.info_section.segments):
-            id = chr(ord('A')+i) # 0 to A, 1 to B, etc
-            key = self.code + f'({id})'
-            self._sub_items[key] = Segment.get_item(key, segment_name = sg)
+    def get_qualitative_dict(self):
+        default = super().get_qualitative_dict()
+        return default | {
+            'overview': self.overview,
+            'news_summary': self.news_summary,
+        }
 
+    def _build_sub_items_info(self):
+        ###_ needs update (just incomplete/testing) 
+        if self.info_section.reviewed and self.info_section.create_segments:
+            for i, sg in enumerate(self.info_section.segments):
+                id = chr(ord('A')+i) # 0 to A, 1 to B, etc
+                key = self.code + f'({id})'
+                self._sub_items_info[key] = {
+                    'segment_name': sg,
+                    'revenue_share': self.info_section.segment_share[i],
+                } 
+
+    def _cleanup_sub_items(self):
         # removing unnecessaries
         paths = [p for p in Path(self.DIR).glob("*.json") if p.name.startswith(self.key)]
         base = [self.get_json_path()] + [v.get_json_path() for v in self._sub_items.values()]
@@ -226,13 +248,6 @@ class Profile(JsonModel):
         for p in to_remove:
             for _p in p.parent.glob(f"{p.stem}.*"):
                 _p.unlink(missing_ok=True)
-
-    def get_qualitative_dict(self):
-        return {
-            'overview': self.overview,
-            self.info_section_name: self.info_section,
-            'news_summary': self.news_summary,
-        }
 
     def get_news_dir(self):
         paths = [
@@ -244,7 +259,7 @@ class Profile(JsonModel):
             return None 
         return paths[0]
 
-    def update(self):
+    def _update(self, **kwargs):
         changed = False
         if self.overview.needs_refresh():
             print(f"Updating overview for {self.key}")
@@ -262,7 +277,7 @@ class Profile(JsonModel):
         return changed
 
     @classmethod
-    def _create_new_item(cls, key, isection: InfoSection | None, fsection: dict | None , **kwargs):
+    def _create_new_item(cls, key, isection: InfoSection | None, **kwargs):
         ov = Overview.fetch(key)
         if isection is None: 
             isection = cls.llm_manager._gen_business(ov)
@@ -277,7 +292,6 @@ class Profile(JsonModel):
             name=name,
             overview=ov,
             info_section=isection,
-            financials=fsection,
         )
         # news summary is filled after profile creation
         profile.news_summary = cls.llm_manager._gen_news(profile)
