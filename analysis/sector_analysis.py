@@ -14,8 +14,9 @@ from data.tools import load
 from data.tools.tools import set_KoreanFonts, dprint
 from build.tools.settings import df_krx, BUILD_DIR
 from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, render_html, get_id
-from build.models.json_models import JsonModel
-from build.models.profile import Profile, Segment, FinancialsAdjuster
+from build.models.json_model import JsonModel
+from build.models.profile import Profile
+from build.models.segment import Segment, FinancialsAdjuster
 from build.models.component import Component 
 from build.models.valuechain import ValueChain
 
@@ -138,7 +139,6 @@ class FinancialsData:
 
         return fr_data.ffill()
 
-    ###_ segment_adjust needs update
     def adjust_data(self):
         if self.id is None: return 
         self.ma_data['marcap'] = self.ma_data['marcap']*self.adjuster.marcap_share
@@ -158,45 +158,49 @@ class SectorAnalysis:
         self.sub_sas: list | None = None
         self.is_index = False # fr_data not available
 
-        self.adjuster = None
-
     # =======================================================================================================================
     # Creation
     # =======================================================================================================================
-    @classmethod
-    def get_segment_sas(cls, pr: Profile, **kwargs):
-        paths = [s.get_json_path() for s in pr._sub_items.values()]
-
-        sas = []
-        for p in paths:
-            _sa = cls()
-            loaded = Segment._load_from_path(p)
-            if loaded is not None:
-                sas.append(_sa.process(loaded))
-        return sas
-    
     def process(self, jm, unit=DEFAULT_KRW_UNIT, fill=True, start_date=DEFAULT_START_DATE):
         self.jsonmodel = jm
         self.endkey_list = jm.get_endkey_list()
+
+        ###_ maybe not raise here just eliminate duplication seems correct
+        # checking uniqueness
         if len(self.endkey_list) != len(set(self.endkey_list)): raise ValueError(f'keylist should not contain any duplications: {self.endkey_list}')
+        # checking duplication between profile and its segments
+        ###_ if only different segments exist, then it should be OK
+        _codelist = []
+        for k in self.endkey_list:
+            _codelist.append(get_id(k)[0])
+        if len(_codelist) != len(set(_codelist)): raise ValueError(f'keylist should not contain any duplications between a profile and its segments: {self.endkey_list}')
 
         if type(jm) is Profile:
             self.meta['name'] = jm.name
+            self.meta['code'] = jm.code
+            fd_list = [FinancialsData(key=jm.key, unit=unit, adjuster=None)]
+
         if type(jm) is Segment:
-            self.meta['name'] = jm.name
+            self.meta['name'] = jm.company_name
             self.meta['id'] = jm.id
             self.meta['segment_name'] = jm.segment_name
-            self.adjuster = jm.financials_adjuster
+            fd_list = [FinancialsData(key=jm.key, unit=unit, adjuster=jm.info_section)]
+
+        ###_ duplication checking is necessary here too. 
         if type(jm) is Component:
             self.meta['name'] = jm.key
+            fd_list = self._get_component_fd_list(jm, unit)
+
         if type(jm) is ValueChain:
             self.meta['name'] = jm.key
+            fd_list = []
+            for cp in jm.get_subitems().values():
+                fd_list += self._get_component_fd_list(cp, unit)
 
         self.meta = self.meta | {
             'unit': unit,
             'start_date': start_date, # start date in "yyyy-mm-dd" format
         }
-        fd_list = [FinancialsData(key=endkey, unit=unit, adjuster=self.adjuster) for endkey in self.endkey_list]
 
         self.ma_data = self._add_dfs([cd.ma_data for cd in fd_list], fill) # daily basis
         self.fr_data = self._add_dfs([cd.fr_data for cd in fd_list], fill) # quarterly basis
@@ -210,6 +214,16 @@ class SectorAnalysis:
         self._create_html() 
 
         return self
+
+    def _get_component_fd_list(self, component: Component, unit):
+        fd_list = []
+        for item in component.get_subitems().values():
+            fd_list.append(FinancialsData(
+                key = item.key, 
+                unit = unit,
+                adjuster = item.info_section if type(item) is Segment else None
+            ))
+        return fd_list
 
     def process_index(self, name: str, unit=1e12, start_date=DEFAULT_START_DATE):
         self.meta = self.meta | {
@@ -236,7 +250,7 @@ class SectorAnalysis:
 
     # create or append to/replace existing json
     def _create_json(self):
-        json_path = self.jsonmodel.get_json_path_from_prefix(self.jsonmodel.key)
+        json_path = self.jsonmodel._get_json_path_from_prefix(self.jsonmodel.key)
 
         if json_path:
             with open(json_path, 'r', encoding='utf-8') as f:

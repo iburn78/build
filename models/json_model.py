@@ -62,14 +62,17 @@ class JsonModel(BaseModel, ABC):
     def get_news_dir(self) -> Path | None:
         return None
 
-    # endkey: keys for profiles and segments (i.e., each endkey contains standalone financials data), excluding self.key
-    @abstractmethod
-    def get_endkey_list(self) -> list:
-        ...
+    def get_subitems(self): 
+        return self._sub_items
 
     @abstractmethod
     def _get_subitems(self):
         # recursively refresh sub_items and perform cleanup if necessary
+        ...
+
+    # endkey: keys for profiles and segments (i.e., each endkey contains standalone financials data), excluding self.key
+    @abstractmethod
+    def get_endkey_list(self) -> list:
         ...
 
     @abstractmethod
@@ -165,16 +168,17 @@ class JsonModel(BaseModel, ABC):
 
     # batch processing on get_item()
     # python 3.14 + pydantic_ai on windows yield: asyncio ProactorEventLoop / overlapped I/O cleanup errors, etc. 
-    def batch_process(self, keylist, max_workers=NUM_THREAD_TO_RUN):
+    @classmethod
+    def batch_process(cls, keylist, max_workers=NUM_THREAD_TO_RUN):
         if sys.platform == "win32":
             print("--------------------------------------------------")
             print("Generating items - sequential on Windows")
             print("--------------------------------------------------")
             for key in keylist:
-                self.get_item(key)
+                cls.get_item(key)
             return
         print("--------------------------------------------------")
         print(f"Generating items - max {max_workers} threads")
         print("--------------------------------------------------")
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            list(executor.map(self.get_item, keylist))
+            list(executor.map(cls.get_item, keylist))

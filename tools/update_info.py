@@ -12,7 +12,7 @@ if str(ROOT) not in sys.path:
 from build.models.profile import Profile, Segment
 from build.models.component import Component
 from build.models.valuechain import ValueChain
-from build.models.json_models import InfoSection
+from build.models.json_model import InfoSection
 from build.analysis.sector_analysis import SectorAnalysis
 
 MODELS = {

@@ -9,8 +9,8 @@ from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from openai import AsyncOpenAI
-from build.models.json_models import JsonModel, InfoSection
-from build.models.segment import Segment, FinancialsAdjuster
+from build.models.json_model import JsonModel, InfoSection
+from build.models.segment import Segment
 from build.tools.settings import llm_selector
 from build.tools.settings import PROFILES_DIR, NEWS_DIR, get_name, DEFAULT_BIZ_LLM, DEFAULT_NEWS_LLM, get_FN_GUIDE_url
 from build.tools.crawl_news import crawl_news
@@ -94,7 +94,6 @@ class Overview(BaseModel):
         )
 
 class Business(InfoSection):
-    ###_ segment_adjust needs update
     segments: list[str] = Field(
         description="Core business areas of the company (NOT products or competitors)",
         max_length=MAX_SEGMENTS
@@ -158,7 +157,6 @@ class Profile_LLM_Manager:
             retries=AGENT_RETRIES,
         )
 
-    ###_ segment_adjust needs update
     def _gen_business(self, overview: Overview) -> Business:
 #----------------------------------------------------------------------------------------------------
         request_text = f"""
@@ -242,7 +240,7 @@ class Profile(JsonModel):
                 id = chr(ord('A')+i) # 0 to A, 1 to B, etc
                 key = self.code + f'({id})'
                 revenue_share = self.info_section.segment_share[i]
-                self._sub_items[key] = Segment.get_item(key=key, segment_name=segment_name, revenue_share=revenue_share)
+                self._sub_items[key] = Segment.get_item(key=key, company_name=self.name, segment_name=segment_name, revenue_share=revenue_share)
             self._reconcile_sub_items()
 
     def _reconcile_sub_items(self):

@@ -1,167 +1,25 @@
-## Key Differentiators
-- should also focus on competitors 
-- identify value chains for companies
+# Project notes
 
-<br>
+## Project purpose
 
-## Envs
-- Chrome downloaded to /Users/andy/Library/Caches/ms-playwright/chromium-1223
-- Scrapping from fnguide is easier
+- Compare companies with their competitors.
+- Connect companies to components and value chains.
+- See [process.md](process.md) for the current data and report workflow.
+- See [plan.md](plan.md) for the proposed evidence-based company-report workflow.
 
-## Korean / Unicode Representation on macOS
-- NFC = composed form; NFD = decomposed form.
-- Korean Hangul syllables can be represented in both forms.
-- NFC and NFD are different Unicode strings:
-    > Python: "삼" == "삼"  → False
+## Running the local services
 
-    > Node:   "삼" === "삼"  → false
-- macOS filesystem APIs historically use decomposed normalization for filenames.
-  Finder and applications using those filesystem APIs can therefore expose
-  Korean filenames in NFD.
-- File contents are not necessarily affected; this is primarily a filename issue.
-- Normalize to NFC when doing string comparison/search.
+- Start the Node report server from `data/node` with `node server.js`; it serves the shared data directory on port 3000.
+- Profile generation and news summarization use the LLM modes configured in `build/tools/settings.py`. The default is Ollama, which must be running locally. OpenAI mode reads credentials from the project-level config file; keep that file private.
 
-> ***should not let macOS saves Korean filename***
+## Data and text handling
 
-<br>
+- FnGuide company summaries are the current profile-generation input; news articles are crawled and stored locally before summarization.
+- Normalize Korean text to NFC when comparing or searching names. NFC and NFD can represent the same visible Hangul with different Unicode sequences, especially across macOS filenames and application APIs.
+- Keep report claims tied to their article or source references; crawled files retain source URLs and publication dates.
 
-## NodeJS
-- to access htmls, run node
-    - e.g., node server.js
+## Typed LLM output
 
-## ollama 
-> ollama show gemma4
-- ollama should be running 
-    - e.g., ollama serve (in mac)
-    - nohup ollama serve &: puts in the background and survives terminal closes (later can be recalled in the jobs)
-    - or simply > ollama handles the same
+Use Pydantic models as structured output schemas with `pydantic_ai`. A schema validates and may coerce generated values; it does not establish that the content is factually correct. Review and source checks remain necessary.
 
-#### Model core
-- architecture (gemma4)
-    → the transformer design + multimodal extensions (vision/audio/tools support)
-
-- parameters (8.0B)
-    → number of learned weights (~8 billion fixed values)
-
-- context length (131072)
-    → maximum tokens the model can “see” at once (prompt + history + output)
-
-- embedding length (2560)
-    → size of internal vector representation per token
-
-<br>
-
-#### Compression
-Capabilities are supported interfaces, not always active features.
-- quantization (Q4_K_M)
-    → weights stored in compressed 4-bit format with scaling
-    → reduces RAM + bandwidth usage → faster inference on local hardware
-- Capabilities (important correction)
-- completion → text generation (core function)
-- vision/audio → input understanding only (not generation)
-- tools → model can request external functions (you must implement them)
-- thinking → model supports reasoning mode, but not always explicitly separate unless enabled
-
-<br>
-
-#### Sampling parameters (runtime behavior)
-These control style and variability, not intelligence.
-- temperature → randomness level
-- top_p → probability cutoff sampling
-- top_k → restrict candidate tokens
-
-<br>
-
-#### Runtime
-Model = (weights + architecture)
-1. Prefill (fast parallel GPU pass over input)
-    - Prefill: parallel matrix operations → very fast (thousands tokens/sec)
-2. KV cache creation
-    - storing intermediate calc values (used in a single request, many vectors per token (layer × heads × dimensions))
-3. Decode loop:
-    - Decode (generation): sequential token-by-token → slow (tens tokens/sec)
-    - read weights from memory
-    - compute next token
-    - repeat (slow, sequential)
-
-
-<br><br>
-
-## Pydantic - typechecking
-Pydantic will:
-- validate input types
-- coerce types when possible
-- raise ValidationError if invalid
-
-Example usage:
-
-    from pydantic import BaseModel, computed_field
-
-    class Rectangle(BaseModel):
-        width: int
-        height: int
-
-        @computed_field         # lets included in dump
-        @property               # lets accessible as property
-        def area(self) -> int:  # return type required
-            return self.width * self.height
-
-    r = Rectangle(width=3, height=4)
-
-    print(r.area)
-    print(r.model_dump())
-    print(r.model_dump_json())
-    # {'width': 3, 'height': 4, 'area': 12}
-
-Connecting with Local LLM model
-
-    from typing import Literal
-    from typing import Annotated
-    from pydantic import BaseModel, StringConstraints
-    from pydantic_ai import Agent
-    from pydantic_ai.models.openai import OpenAIChatModel
-    from pydantic_ai.providers.openai import OpenAIProvider
-    from openai import AsyncOpenAI
-
-    TickerStr = Annotated[
-        str,
-        StringConstraints(pattern=r'^[A-Z]{1,5}$')
-    ]
-
-    class StockAnalysis(BaseModel):
-        ticker: TickerStr
-        sentiment: Literal['bullish', 'bearish', 'neutral'] # or 'str' 
-        confidence: float
-
-    client = AsyncOpenAI(
-        base_url='http://localhost:11434/v1',
-        api_key='-'
-    )
-
-    model = OpenAIChatModel(
-        model_name='gemma4',
-        provider=OpenAIProvider(openai_client=client),
-    )
-
-    agent = Agent(
-        model=model,
-        output_type=StockAnalysis,
-    )
-
-    request_text = 'Analyze NVDA stock sentiment.'
-
-    # result = await agent.run(request_text) # when run in notebook:
-    result = agent.run_sync(request_text) # run in terminal
-    print(result.output)
-
-## Sentence Transformers
-Converts sentences to vectors
-
-    from sentence_transformers import SentenceTransformer
-    from sentence_transformers.util import cos_sim
-
-    # LLM model downloaded in ~/.cache/huggingface/
-    model = SentenceTransformer("all-MiniLM-L6-v2", local_files_only=True)
-    titles = []
-    vecs = model.encode(titles)
-    score = cos_sim(vecs[0], vecs[1]).item()
+Current configured Ollama model names are in `tools/settings.py`; avoid relying on cached model details or machine-specific download paths in project documentation.

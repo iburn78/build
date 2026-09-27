@@ -3,31 +3,28 @@ import pandas as pd
 from build.tools.settings import get_name
 from data.tools.tools import dprint
 
-from build.models.profile import ProfileManager
-from build.models.component import ComponentManager
-from build.models.valuechain import ValueChainManager
+from build.models.profile import Profile
+from build.models.component import Component
+from build.models.valuechain import ValueChain
 from build.analysis.sector_analysis import SectorAnalysis
+from build.tools.analysis_tools import get_id
 
 # profiles may not need to be created before components' creation
 # components should be already created for valuechain to be created
 
-pm = ProfileManager()
-cm = ComponentManager()
-vm = ValueChainManager()
-
 # --------------------------------------------------
 # Electronics
 # --------------------------------------------------
-cm.get_item('Memory', namelist = ['하이닉스', '삼성전자'])
-cm.get_item('Appliances', namelist = ['삼성전자', 'LG전자'])
-cm.get_item('Smart_glass', namelist = ['사피엔'])
-cm.get_item('Camera_module', namelist = ['LG이노텍', '삼성전기', '엠씨넥스', '세코닉스'])
-cm.get_item('PCB', namelist = ['LG이노텍', '삼성전기', '엠씨넥스', '세코닉스']) # PCB, FPCB
-cm.get_item('MLCC', namelist = ['삼성전기', '삼화콘덴서'])
-cm.get_item('Display', namelist = ['덕산네오룩스', '이녹스첨단소재', '피엔에이치테크', 'PI첨단소재', 'LX세미콘'])
-cm.get_item('Folderable', namelist = ['KH바텍', '세경하이테크', '파인엠텍'])
+Component.get_item('Memory', namelist = ['하이닉스', '삼성전자'])
+Component.get_item('Appliances', namelist = ['삼성전자', 'LG전자'])
+Component.get_item('Smart_glass', namelist = ['사피엔반도체'])
+Component.get_item('Camera_module', namelist = ['LG이노텍', '삼성전기', '엠씨넥스', '세코닉스'])
+Component.get_item('PCB', namelist = ['LG이노텍', '삼성전기', '엠씨넥스', '세코닉스']) # PCB, FPCB
+Component.get_item('MLCC', namelist = ['삼성전기', '삼화콘덴서'])
+Component.get_item('Display', namelist = ['덕산네오룩스', '이녹스첨단소재', '피엔에이치테크', 'PI첨단소재', 'LX세미콘'])
+Component.get_item('Folderable', namelist = ['KH바텍', '세경하이테크', '파인엠텍'])
 
-vm.get_item(
+v1 = ValueChain.get_item(
     key = "Electronics",
     component_keys=['Memory', 'Appliances', 'Smart_glass', 'Camera_module', 'PCB', 'MLCC', 'Display', 'Folderable'],
 )
@@ -42,9 +39,9 @@ name_dict = {category: [get_name(ticker.replace(" KS", "")) for ticker in ticker
 # dprint(name_dict)
 
 for key, val in name_dict.items():
-    cp = cm.get_item(key, namelist=val)
+    cp = Component.get_item(key, namelist=val)
 
-vm.get_item(
+v2 = ValueChain.get_item(
     key = "EV_Battery", 
     component_keys=list(name_dict.keys()),
 )
@@ -52,13 +49,19 @@ vm.get_item(
 # --------------------------------------------------
 # Profiles creation / update (jsons files)
 # --------------------------------------------------
-for cp in cm.get_itemlist(): 
-    print(cp.key, cp.get_endkey_list())
-    pm.batch_process(cp.get_endkey_list())
+components = v1.get_subitems() | v2.get_subitems()
+endkeys = list(dict.fromkeys(
+    key
+    for cp in components.values()
+    for key in cp.get_endkey_list()
+))
+
+profile_codes = list(dict.fromkeys(get_id(key)[0] for key in endkeys))
+Profile.batch_process(profile_codes)
 
 # --------------------------------------------------
 # Sector Analysis Creation / Cacaded for components
 # --------------------------------------------------
 # - json financials section, plot, and html
-for vc in vm.get_itemlist(): 
+for vc in [v1, v2]:
     SectorAnalysis().process(vc)

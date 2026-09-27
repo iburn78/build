@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from build.tools.settings import df_krx, COMPONENTS_DIR
 from build.tools.analysis_tools import get_id
-from build.models.json_models import JsonModel, InfoSection
+from build.models.json_model import JsonModel, InfoSection
 from build.models.profile import Profile
 
 class Member(BaseModel):
@@ -83,7 +83,13 @@ class Component(JsonModel):
             code, id = get_id(m.key)
             pr = Profile.get_item(code)
             if id: 
-                self._sub_items[m.key] = pr._sub_items[m.key]
+                segment = pr._sub_items.get(m.key)
+                if segment is None:
+                    raise ValueError(
+                        f"Segment {m.key} is not enabled in profile {code}; "
+                        "review the profile and enable segment creation first"
+                    )
+                self._sub_items[m.key] = segment
             else: 
                 self._sub_items[m.key] = pr
 
@@ -127,4 +133,3 @@ class Component(JsonModel):
         members += [Member.from_name(n) for n in namelist]
 
         return members
-

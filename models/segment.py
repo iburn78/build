@@ -1,21 +1,23 @@
 from build.tools.settings import PROFILES_DIR
 from build.tools.analysis_tools import get_id
-from build.models.json_models import JsonModel, InfoSection
+from build.models.json_model import JsonModel, InfoSection
 
 class FinancialsAdjuster(InfoSection):
-
-    ###_ segment_adjust needs update
     # PER: float | None = None 
     marcap_share: float | None = None
     revenue_share: float | None = None
     # opmargin: float | None = None
     opincome_share: float | None = None
 
+
+###_ may add code and check company_name may fail: inconsistent signature
+
 class Segment(JsonModel):
     DIR = PROFILES_DIR
     info_section: FinancialsAdjuster
 
     id: str
+    company_name: str
     segment_name: str
 
     def get_endkey_list(self) -> list:
@@ -43,8 +45,9 @@ class Segment(JsonModel):
 
     @classmethod
     def _create_new_item(cls, key, isection: InfoSection | None, **kwargs) -> JsonModel:
+        company_name = kwargs.get('company_name')
         segment_name = kwargs.get('segment_name')
-        if not segment_name: 
+        if not company_name or not segment_name: 
             raise ValueError(f"Segment {key} cannot be initiated without name")
         revenue_share = kwargs.get('revenue_share')
         if not revenue_share: 
@@ -59,6 +62,7 @@ class Segment(JsonModel):
             filename = filename,
             info_section = info_section, 
             id = id,
+            company_name = company_name,
             segment_name = segment_name,
         )
 

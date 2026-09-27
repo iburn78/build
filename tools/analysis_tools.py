@@ -6,7 +6,7 @@ import numpy as np
 from html import escape
 import holidays
 import requests
-from build.models.json_models import InfoSection
+from build.models.json_model import InfoSection
 from build.tools.settings import THIS_PROJECT, QUARTERLY_PERFORMANCES_URL, INDEX_HTML, BASE_DATA_DIR, get_FN_GUIDE_url, get_NAVER_url
 from pydantic import BaseModel
 import re
@@ -28,6 +28,7 @@ COLLAPSED_PATHS = {
 NO_CHART_KEYS = {
     'key',
     'unit',
+    'code',
     '-m_rank', 
     '-r_rank',
     '-o_rank',
@@ -396,8 +397,7 @@ def _render_images(output_file, meta_dict):
         images.append(sa_image.name)
 
     code = meta_dict.get('code')
-    # only profiles have string format code (otherwise meta['code'] is a list)
-    if isinstance(code, str):
+    if code is not "":
         url = f"{QUARTERLY_PERFORMANCES_URL}/data/{code}.png"
         if _url_exists(url):
             images.append(url)

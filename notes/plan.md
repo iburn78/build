@@ -1,96 +1,42 @@
-queries = [
- f"{name} 실적",
- f"{name} 전망",
- f"{name} {seg}",
- f"{name} {seg} 수익성",
- f"{name} 경쟁사 {competitor}",
-]
+# Analysis and reporting plan
 
-class ArticleInsight(BaseModel):
-    topic: str
-    key_points: list[str]
-    financial_signal: str | None
-    business_segment: str | None
-    sentiment: Literal[
-        "positive",
-        "neutral",
-        "negative"
-    ]
+This is a proposed extension to the current profile, news, and financial-analysis pipeline. The report-generation workflow described here is not yet implemented.
 
--------------
+## Goal
 
-feed previous report might be risky: model repeats old conclusions
+Produce a company report that explains its business, recent performance, competitive position, and risks. Include segment and value-chain context where the available evidence supports it. Cite the source articles and dates used in the report.
 
-class HistoricalFinding(BaseModel):
-    statement: str
-    confidence: float
-    evidence_date: str
+## Evidence workflow
 
-prompt: 
-Treat previous reports as historical hypotheses. Current news overrides old conclusions.
+1. Gather current profile, financial, segment, and news information.
+2. Extract article-level insights with topic, factual points, financial signal, business segment, sentiment, publication date, and source reference.
+3. Identify questions that remain unanswered, such as performance drivers or competitor differences.
+4. Run targeted follow-up searches using company, segment, competitor, and issue terms. Example queries:
+   - `{company} 실적`
+   - `{company} 전망`
+   - `{company} {segment} 수익성`
+   - `{company} 경쟁사 {competitor}`
+5. Repeat retrieval while important gaps remain and the retrieval budget allows.
+6. Generate the report with references attached to factual claims.
 
--------------
+Treat prior reports as historical hypotheses, not current evidence. Recheck their claims against current sources; newer reporting does not automatically invalidate a claim unless it addresses the same fact or period.
 
-Report generation
+## Proposed report structure
 
-[qualitative]
-- explanation on the main businesses (top 3)
-- recent financial performance (overall and/or for each business segs) and reasons behind
-- main competitor and compared to the competitor on (1) why financial performances are differ and (2) what are differences in competitve advantages
-- key issues that this company is facing: overall and/or for each business segs
+- Main businesses (up to three)
+- Recent overall and segment performance, with stated reasons
+- Competitor comparison: performance differences and competitive advantages
+- Key issues and risks, overall and by segment where possible
+- Source references for factual claims
 
-class QualitativeReport(BaseModel):
-    main_businesses: list[str]
-    performance_summary: str
-    business_analysis: list[
-        BusinessSegment
-    ]
-    competitor_analysis: str
-    key_issues: list[str]
+Possible structured types:
 
-[rating]
+- `ArticleInsight`: topic, key points, financial signal, business segment, sentiment, publication date, source URL
+- `QualitativeReport`: main businesses, performance summary, segment analyses, competitor analysis, key issues, references
+- `QualitativeRating`: profitability, growth, and competitiveness
 
-class QualitativeRating(BaseModel):
-    profitability:
-        Literal[
-            "best",
-            "top-tier",
-            "2nd-tier",
-            "else"
-        ]
-    growth:
-        Literal[
-            "best",
-            "top-tier",
-            "2nd-tier",
-            "else"
-        ]
-    competitiveness:
-        Literal[
-            "best",
-            "top-tier",
-            "2nd-tier",
-            "else"
-        ]
+Before using rating labels such as `best`, `top-tier`, `2nd-tier`, and `else`, define the peer group, comparison period, and rubric. Ratings should be supported by cited evidence and kept separate from the narrative report.
 
---------------
+## Human review
 
-make retrieval iterative
-
-extract
-↓
-crawl
-↓
-summarize
-↓
-missing information?
-↓
-extra retrieval
-↓
-report
-
-
--------------
-
-leave references clearly in the report
-(as crawled news articles are all stored locally)
+Keep the existing `reviewed` field as the human approval boundary for editable profile information. Generated reports should retain source references so reviewers can inspect and revise claims.

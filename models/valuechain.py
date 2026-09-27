@@ -1,6 +1,6 @@
 from pydantic import Field
 from build.tools.settings import VALUECHAIN_DIR 
-from build.models.json_models import JsonModel, InfoSection
+from build.models.json_model import JsonModel, InfoSection
 from build.models.component import Component
 from pathlib import Path
 
