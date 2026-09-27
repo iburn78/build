@@ -2,10 +2,10 @@ from pydantic import BaseModel, Field
 from build.tools.settings import df_krx, COMPONENTS_DIR
 from build.tools.analysis_tools import get_id
 from build.models.json_models import JsonModel, InfoSection
-from pathlib import Path
+from build.models.profile import Profile
 
 class Member(BaseModel):
-    # simple vehicle that carries only key and company name 
+    # simple vehicle that carries only key and company name: works both for profile and segment 
     key: str 
     name: str
 
@@ -72,23 +72,47 @@ class Traits(InfoSection):
 
 class Component(JsonModel): 
     DIR = COMPONENTS_DIR
-    info_section_class = Traits
-    companies: list = Field(default_factory=list)
+    info_section: Traits
+    members: list[Member] = Field(default_factory=list)
 
-    def _build_sub_items_info(self):
-        ###_ need implementation
-        ###_ Segments should be already built (CORRECT? think through)
-        ###_ or handle in segment to create new appropriately (raise issue there)
-        ###_ think Profile to Segment creation and Component to Segment creation (by recursive get_item... )
+    def get_endkey_list(self) -> list:
+        return list(self._sub_items.keys())
 
-        self._sub_items_info = dict.fromkeys([c.key for c in self.companies])
+    def _get_subitems_and_cleanup(self):
+        for m in self.members:
+            code, id = get_id(m.key)
+            pr = Profile.get_item(code)
+            if id: 
+                self._sub_items[m.key] = pr._sub_items[m.key]
+            else: 
+                self._sub_items[m.key] = pr
 
     def _update(self, **kwargs) -> bool:
-        ###_ to compare kwargs... 
-        return False
+        members = Component._build_member_list(**kwargs)
+
+        ###_ infosection reviewed only when this, not to override always
+
+        # set() operation does not work here for basemodel instances
+        if all(x in self.members for x in members) and all(x in members for x in self.members):
+            return False
+        else: 
+            self.members = members
+            return True
 
     @classmethod
     def _create_new_item(cls, key, isection: InfoSection | None, **kwargs):
+        members = cls._build_member_list(**kwargs)
+
+        component = Component(
+            key = key,
+            filename = key,
+            members = members,
+            info_section = isection if isection else Traits(),
+        )
+        return component
+
+    @classmethod
+    def _build_member_list(cls, **kwargs):
         keylist = kwargs.get("keylist") or []
         namelist = kwargs.get("namelist") or []
 
@@ -96,18 +120,11 @@ class Component(JsonModel):
             raise ValueError(f'keylist or namelist should not contain any duplications: {keylist}{namelist}')
 
         if keylist and namelist:
-            print(f'both keylist and namelist is given, using keylist only {keylist}')
+            print(f'Both keylist and namelist is given, using keylist only {keylist}')
             namelist = []
 
-        companies = [Member.from_key(k) for k in keylist]
-        companies += [Member.from_name(n) for n in namelist]
+        members = [Member.from_key(k) for k in keylist]
+        members += [Member.from_name(n) for n in namelist]
 
-        component = Component(
-            key = key,
-            filename = key,
-            companies = companies,
-            info_section = isection if isection else Traits(),
-        )
-
-        return component
+        return members
 

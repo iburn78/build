@@ -11,7 +11,7 @@ from build.models.component import Component
 # from build.analysis.sector_analysis import SectorAnalysis
 
 code = '005930'
-pr = Profile.get_item(code, update=True)
+# pr = Profile.get_item(code)
 cp = Component.get_item('Memory', namelist = ['하이닉스', '삼성전자'])
 
 # SectorAnalysis().process(pr)

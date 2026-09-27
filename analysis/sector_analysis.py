@@ -137,10 +137,9 @@ class FinancialsData:
 
         return fr_data.ffill()
 
-    ###_ needs improvement
+    ###_ segment_adjust needs update
     def adjust_data(self):
         if self.id is None: return 
-        ###_ utilize self.adjuster
         self.ma_data['marcap'] = self.ma_data['marcap']*self.adjuster.marcap_share
         self.fr_data['revenue_qtr'] = self.fr_data['revenue_qtr']*self.adjuster.revenue_share
         self.fr_data['opincome_qtr'] = self.fr_data['opincome_qtr']*self.adjuster.opincome_share
@@ -169,10 +168,7 @@ class SectorAnalysis:
     # =======================================================================================================================
     @classmethod
     def get_segment_sas(cls, pr: Profile, **kwargs):
-        ###_ check if this is proper
-        ###_ check if this is proper
-        ###_ check if this is proper
-        paths = pr.manage_segment_jsons()
+        paths = [s.get_json_path() for s in pr._sub_items.values()]
 
         sas = []
         for p in paths:
@@ -181,26 +177,10 @@ class SectorAnalysis:
             if loaded is not None:
                 sas.append(_sa.process(loaded))
         return sas
-
-    ###_ needs fix
-    @classmethod
-    def get_from_code(cls, code, **kwargs):
-        sa = cls()
-        pr = sa.pm.get_item(code)
-        return sa.process(pr, **kwargs)
-
-    @classmethod
-    def get_from_component_name(cls, name, **kwargs):
-        sa = cls()
-        cp = sa.cm.get_item(name)
-        return sa.process(cp, **kwargs)
     
     def process(self, jm, unit=DEFAULT_KRW_UNIT, fill=True, start_date=DEFAULT_START_DATE):
         self.jsonmodel = jm
         self.endkey_list = jm.get_endkey_list()
-        ###_ -----------------------------------------------------
-        ###_ may check duplication here company and subsegemnts
-        ###_ -----------------------------------------------------
         if len(self.endkey_list) != len(set(self.endkey_list)): raise ValueError(f'keylist should not contain any duplications: {self.endkey_list}')
 
         if type(jm) is Profile:
@@ -219,8 +199,7 @@ class SectorAnalysis:
             'unit': unit,
             'start_date': start_date, # start date in "yyyy-mm-dd" format
         }
-        ###_ maybe should be named as endkey
-        fd_list = [FinancialsData(key=key, unit=unit, adjuster=self.adjuster) for key in self.endkey_list]
+        fd_list = [FinancialsData(key=endkey, unit=unit, adjuster=self.adjuster) for endkey in self.endkey_list]
 
         self.ma_data = self._add_dfs([cd.ma_data for cd in fd_list], fill) # daily basis
         self.fr_data = self._add_dfs([cd.fr_data for cd in fd_list], fill) # quarterly basis
@@ -230,12 +209,11 @@ class SectorAnalysis:
         self._perform_assess()
         self._create_json()
         self._create_plot()
-        self._build_sub_sector_analyses()
+        self._sub_sector_analyses()
         self._create_html() 
 
         return self
 
-    ###_ review this too
     def process_index(self, name: str, unit=1e12, start_date=DEFAULT_START_DATE):
         self.meta = self.meta | {
             'name': name,
@@ -280,22 +258,6 @@ class SectorAnalysis:
 
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
-
-    # recursively refreshing profiles and components
-    ###_ leveling is not consistent
-    def _build_sub_sector_analyses(self):
-        model_class = type(self.jsonmodel)
-        self.sub_sas = []
-        if model_class is Profile:
-            if self.jsonmodel.business.reviewed:
-                self.sub_sas = SectorAnalysis().get_segment_sas(self.jsonmodel)
-        elif model_class is Component:
-            for key in self.jsonmodel.get_endkey_list():
-                self.sub_sas.append(SectorAnalysis().get_from_code(key))
-        elif model_class is ValueChain:
-            for component_name in self.jsonmodel.component_names:
-                self.sub_sas.append(SectorAnalysis().get_from_component_name(component_name))
-        self._sub_sector_analyses()
 
     def _create_html(self):
         html_root = Path(BUILD_DIR)
@@ -395,7 +357,7 @@ class SectorAnalysis:
 
     def _build_assess_data(self):  
         if self.is_index: 
-            print('no assess available for index data')
+            print('No assess available for index data')
             return False
 
         fr = self.fr_data # drop_duplicates() not applied here
@@ -406,7 +368,7 @@ class SectorAnalysis:
         fr = fr.iloc[start_idx:]
 
         if len(fr) < 5: 
-            print('need fr data at least 5 qtrly data points')
+            print('Need fr data at least 5 qtrly data points')
             return False
 
         opic = fr['opincome_qtr'] 
@@ -562,8 +524,12 @@ class SectorAnalysis:
     # Sub SA analyses
     # =======================================================================================================================
     def _sub_sector_analyses(self):
-        if not self.sub_sas:
+        if not self.jsonmodel._sub_items:
             return
+
+        self.sub_sas = []
+        for _, v in self.jsonmodel._sub_item:
+            self.sub_sas.append(SectorAnalysis().process(v))
 
         # Parent sector
         self.shape['share'] = {

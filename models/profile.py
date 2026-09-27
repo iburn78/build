@@ -89,7 +89,7 @@ class Overview(BaseModel):
         )
 
 class Business(InfoSection):
-    ###_ needs update
+    ###_ segment_adjust needs update
     segments: list[str] = Field(
         description="Core business areas of the company (NOT products or competitors)",
         max_length=MAX_SEGMENTS
@@ -153,7 +153,7 @@ class Profile_LLM_Manager:
             retries=AGENT_RETRIES,
         )
 
-###_ needs update
+    ###_ segment_adjust needs update
     def _gen_business(self, overview: Overview) -> Business:
 #----------------------------------------------------------------------------------------------------
         request_text = f"""
@@ -211,7 +211,7 @@ Articles:
 
 class Profile(JsonModel):
     DIR = PROFILES_DIR
-    info_section_class = Business
+    info_section: Business
 
     code: str
     name: str
@@ -228,16 +228,17 @@ class Profile(JsonModel):
             'news_summary': self.news_summary,
         }
 
-    def _build_sub_items_info(self):
-        ###_ needs update (just incomplete/testing) 
+    def get_endkey_list(self) -> list:
+        return []
+
+    def _get_subitems_and_cleanup(self):
         if self.info_section.reviewed and self.info_section.create_segments:
-            for i, sg in enumerate(self.info_section.segments):
+            for i, segment_name in enumerate(self.info_section.segments):
                 id = chr(ord('A')+i) # 0 to A, 1 to B, etc
                 key = self.code + f'({id})'
-                self._sub_items_info[key] = {
-                    'segment_name': sg,
-                    'revenue_share': self.info_section.segment_share[i],
-                } 
+                revenue_share = self.info_section.segment_share[i]
+                self._sub_items[key] = Segment.get_item(key=key, segment_name=segment_name, revenue_share=revenue_share)
+        self._cleanup_sub_items()
 
     def _cleanup_sub_items(self):
         # removing unnecessaries
@@ -255,7 +256,7 @@ class Profile(JsonModel):
             if p.is_dir() and p.name.startswith(f"{self.key}_")
         ]
         if len(paths) != 1:
-            print(f"cannot find unique news dir with {self.key}...")
+            print(f"Cannot find unique news dir with {self.key}...")
             return None 
         return paths[0]
 

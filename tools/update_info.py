@@ -34,11 +34,10 @@ def update_info(data):
         raise ValueError(f"Unknown object type: {object_type}")
 
     if object_type == "Profile" or object_type == "Segment":
-        obj = model_class.load_from_prefix(object_id)
+        path = model_class._get_json_path_from_prefix(object_id)
     else:
         path = Path(model_class.DIR) / f"{object_id}.json"
-        ###_ needs fix
-        obj = model_class.load_from_path(path)
+    obj = model_class._load_from_path(path)
 
     if obj is None:
         raise ValueError(

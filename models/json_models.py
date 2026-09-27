@@ -23,7 +23,6 @@ class JsonModel(BaseModel, ABC):
     # - data format is validated when loaded
 
     DIR: ClassVar[str] # ClassVars is not included in json file, not validated when loading
-    info_section_class: ClassVar[type[InfoSection]]
 
     key: str # unqiue identifier
     filename: str # json filename (key_additional information)
@@ -32,14 +31,13 @@ class JsonModel(BaseModel, ABC):
     info_section: InfoSection   
     financials: dict | None = None
 
-    # PrivateAttr is not included in json file, not validated when loading
-    _sub_items_info: dict = PrivateAttr(default_factory=dict)
+    # PrivateAttr is not included in the json file, not validated when loading
     _sub_items: dict = PrivateAttr(default_factory=dict)
 
     # this is called when both loaded and created
     def model_post_init(self, context: Any) -> None:
         self.filename = sanitized_filename(self.filename)
-        self._build_sub_items_info()
+        self._get_subitems_and_cleanup()
         return super().model_post_init(context)
 
     def get_json_path(self) -> Path:
@@ -48,33 +46,31 @@ class JsonModel(BaseModel, ABC):
     def save_to_file(self):
         self.updated = datetime.now().strftime("%Y-%m-%d") 
         jp = self.get_json_path()
-        print(f"{type(self).__name__} is saved: {jp}")
         jp.write_text(
             self.model_dump_json(indent=4, exclude_none=True),
             encoding="utf-8",
         )
+        print(f"{type(self).__name__} is saved: {jp}")
 
-    # endkey: keys for profiles and segments (i.e., each endkey contains standalone financials data), excluding self.key
-    def get_endkey_list(self) -> list:
-        if self._sub_items.keys():
-            return list(self._sub_items.keys())
-        return []
-    
     def get_qualitative_dict(self) -> dict:
         # return a dict, which contain BaseModels to be shown in html
         # single InfoSection is included in the dict
         return {
-            self.info_section_class.__name__.lower(): self.info_section,
+            self.info_section.__name__.lower(): self.info_section,
         }
-
-    def _build_sub_items_info(self):
-        pass
-
-    def _cleanup_sub_items(self):
-        pass
 
     def get_news_dir(self) -> Path | None:
         return None
+
+    # endkey: keys for profiles and segments (i.e., each endkey contains standalone financials data), excluding self.key
+    @abstractmethod
+    def get_endkey_list(self) -> list:
+        ...
+
+    @abstractmethod
+    def _get_subitems_and_cleanup(self):
+        # recursively refresh sub_items and perform cleanup if necessary
+        ...
 
     @abstractmethod
     def _update(self, **kwargs) -> bool:
@@ -93,9 +89,11 @@ class JsonModel(BaseModel, ABC):
     @classmethod
     def _get_json_path_from_prefix(cls, prefix: str) -> Path | None: 
         prefix = sanitized_filename(prefix)
-        paths = [p for p in Path(cls.DIR).glob("*.json") if p.name.split('_')[0] == prefix]
+        paths = [p for p in Path(cls.DIR).glob("*.json") if p.name.startswith(prefix)]
+        if len(paths) > 1:
+            paths = [p for p in paths if p.name.startswith(f"{prefix}_")]
         if len(paths) != 1:
-            print(f"cannot load json file with prefix {prefix}...")
+            print(f"Cannot load json file with prefix {prefix}...")
             return None 
         return paths[0]
 
@@ -109,7 +107,7 @@ class JsonModel(BaseModel, ABC):
                 path.read_text(encoding="utf-8")
             )
         except Exception as e:
-            print(f"[load from file] jsonmodel validation failed: {path} | {e}")
+            print(f"[Load from file] jsonmodel validation failed: {path} | {e}")
             obj = None
         return obj
 
@@ -119,10 +117,10 @@ class JsonModel(BaseModel, ABC):
         info_section_instance = None
 
         if existing_json:
-            info_section = existing_json.get(cls.info_section_class.__name__.lower())
+            info_section = existing_json.get(cls.info_section.__name__.lower())
             if info_section and info_section.get('reviewed'): 
                 try: 
-                    info_section_instance = cls.info_section_class.model_validate(info_section) 
+                    info_section_instance = cls.info_section.model_validate(info_section) 
                 except Exception as e:
                     pass
 
@@ -162,12 +160,6 @@ class JsonModel(BaseModel, ABC):
             
         if changed: 
             item.save_to_file()
-
-        # recursively refresh sub_items and perform cleanup if necessary
-        for key, info in item._sub_items_info:
-            kwargs = info if info else {}
-            item._sub_items[key] = cls.get_item(key, **kwargs)
-        item._cleanup_sub_items()
 
         return item
 

@@ -247,7 +247,7 @@ def _same_signature(*dicts):
     signature = _dict_signature(dicts[0])
     passed = all(_dict_signature(d) == signature for d in dicts[1:])
     if not passed:
-        print(f"signature mismatching: ")
+        print(f"Signature mismatching: ")
         for d in dicts:
             print(_dict_signature(d))
     return passed

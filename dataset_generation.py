@@ -29,7 +29,7 @@ cm.get_item('Folderable', namelist = ['KH바텍', '세경하이테크', '파인�
 
 vm.get_item(
     key = "Electronics",
-    component_namelist=['Memory', 'Appliances', 'Smart_glass', 'Camera_module', 'PCB', 'MLCC', 'Display', 'Folderable'],
+    component_keys=['Memory', 'Appliances', 'Smart_glass', 'Camera_module', 'PCB', 'MLCC', 'Display', 'Folderable'],
 )
 
 # --------------------------------------------------
@@ -46,7 +46,7 @@ for key, val in name_dict.items():
 
 vm.get_item(
     key = "EV_Battery", 
-    component_namelist=list(name_dict.keys()),
+    component_keys=list(name_dict.keys()),
 )
 
 # --------------------------------------------------
@@ -54,7 +54,6 @@ vm.get_item(
 # --------------------------------------------------
 for cp in cm.get_itemlist(): 
     print(cp.key, cp.get_endkey_list())
-    ###_ to be modifed so that only profiles to be created and to be cascaded
     pm.batch_process(cp.get_endkey_list())
 
 # --------------------------------------------------
