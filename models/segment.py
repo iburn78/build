@@ -19,32 +19,36 @@ class Segment(JsonModel):
     segment_name: str
 
     def get_endkey_list(self) -> list:
-        return []
+        return [self.key]
 
-    def _get_subitems_and_cleanup(self):
+    def _get_subitems(self):
         pass
 
     def _update(self, **kwargs) -> bool:
+        changed = False
         segment_name = kwargs.get('segment_name')
+        if segment_name: 
+            if self.segment_name != segment_name:
+                self.segment_name = segment_name
+                changed = True
+            
         revenue_share = kwargs.get('revenue_share')
-        financial_adjuster = FinancialsAdjuster(marcap_share=revenue_share, revenue_share=revenue_share, opincome_share=revenue_share)
+        if revenue_share: 
+            financial_adjuster = FinancialsAdjuster(marcap_share=revenue_share, revenue_share=revenue_share, opincome_share=revenue_share)
+            if self.info_section != financial_adjuster:
+                self.info_section = financial_adjuster
+                changed = True
 
-        if (
-            self.segment_name == segment_name and
-            self.info_section == financial_adjuster
-        ): 
-            return False
-        else: 
-            self.segment_name = segment_name 
-            self.info_section = financial_adjuster
-            return True
+        return changed
 
     @classmethod
     def _create_new_item(cls, key, isection: InfoSection | None, **kwargs) -> JsonModel:
-
-        ###_ segment_adjust needs update
         segment_name = kwargs.get('segment_name')
+        if not segment_name: 
+            raise ValueError(f"Segment {key} cannot be initiated without name")
         revenue_share = kwargs.get('revenue_share')
+        if not revenue_share: 
+            raise ValueError(f"Segment {key} cannot be initiated without financials_adjuster parameters")
 
         filename = f"{key}_{segment_name}"
         info_section = isection if isection else FinancialsAdjuster(marcap_share=revenue_share, revenue_share=revenue_share, opincome_share=revenue_share)

@@ -34,10 +34,15 @@ class Overview(BaseModel):
     updated: str # date current overview is updated: yyyy-mm-dd
 
     def needs_refresh(self): 
-        return (
-            datetime.now() - datetime.fromisoformat(self.updated)
-            >= timedelta(days=OVERVIEW_REFRESH_THRES)
-        )
+        try:
+            updated = datetime.fromisoformat(self.updated)
+            age = datetime.now() - updated
+        except (TypeError, ValueError):
+            # Invalid or timezone-aware timestamps cannot be compared with
+            # datetime.now(); treat them as stale so the overview is refreshed.
+            return True
+
+        return age >= timedelta(days=OVERVIEW_REFRESH_THRES)
 
     @classmethod
     def fetch(cls, code):
@@ -216,7 +221,7 @@ class Profile(JsonModel):
     code: str
     name: str
 
-    overview: Overview | None = None
+    overview: Overview
     news_summary: News | None = None
 
     llm_manager: ClassVar[Profile_LLM_Manager] = Profile_LLM_Manager()
@@ -229,19 +234,19 @@ class Profile(JsonModel):
         }
 
     def get_endkey_list(self) -> list:
-        return []
+        return [self.key]
 
-    def _get_subitems_and_cleanup(self):
+    def _get_subitems(self):
         if self.info_section.reviewed and self.info_section.create_segments:
             for i, segment_name in enumerate(self.info_section.segments):
                 id = chr(ord('A')+i) # 0 to A, 1 to B, etc
                 key = self.code + f'({id})'
                 revenue_share = self.info_section.segment_share[i]
                 self._sub_items[key] = Segment.get_item(key=key, segment_name=segment_name, revenue_share=revenue_share)
-        self._cleanup_sub_items()
+            self._reconcile_sub_items()
 
-    def _cleanup_sub_items(self):
-        # removing unnecessaries
+    def _reconcile_sub_items(self):
+        # removing unnecessary stall sub-item files
         paths = [p for p in Path(self.DIR).glob("*.json") if p.name.startswith(self.key)]
         base = [self.get_json_path()] + [v.get_json_path() for v in self._sub_items.values()]
         to_remove = [p for p in paths if p not in base]

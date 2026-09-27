@@ -28,7 +28,7 @@ class JsonModel(BaseModel, ABC):
     filename: str # json filename (key_additional information)
     updated: str = ""
 
-    info_section: InfoSection   
+    # info_section: InfoSection # to be defined in each sub-class  
     financials: dict | None = None
 
     # PrivateAttr is not included in the json file, not validated when loading
@@ -37,7 +37,7 @@ class JsonModel(BaseModel, ABC):
     # this is called when both loaded and created
     def model_post_init(self, context: Any) -> None:
         self.filename = sanitized_filename(self.filename)
-        self._get_subitems_and_cleanup()
+        self._get_subitems()
         return super().model_post_init(context)
 
     def get_json_path(self) -> Path:
@@ -56,7 +56,7 @@ class JsonModel(BaseModel, ABC):
         # return a dict, which contain BaseModels to be shown in html
         # single InfoSection is included in the dict
         return {
-            self.info_section.__name__.lower(): self.info_section,
+            type(self.info_section).__name__.lower(): self.info_section,
         }
 
     def get_news_dir(self) -> Path | None:
@@ -68,7 +68,7 @@ class JsonModel(BaseModel, ABC):
         ...
 
     @abstractmethod
-    def _get_subitems_and_cleanup(self):
+    def _get_subitems(self):
         # recursively refresh sub_items and perform cleanup if necessary
         ...
 

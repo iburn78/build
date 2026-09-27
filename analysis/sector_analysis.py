@@ -14,9 +14,10 @@ from data.tools import load
 from data.tools.tools import set_KoreanFonts, dprint
 from build.tools.settings import df_krx, BUILD_DIR
 from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, render_html, get_id
-from build.models.profile import Profile, ProfileManager, Segment, FinancialsAdjuster
-from build.models.component import Component, ComponentManager
-from build.models.valuechain import ValueChain, ValueChainManager
+from build.models.json_models import JsonModel
+from build.models.profile import Profile, Segment, FinancialsAdjuster
+from build.models.component import Component 
+from build.models.valuechain import ValueChain
 
 '''
 ma: MarCap (until last day if is_KRX_open == True; if strict False then include today if it is after 12:00), Amount
@@ -153,13 +154,9 @@ class SectorAnalysis:
         self.assess_data = {}
         self.assess_result = {}
 
-        self.jsonmodel = None
-        self.sub_sas = None
+        self.jsonmodel: JsonModel | None = None
+        self.sub_sas: list | None = None
         self.is_index = False # fr_data not available
-
-        self.pm = ProfileManager()
-        self.cm = ComponentManager()
-        self.vm = ValueChainManager()
 
         self.adjuster = None
 
@@ -205,8 +202,8 @@ class SectorAnalysis:
         self.fr_data = self._add_dfs([cd.fr_data for cd in fd_list], fill) # quarterly basis
 
         self._build_shape() 
-        self._build_assess_data()
-        self._perform_assess()
+        if self._build_assess_data():
+            self._perform_assess()
         self._create_json()
         self._create_plot()
         self._sub_sector_analyses()
@@ -451,6 +448,8 @@ class SectorAnalysis:
         }
         self.assess_data = res
 
+        return True
+
     def _perform_assess(self):
         oh = self.assess_data['opincome']
         basics = False
@@ -528,7 +527,7 @@ class SectorAnalysis:
             return
 
         self.sub_sas = []
-        for _, v in self.jsonmodel._sub_item:
+        for _, v in self.jsonmodel._sub_items.items():
             self.sub_sas.append(SectorAnalysis().process(v))
 
         # Parent sector
@@ -1078,23 +1077,19 @@ class SectorAnalysis:
 # Usage examples
 # -----------------------------------------------------------------------------------------------
 if __name__ == "__main__": 
-    pm = ProfileManager()
-    cm = ComponentManager()
-    vm = ValueChainManager()
-
     # company profile
     code = '005930'
-    pr = pm.get_item(code)
+    pr = Profile.get_item(code)
     sa = SectorAnalysis().process(pr)
 
     # component
     name = "Memory"
-    cp = cm.get_item(name)
+    cp = Component.get_item(name)
     sa = SectorAnalysis().process(cp)
 
     # valuechain
     name = "Electronics"
-    vc = vm.get_item(name)
+    vc = ValueChain.get_item(name)
     sa = SectorAnalysis().process(vc)
 
     # index

@@ -78,7 +78,7 @@ class Component(JsonModel):
     def get_endkey_list(self) -> list:
         return list(self._sub_items.keys())
 
-    def _get_subitems_and_cleanup(self):
+    def _get_subitems(self):
         for m in self.members:
             code, id = get_id(m.key)
             pr = Profile.get_item(code)
@@ -88,20 +88,20 @@ class Component(JsonModel):
                 self._sub_items[m.key] = pr
 
     def _update(self, **kwargs) -> bool:
+        changed = False
         members = Component._build_member_list(**kwargs)
-
-        ###_ infosection reviewed only when this, not to override always
-
-        # set() operation does not work here for basemodel instances
-        if all(x in self.members for x in members) and all(x in members for x in self.members):
-            return False
-        else: 
-            self.members = members
-            return True
+        if members:
+            # set() operation does not work here due to basemodel instances characteristics
+            if len(self.members) != len (members) or not all(x in members for x in self.members):
+                self.members = members
+                changed = True
+        return changed
 
     @classmethod
     def _create_new_item(cls, key, isection: InfoSection | None, **kwargs):
         members = cls._build_member_list(**kwargs)
+        if not members: 
+            raise ValueError(f"Component {key} cannot be initiated without members")
 
         component = Component(
             key = key,

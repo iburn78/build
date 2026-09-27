@@ -16,26 +16,29 @@ class ValueChain(JsonModel):
 
     def get_endkey_list(self) -> list:
         endkey_list = set()
-        for k, v in self._sub_items:
+        for v in self._sub_items.values():
             endkey_list.update(set(v._sub_items.keys()))
         return list(endkey_list)
 
-    def _get_subitems_and_cleanup(self):
+    def _get_subitems(self):
         for k in self.component_keys:
             self._sub_items[k] = Component.get_item(k)
 
     def _update(self, **kwargs) -> bool:
+        changed = False
         component_keys = kwargs.get("component_keys", [])
-        if set(self.component_keys) == set(component_keys):
-            return False
-        else: 
-            self.component_keys = component_keys
-            return True
+        if component_keys:
+            if set(self.component_keys) != set(component_keys):
+                self.component_keys = component_keys
+                changed = True
+        return changed
 
     @classmethod
     def _create_new_item(cls, key, isection: InfoSection | None, **kwargs):
         # give component namelist to create new one
         component_keys = kwargs.get("component_keys", [])
+        if not component_keys: 
+            raise ValueError(f"ValueChain {key} cannot be initiated without component keys")
 
         vc = ValueChain(
             key = key,
