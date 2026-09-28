@@ -44,6 +44,13 @@ def update_info(data):
             f"{object_type} not found: {object_id}"
         )
 
+    # The model stores InfoSection class name (e.g. "business") under `info_section` 
+    if (
+        section_name != "info_section"
+        and section_name == type(obj.info_section).__name__.lower()
+    ):
+        section_name = "info_section"
+
     section = getattr(obj, section_name, None)
 
     if not isinstance(section, InfoSection):
@@ -58,6 +65,13 @@ def update_info(data):
     updated_section.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     setattr(obj, section_name, updated_section)
+
+    if isinstance(obj, Profile):
+        # The model was loaded before the edited Business section was applied.
+        # Rebuild its segment children now so renamed segments update their
+        # filenames and stale segment files can be reconciled in this save.
+        obj._sub_items.clear()
+        obj._get_subitems()
 
     obj.save_to_file()
     print(f"SAVING: {obj.get_json_path()} and .html")
@@ -76,6 +90,7 @@ if __name__ == "__main__":
 
     try:
         result = update_info(data)
+        # handover to js the result
         print(json.dumps(result), file=sys.stderr)
 
     except Exception as e:

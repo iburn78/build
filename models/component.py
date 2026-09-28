@@ -75,9 +75,6 @@ class Component(JsonModel):
     info_section: Traits
     members: list[Member] = Field(default_factory=list)
 
-    def get_endkey_list(self) -> list:
-        return list(self._sub_items.keys())
-
     def _get_subitems(self):
         for m in self.members:
             code, id = get_id(m.key)
@@ -95,7 +92,7 @@ class Component(JsonModel):
 
     def _update(self, **kwargs) -> bool:
         changed = False
-        members = Component._build_member_list(**kwargs)
+        members = Component._build_member_list(self.key, **kwargs)
         if members:
             # set() operation does not work here due to basemodel instances characteristics
             if len(self.members) != len (members) or not all(x in members for x in self.members):
@@ -105,7 +102,7 @@ class Component(JsonModel):
 
     @classmethod
     def _create_new_item(cls, key, isection: InfoSection | None, **kwargs):
-        members = cls._build_member_list(**kwargs)
+        members = cls._build_member_list(key, **kwargs)
         if not members: 
             raise ValueError(f"Component {key} cannot be initiated without members")
 
@@ -118,18 +115,21 @@ class Component(JsonModel):
         return component
 
     @classmethod
-    def _build_member_list(cls, **kwargs):
+    def _build_member_list(cls, key, **kwargs):
         keylist = kwargs.get("keylist") or []
         namelist = kwargs.get("namelist") or []
 
-        if len(keylist) != len(set(keylist)) or len(namelist) != len(set(namelist)): 
-            raise ValueError(f'keylist or namelist should not contain any duplications: {keylist}{namelist}')
-
         if keylist and namelist:
-            print(f'Both keylist and namelist is given, using keylist only {keylist}')
-            namelist = []
+            raise ValueError(f'Both keylist and namelist is given: use only one')
 
         members = [Member.from_key(k) for k in keylist]
         members += [Member.from_name(n) for n in namelist]
+
+        # checking duplications
+        codelist = []
+        for m in members: 
+            codelist.append(get_id(m.key)[0])
+        if len(codelist) != len(set(codelist)):
+            raise ValueError(f'Duplication found in component {key} members')
 
         return members

@@ -1,4 +1,4 @@
-from build.tools.settings import PROFILES_DIR
+from build.tools.settings import PROFILES_DIR, sanitized_filename
 from build.tools.analysis_tools import get_id
 from build.models.json_model import JsonModel, InfoSection
 
@@ -10,18 +10,14 @@ class FinancialsAdjuster(InfoSection):
     opincome_share: float | None = None
 
 
-###_ may add code and check company_name may fail: inconsistent signature
-
 class Segment(JsonModel):
     DIR = PROFILES_DIR
     info_section: FinancialsAdjuster
 
     id: str
     company_name: str
+    company_code: str
     segment_name: str
-
-    def get_endkey_list(self) -> list:
-        return [self.key]
 
     def _get_subitems(self):
         pass
@@ -32,6 +28,7 @@ class Segment(JsonModel):
         if segment_name: 
             if self.segment_name != segment_name:
                 self.segment_name = segment_name
+                self.filename = sanitized_filename(f"{self.key}_{segment_name}")
                 changed = True
             
         revenue_share = kwargs.get('revenue_share')
@@ -46,9 +43,10 @@ class Segment(JsonModel):
     @classmethod
     def _create_new_item(cls, key, isection: InfoSection | None, **kwargs) -> JsonModel:
         company_name = kwargs.get('company_name')
+        company_code = kwargs.get('company_code')
         segment_name = kwargs.get('segment_name')
-        if not company_name or not segment_name: 
-            raise ValueError(f"Segment {key} cannot be initiated without name")
+        if not company_name or not company_code or not segment_name: 
+            raise ValueError(f"Segment {key} cannot be initiated without basic info")
         revenue_share = kwargs.get('revenue_share')
         if not revenue_share: 
             raise ValueError(f"Segment {key} cannot be initiated without financials_adjuster parameters")
@@ -63,6 +61,7 @@ class Segment(JsonModel):
             info_section = info_section, 
             id = id,
             company_name = company_name,
+            company_code = company_code,
             segment_name = segment_name,
         )
 

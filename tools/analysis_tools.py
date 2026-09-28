@@ -397,7 +397,7 @@ def _render_images(output_file, meta_dict):
         images.append(sa_image.name)
 
     code = meta_dict.get('code')
-    if code is not "":
+    if code:
         url = f"{QUARTERLY_PERFORMANCES_URL}/data/{code}.png"
         if _url_exists(url):
             images.append(url)
@@ -530,6 +530,23 @@ def _render_info_section(section):
             """)
             continue
 
+        if isinstance(value, bool):
+            checked = " checked" if value else ""
+            rows.append(f"""
+                            <tr>
+                                <th>{escape(str(field_name))}</th>
+                                <td>
+                                    <input
+                                        class="qualitative-checkbox"
+                                        type="checkbox"
+                                        aria-label="{escape(str(field_name))}"
+                                        disabled{checked}
+                                    >
+                                </td>
+                            </tr>
+            """)
+            continue
+
         rows.append(f"""
                             <tr>
                                 <th>{escape(str(field_name))}</th>
@@ -566,20 +583,10 @@ def _render_info_card(section_name, section, object_type, object_id):
 
     content = _render_info_section(section)
 
-    start_marker = (
-                f"<!-- QUALITATIVE:{object_type}:{object_id}:{section_name} -->"
-    )
-
-    end_marker = (
-                f"<!-- /QUALITATIVE:{object_type}:{object_id}:{section_name} -->"
-    )
-
     return f"""
-                {start_marker}
-
                 <div
                     class="qualitative-card"
-                    data-section="{escape(str(section_name))}"
+                    data-section="info_section"
                     data-object-type="{escape(str(object_type))}"
                     data-object-id="{escape(str(object_id))}"
                 >
@@ -614,8 +621,6 @@ def _render_info_card(section_name, section, object_type, object_id):
                     </div>
 
                 </div>
-
-                {end_marker}
     """
 
 def _render_qualitative(qual_dict, object_type, object_id):
@@ -630,20 +635,6 @@ def _render_qualitative(qual_dict, object_type, object_id):
 
         if isinstance(value, InfoSection):
 
-            reviewed = value.reviewed
-
-            if reviewed:
-                status_html = """
-                    <span class="reviewed-badge reviewed">
-                        ✓ Reviewed
-                    </span>
-                """
-            else:
-                status_html = """
-                    <span class="reviewed-badge not-reviewed">
-                        ○ Not reviewed
-                    </span>
-                """
             cards.append(
                 _render_info_card(
                     key,

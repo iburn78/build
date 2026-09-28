@@ -149,7 +149,6 @@ class SectorAnalysis:
     # a sector analysis
     def __init__(self):
         self.meta = {'name': '', 'code': '', 'segment_name': '', 'id': '', 'updated': pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")}
-        self.endkey_list = [] 
         self.shape = {}
         self.assess_data = {}
         self.assess_result = {}
@@ -163,17 +162,7 @@ class SectorAnalysis:
     # =======================================================================================================================
     def process(self, jm, unit=DEFAULT_KRW_UNIT, fill=True, start_date=DEFAULT_START_DATE):
         self.jsonmodel = jm
-        self.endkey_list = jm.get_endkey_list()
-
-        ###_ maybe not raise here just eliminate duplication seems correct
-        # checking uniqueness
-        if len(self.endkey_list) != len(set(self.endkey_list)): raise ValueError(f'keylist should not contain any duplications: {self.endkey_list}')
-        # checking duplication between profile and its segments
-        ###_ if only different segments exist, then it should be OK
-        _codelist = []
-        for k in self.endkey_list:
-            _codelist.append(get_id(k)[0])
-        if len(_codelist) != len(set(_codelist)): raise ValueError(f'keylist should not contain any duplications between a profile and its segments: {self.endkey_list}')
+        fd_list = []
 
         if type(jm) is Profile:
             self.meta['name'] = jm.name
@@ -182,20 +171,20 @@ class SectorAnalysis:
 
         if type(jm) is Segment:
             self.meta['name'] = jm.company_name
+            self.meta['code'] = jm.company_code
             self.meta['id'] = jm.id
             self.meta['segment_name'] = jm.segment_name
             fd_list = [FinancialsData(key=jm.key, unit=unit, adjuster=jm.info_section)]
 
-        ###_ duplication checking is necessary here too. 
         if type(jm) is Component:
             self.meta['name'] = jm.key
             fd_list = self._get_component_fd_list(jm, unit)
 
         if type(jm) is ValueChain:
             self.meta['name'] = jm.key
-            fd_list = []
             for cp in jm.get_subitems().values():
                 fd_list += self._get_component_fd_list(cp, unit)
+            fd_list = self._dedupe_fds(fd_list)
 
         self.meta = self.meta | {
             'unit': unit,
@@ -204,6 +193,8 @@ class SectorAnalysis:
 
         self.ma_data = self._add_dfs([cd.ma_data for cd in fd_list], fill) # daily basis
         self.fr_data = self._add_dfs([cd.fr_data for cd in fd_list], fill) # quarterly basis
+        _endkeys = [fd.key for fd in fd_list]
+        self.endkey_list_str = "[" + ", ".join(_endkeys[:4] + (["..."] if len(_endkeys) > 4 else [])) + "]"
 
         self._build_shape() 
         if self._build_assess_data():
@@ -224,6 +215,21 @@ class SectorAnalysis:
                 adjuster = item.info_section if type(item) is Segment else None
             ))
         return fd_list
+
+    def _dedupe_fds(self, fd_list):
+        groups = {}
+
+        for fd in fd_list:
+            code, id = get_id(fd.key)
+            groups.setdefault(code, {})[id] = fd
+
+        result = []
+        for fds in groups.values():
+            result.extend(
+                [fds[None]] if None in fds else fds.values()
+            )
+
+        return result
 
     def process_index(self, name: str, unit=1e12, start_date=DEFAULT_START_DATE):
         self.meta = self.meta | {
@@ -273,7 +279,17 @@ class SectorAnalysis:
     def _create_html(self):
         html_root = Path(BUILD_DIR)
         sa_list = [self] + self.sub_sas if self.sub_sas is not None else [self]
-        name_list = [{'name': sa.meta['name'], 'link': sa.jsonmodel.get_json_path().with_suffix('.html').relative_to(html_root)} for sa in sa_list]
+        name_list = [
+            {
+                'name': f"{sa.meta['name']}({sa.meta['id']})"
+                if sa.meta['id']
+                else sa.meta['name'],
+                'link': sa.jsonmodel.get_json_path()
+                    .with_suffix('.html')
+                    .relative_to(html_root),
+            }
+            for sa in sa_list
+        ]
         dict_list = [sa.get_combined_dict() for sa in sa_list]
         qual_dict = self.jsonmodel.get_qualitative_dict()
         news_dir = self.jsonmodel.get_news_dir() 
@@ -912,12 +928,8 @@ class SectorAnalysis:
 
         ax.grid(True, linestyle='--', alpha=0.3)
 
-        _keylist = self.endkey_list if not self.is_index else ''
-        if len(_keylist) > 5:
-            _keylist = f"[{_keylist[0]}, {_keylist[1]}, ... : {len(_keylist)} codes]"
-
         ax.set_title(
-            f"{self.meta['name']} {_keylist} | "
+            f"{self.meta['name']} {self.endkey_list_str} | "
             f"{self.meta['updated']} | "
             f"aggr: {self.meta['aggregation']}"
         )
@@ -1109,3 +1121,5 @@ if __name__ == "__main__":
     # index
     sa = SectorAnalysis().process_index('KOSDAQ')
     sa.print()
+
+# %%

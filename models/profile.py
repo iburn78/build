@@ -231,17 +231,18 @@ class Profile(JsonModel):
             'news_summary': self.news_summary,
         }
 
-    def get_endkey_list(self) -> list:
-        return [self.key]
-
     def _get_subitems(self):
+        self._sub_items.clear()
         if self.info_section.reviewed and self.info_section.create_segments:
             for i, segment_name in enumerate(self.info_section.segments):
                 id = chr(ord('A')+i) # 0 to A, 1 to B, etc
                 key = self.code + f'({id})'
                 revenue_share = self.info_section.segment_share[i]
-                self._sub_items[key] = Segment.get_item(key=key, company_name=self.name, segment_name=segment_name, revenue_share=revenue_share)
-            self._reconcile_sub_items()
+                self._sub_items[key] = Segment.get_item(key=key, company_name=self.name, company_code=self.code, segment_name=segment_name, revenue_share=revenue_share)
+
+        # Reconcile even when review or segment creation is disabled, so stale
+        # segment files are removed when either setting is turned off.
+        self._reconcile_sub_items()
 
     def _reconcile_sub_items(self):
         # removing unnecessary stall sub-item files

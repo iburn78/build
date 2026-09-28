@@ -14,12 +14,6 @@ class ValueChain(JsonModel):
     info_section: Landscape
     component_keys: list[str] # only component names
 
-    def get_endkey_list(self) -> list:
-        endkey_list = set()
-        for v in self._sub_items.values():
-            endkey_list.update(set(v._sub_items.keys()))
-        return list(endkey_list)
-
     def _get_subitems(self):
         for k in self.component_keys:
             self._sub_items[k] = Component.get_item(k)

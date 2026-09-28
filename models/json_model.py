@@ -70,11 +70,6 @@ class JsonModel(BaseModel, ABC):
         # recursively refresh sub_items and perform cleanup if necessary
         ...
 
-    # endkey: keys for profiles and segments (i.e., each endkey contains standalone financials data), excluding self.key
-    @abstractmethod
-    def get_endkey_list(self) -> list:
-        ...
-
     @abstractmethod
     def _update(self, **kwargs) -> bool:
         # perform update in self if content needs refresh
