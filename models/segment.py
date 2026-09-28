@@ -5,11 +5,9 @@ from build.tools.analysis_tools import get_id
 from build.models.json_model import JsonModel, InfoSection
 
 class FinancialsAdjuster(InfoSection):
-    # PER: float | None = None 
-    marcap_share: float | None = None
     revenue_share: float | None = None
-    # opmargin: float | None = None
-    opincome_share: float | None = None
+    PER: float | None = None 
+    opmargin: float | None = None
 
 class Segment(JsonModel):
     DIR = PROFILES_DIR

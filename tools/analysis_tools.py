@@ -429,7 +429,7 @@ def _get_ext_links(code):
                         <a class="ext-link" href="{INDEX_HTML}">QP</a>
                     </div>'''
 
-def _render_financials(object_type, column_names: list, dict_list: list, output_file: Path, collapsed_paths=COLLAPSED_PATHS, no_chart_keys=NO_CHART_KEYS):
+def _render_financials(object_type, object_key, column_names: list, dict_list: list, output_file: Path, collapsed_paths=COLLAPSED_PATHS, no_chart_keys=NO_CHART_KEYS):
     meta_dict = dict_list[0].get('meta', {})
     header = _render_header(object_type, column_names)
     rows = _render_rows(dict_list, collapsed_paths=collapsed_paths, no_chart_keys=no_chart_keys)
@@ -437,7 +437,12 @@ def _render_financials(object_type, column_names: list, dict_list: list, output_
     images = _render_images(output_file, meta_dict)
     ext_links = _get_ext_links(meta_dict.get('code'))
 
-    return f"""<h3>Financials Analysis</h3>
+    return f"""<h3 class="financials-heading">
+        <span>Financials Analysis</span>
+        <button class="model-instance-update-button" type="button"
+            data-object-type="{escape(str(object_type), quote=True)}"
+            data-object-id="{escape(str(object_key), quote=True)}">↻ Update</button>
+    </h3>
     <div class="dashboard">
         <div class="table-panel">
             <div class="table-wrapper">
@@ -720,7 +725,7 @@ def render_html(object_type, object_key, column_names: list, dict_list: list, qu
         raise ValueError("signatures not matching")
 
     page_name = f"[{escape(str(object_type).lower())}] {escape(str(column_names[0]['name']))}"
-    financials_section = _render_financials(object_type, column_names, dict_list, output_file, collapsed_paths)
+    financials_section = _render_financials(object_type, object_key, column_names, dict_list, output_file, collapsed_paths)
     qual_section = _render_qualitative(qual_dict, object_type, object_key)
     news_section = _render_news(news_dir)
 

@@ -139,11 +139,22 @@ class FinancialsData:
 
         return fr_data.ffill()
 
+    # This is just a rough linear adjustment for simple and straightforward split of segments
     def adjust_data(self):
         if self.id is None: return 
-        self.ma_data['marcap'] = self.ma_data['marcap']
+
+        if self.adjuster.PER is None:
+            PER_ltm = self.ma_data['marcap'].iloc[-1]/self.fr_data['opincome_qtr'].iloc[-4:].sum()
+            self.adjuster.PER = round_sig(PER_ltm)
+
+        if self.adjuster.opmargin is None:
+            OPM_ltm = self.fr_data['opincome_qtr'].iloc[-4:].sum()/self.fr_data['revenue_qtr'].iloc[-4:].sum()
+            self.adjuster.opmargin = round_sig(OPM_ltm)
+
         self.fr_data['revenue_qtr'] = self.fr_data['revenue_qtr']*self.adjuster.revenue_share
-        self.fr_data['opincome_qtr'] = self.fr_data['opincome_qtr']
+        self.fr_data['opincome_qtr'] = self.fr_data['revenue_qtr']*self.adjuster.opmargin
+        marcap_ratio = (self.fr_data['opincome_qtr'].iloc[-4:].sum()*self.adjuster.PER)/self.ma_data['marcap'].iloc[-1]
+        self.ma_data['marcap'] = self.ma_data['marcap'] * marcap_ratio
 
 class SectorAnalysis: 
     # a sector analysis
@@ -156,6 +167,7 @@ class SectorAnalysis:
         self.jsonmodel: JsonModel | None = None
         self.sub_sas: list | None = None
         self.is_index = False # fr_data not available
+        self.adjuster: FinancialsAdjuster | None = None
 
     # =======================================================================================================================
     # Creation
@@ -174,7 +186,9 @@ class SectorAnalysis:
             self.meta['code'] = jm.company_code
             self.meta['id'] = jm.id
             self.meta['segment_name'] = jm.segment_name
-            fd_list = [FinancialsData(key=jm.key, unit=unit, adjuster=jm.info_section)]
+            fd = FinancialsData(key=jm.key, unit=unit, adjuster=jm.info_section)
+            fd_list = [fd]
+            self.adjuster = fd.adjuster
 
         if type(jm) is Component:
             self.meta['name'] = jm.key
@@ -272,6 +286,9 @@ class SectorAnalysis:
             'assess_data': self.assess_data,
             'assess_result': self.assess_result,
         }
+
+        if self.adjuster:
+            data['info_section'] = self.adjuster.model_dump()
 
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
