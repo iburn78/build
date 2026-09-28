@@ -733,7 +733,7 @@ def render_html(object_type, object_key, column_names: list, dict_list: list, qu
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text(html, encoding="utf-8")
-    print(f"file {output_file} is written...")
+    print(f"File {output_file} is written...")
 
 # returns name/code, id:char in name(id) or code(id)
 def get_id(s: str) -> tuple[str, str | None]:

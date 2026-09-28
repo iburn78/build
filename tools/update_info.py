@@ -61,6 +61,16 @@ def update_info(data):
     # Pydantic validation
     updated_section = type(section).model_validate(values)
 
+    # Segment edits are accepted only after explicit review. An unchecked
+    # submission is intentionally a no-op: it must not rewrite JSON or reports.
+    if isinstance(obj, Segment) and not updated_section.reviewed:
+        return {
+            "ok": True,
+            "updated": section.updated,
+            "json_path": str(obj.get_json_path()),
+            "ignored": True,
+        }
+
     # Server-generated timestamp
     updated_section.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
 
@@ -71,11 +81,22 @@ def update_info(data):
         # Rebuild its segment children now so renamed segments update their
         # filenames and stale segment files can be reconciled in this save.
         obj._sub_items.clear()
-        obj._get_subitems()
+        obj._get_subitems(force_profile_sync=True)
 
     obj.save_to_file()
-    print(f"SAVING: {obj.get_json_path()} and .html")
+    print(f"Saving: {obj.get_json_path()} and .html")
     SectorAnalysis().process(obj)
+
+    if isinstance(obj, Segment):
+        # The parent page embeds the segment analyses and share rankings.
+        # Rebuild it after the edited segment's financials have been saved.
+        profile_path = Profile._get_json_path_from_prefix(obj.company_code)
+        if profile_path is None:
+            raise ValueError(f"Parent profile not found: {obj.company_code}")
+        profile = Profile._load_from_path(profile_path)
+        if profile is None:
+            raise ValueError(f"Parent profile could not be loaded: {obj.company_code}")
+        SectorAnalysis().process(profile)
 
     return {
         "ok": True,

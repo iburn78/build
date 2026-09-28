@@ -95,21 +95,17 @@ class Overview(BaseModel):
 
 class Business(InfoSection):
     segments: list[str] = Field(
-        description="Core business areas of the company (NOT products or competitors)",
-        max_length=MAX_SEGMENTS
+        description="Core business areas of the company (NOT products or competitors)"
     )
-    segment_share: list[float] = Field(
-        description="Relative revenue size of segments of this company (total is 1)",
-        max_length=MAX_SEGMENTS
+    revenue_share: list[float] = Field(
+        description="Relative revenue size of segments of this company (total is 1)"
     )
     create_segments: bool = False
     key_products: list[str] = Field(
-        description="Actual products or services offered by the company",
-        max_length=MAX_PRODUCTS
+        description="Actual products or services offered by the company"
     )
     competitors: list[str] = Field(
-        description="Direct competing companies in the same industry",
-        max_length=MAX_COMPETITORS
+        description="Direct competing companies in the same industry"
     )
     search_specifier: str | None = None # keyword specific to this company to add in all news search
     search_theme: list[str] = Field(default_factory=list)
@@ -166,7 +162,7 @@ Extract a company profile from the recent business summary below.
 
 Rules:
 - segments: extract 1 to {MAX_SEGMENTS} core business areas.
-- segment_share: estimate relative revenue size for each segment as a number, where the company total revenue is 1
+- revenue_share: estimate each segment's share of total company revenue as a number between 0 and 1. The shares should sum to 1 or less.
 - key_products: extract 1 to {MAX_PRODUCTS} representative products or services.
 - competitors: list up to {MAX_COMPETITORS} direct competitors. Use company names only.
 - Keep answers concise and structured.
@@ -231,14 +227,19 @@ class Profile(JsonModel):
             'news_summary': self.news_summary,
         }
 
-    def _get_subitems(self):
+    def _get_subitems(self, force_profile_sync=False):
         self._sub_items.clear()
         if self.info_section.reviewed and self.info_section.create_segments:
             for i, segment_name in enumerate(self.info_section.segments):
                 id = chr(ord('A')+i) # 0 to A, 1 to B, etc
                 key = self.code + f'({id})'
-                revenue_share = self.info_section.segment_share[i]
-                self._sub_items[key] = Segment.get_item(key=key, company_name=self.name, company_code=self.code, segment_name=segment_name, revenue_share=revenue_share)
+                # segment share is revenue share
+                revenue_share = self.info_section.revenue_share[i]
+                self._sub_items[key] = Segment.get_item(
+                    key=key, company_name=self.name, company_code=self.code,
+                    segment_name=segment_name, revenue_share=revenue_share,
+                    force_profile_sync=force_profile_sync,
+                )
 
         # Reconcile even when review or segment creation is disabled, so stale
         # segment files are removed when either setting is turned off.

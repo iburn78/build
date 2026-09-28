@@ -1,3 +1,5 @@
+from typing import Any
+
 from build.tools.settings import PROFILES_DIR, sanitized_filename
 from build.tools.analysis_tools import get_id
 from build.models.json_model import JsonModel, InfoSection
@@ -8,7 +10,6 @@ class FinancialsAdjuster(InfoSection):
     revenue_share: float | None = None
     # opmargin: float | None = None
     opincome_share: float | None = None
-
 
 class Segment(JsonModel):
     DIR = PROFILES_DIR
@@ -32,8 +33,12 @@ class Segment(JsonModel):
                 changed = True
             
         revenue_share = kwargs.get('revenue_share')
-        if revenue_share: 
-            financial_adjuster = FinancialsAdjuster(marcap_share=revenue_share, revenue_share=revenue_share, opincome_share=revenue_share)
+        # Reviewed segment adjusters are user-owned until the parent profile is
+        # explicitly edited. Unreviewed segments always follow the profile.
+        if revenue_share is not None and (
+            kwargs.get('force_profile_sync') or not self.info_section.reviewed
+        ):
+            financial_adjuster = FinancialsAdjuster(revenue_share=revenue_share)
             if self.info_section != financial_adjuster:
                 self.info_section = financial_adjuster
                 changed = True
@@ -48,11 +53,11 @@ class Segment(JsonModel):
         if not company_name or not company_code or not segment_name: 
             raise ValueError(f"Segment {key} cannot be initiated without basic info")
         revenue_share = kwargs.get('revenue_share')
-        if not revenue_share: 
+        if revenue_share is None:
             raise ValueError(f"Segment {key} cannot be initiated without financials_adjuster parameters")
 
         filename = f"{key}_{segment_name}"
-        info_section = isection if isection else FinancialsAdjuster(marcap_share=revenue_share, revenue_share=revenue_share, opincome_share=revenue_share)
+        info_section = isection if isection else FinancialsAdjuster(revenue_share=revenue_share)
         code, id = get_id(key)
 
         segment = Segment(

@@ -141,9 +141,9 @@ class FinancialsData:
 
     def adjust_data(self):
         if self.id is None: return 
-        self.ma_data['marcap'] = self.ma_data['marcap']*self.adjuster.marcap_share
+        self.ma_data['marcap'] = self.ma_data['marcap']
         self.fr_data['revenue_qtr'] = self.fr_data['revenue_qtr']*self.adjuster.revenue_share
-        self.fr_data['opincome_qtr'] = self.fr_data['opincome_qtr']*self.adjuster.opincome_share
+        self.fr_data['opincome_qtr'] = self.fr_data['opincome_qtr']
 
 class SectorAnalysis: 
     # a sector analysis
