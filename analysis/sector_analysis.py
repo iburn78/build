@@ -1,24 +1,18 @@
-#%%
 from dataclasses import dataclass
 from typing import Literal
 import numpy as np
 import pandas as pd
 from functools import reduce
 from datetime import datetime
-import json
 from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import FuncFormatter
 from data.tools import load
 from data.tools.tools import set_KoreanFonts, dprint
-from build.tools.settings import df_krx, BUILD_DIR
-from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, render_html, get_id
-from build.models.json_model import JsonModel
-from build.models.profile import Profile
-from build.models.segment import Segment, FinancialsAdjuster
-from build.models.component import Component 
-from build.models.valuechain import ValueChain
+from build.tools.settings import df_krx, get_id
+from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta
+from build.models.segment import FinancialsAdjuster
 
 '''
 ma: MarCap (until last day if is_KRX_open == True; if strict False then include today if it is after 12:00), Amount
@@ -139,6 +133,22 @@ class FinancialsData:
 
         return fr_data.ffill()
 
+    @classmethod
+    def dedupe_fds(cls, fd_list):
+        groups = {}
+
+        for fd in fd_list:
+            code, id = get_id(fd.key)
+            groups.setdefault(code, {})[id] = fd
+
+        result = []
+        for fds in groups.values():
+            result.extend(
+                [fds[None]] if None in fds else fds.values()
+            )
+
+        return result
+
     # This is just a rough linear adjustment for simple and straightforward split of segments
     def adjust_data(self):
         if self.id is None: return 
@@ -164,41 +174,15 @@ class SectorAnalysis:
         self.assess_data = {}
         self.assess_result = {}
 
-        self.jsonmodel: JsonModel | None = None
-        self.sub_sas: list | None = None
+        self.financials: dict | None = None
+
         self.is_index = False # fr_data not available
         self.adjuster: FinancialsAdjuster | None = None
 
     # =======================================================================================================================
     # Creation
     # =======================================================================================================================
-    def process(self, jm, unit=DEFAULT_KRW_UNIT, fill=True, start_date=DEFAULT_START_DATE):
-        self.jsonmodel = jm
-        fd_list = []
-
-        if type(jm) is Profile:
-            self.meta['name'] = jm.name
-            self.meta['code'] = jm.code
-            fd_list = [FinancialsData(key=jm.key, unit=unit, adjuster=None)]
-
-        if type(jm) is Segment:
-            self.meta['name'] = jm.company_name
-            self.meta['code'] = jm.company_code
-            self.meta['id'] = jm.id
-            self.meta['segment_name'] = jm.segment_name
-            fd = FinancialsData(key=jm.key, unit=unit, adjuster=jm.info_section)
-            fd_list = [fd]
-            self.adjuster = fd.adjuster
-
-        if type(jm) is Component:
-            self.meta['name'] = jm.key
-            fd_list = self._get_component_fd_list(jm, unit)
-
-        if type(jm) is ValueChain:
-            self.meta['name'] = jm.key
-            for cp in jm.get_subitems().values():
-                fd_list += self._get_component_fd_list(cp, unit)
-            fd_list = self._dedupe_fds(fd_list)
+    def process(self, fd_list, unit=DEFAULT_KRW_UNIT, fill=True, start_date=DEFAULT_START_DATE):
 
         self.meta = self.meta | {
             'unit': unit,
@@ -213,37 +197,17 @@ class SectorAnalysis:
         self._build_shape() 
         if self._build_assess_data():
             self._perform_assess()
-        self._create_json()
-        self._create_plot()
-        self._sub_sector_analyses()
-        self._create_html() 
 
-        return self
+        self.financials = {
+            'meta': self.meta,
+            'shape': self.shape,
+            'assess_data': self.assess_data,
+            'assess_result': self.assess_result,
+        }
 
-    def _get_component_fd_list(self, component: Component, unit):
-        fd_list = []
-        for item in component.get_subitems().values():
-            fd_list.append(FinancialsData(
-                key = item.key, 
-                unit = unit,
-                adjuster = item.info_section if type(item) is Segment else None
-            ))
-        return fd_list
+        if self.adjuster:
+            self.financials['info_section'] = self.adjuster.model_dump()
 
-    def _dedupe_fds(self, fd_list):
-        groups = {}
-
-        for fd in fd_list:
-            code, id = get_id(fd.key)
-            groups.setdefault(code, {})[id] = fd
-
-        result = []
-        for fds in groups.values():
-            result.extend(
-                [fds[None]] if None in fds else fds.values()
-            )
-
-        return result
 
     def process_index(self, name: str, unit=1e12, start_date=DEFAULT_START_DATE):
         self.meta = self.meta | {
@@ -267,52 +231,6 @@ class SectorAnalysis:
             if fill else a.add(b),
             df_list
         )
-
-    # create or append to/replace existing json
-    def _create_json(self):
-        json_path = self.jsonmodel._get_json_path_from_prefix(self.jsonmodel.key)
-
-        if json_path:
-            with open(json_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-        else:
-            json_path = self.jsonmodel.get_json_path()
-            print(f"json file with {type(self.jsonmodel).__name__} {self.jsonmodel.key} does not exist: {json_path} to be created")
-            data = {}
-
-        data['financials'] = {
-            'meta': self.meta,
-            'shape': self.shape,
-            'assess_data': self.assess_data,
-            'assess_result': self.assess_result,
-        }
-
-        if self.adjuster:
-            data['info_section'] = self.adjuster.model_dump()
-
-        with open(json_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
-
-    def _create_html(self):
-        html_root = Path(BUILD_DIR)
-        sa_list = [self] + self.sub_sas if self.sub_sas is not None else [self]
-        name_list = [
-            {
-                'name': f"{sa.meta['name']}({sa.meta['id']})"
-                if sa.meta['id']
-                else sa.meta['name'],
-                'link': sa.jsonmodel.get_json_path()
-                    .with_suffix('.html')
-                    .relative_to(html_root),
-            }
-            for sa in sa_list
-        ]
-        dict_list = [sa.get_combined_dict() for sa in sa_list]
-        qual_dict = self.jsonmodel.get_qualitative_dict()
-        news_dir = self.jsonmodel.get_news_dir() 
-        output_file = self.jsonmodel.get_json_path().with_suffix('.html')
-
-        render_html(type(self.jsonmodel).__name__, self.jsonmodel.key, name_list, dict_list, qual_dict, news_dir, output_file)
 
     # =======================================================================================================================
     # Assessment  
@@ -569,13 +487,9 @@ class SectorAnalysis:
     # =======================================================================================================================
     # Sub SA analyses
     # =======================================================================================================================
-    def _sub_sector_analyses(self):
-        if not self.jsonmodel._sub_items:
+    def _sub_sector_analyses(self, sub_sas: list):
+        if not sub_sas:
             return
-
-        self.sub_sas = []
-        for _, v in self.jsonmodel._sub_items.items():
-            self.sub_sas.append(SectorAnalysis().process(v))
 
         # Parent sector
         self.shape['share'] = {
@@ -590,17 +504,17 @@ class SectorAnalysis:
         # Collect raw financial values
         marcaps = [
             sa.shape['financials']['marcap'] * sa.meta['unit']
-            for sa in self.sub_sas
+            for sa in sub_sas
         ]
 
         revenues = [
             sa.shape['financials']['revenue_qtr'] * sa.meta['unit']
-            for sa in self.sub_sas
+            for sa in sub_sas
         ]
 
         opincomes = [
             sa.shape['financials']['opincome_qtr'] * sa.meta['unit']
-            for sa in self.sub_sas
+            for sa in sub_sas
         ]
 
         # Ranking: include negative values
@@ -636,7 +550,7 @@ class SectorAnalysis:
         total_opincome = sum(positive_opincomes)
 
         # Populate each sub-sector
-        for i, sa in enumerate(self.sub_sas):
+        for i, sa in enumerate(sub_sas):
 
             marcap = marcaps[i]
             revenue = revenues[i]
@@ -700,10 +614,6 @@ class SectorAnalysis:
         self._aggr_ma_plotdata = self._prep_aggr_ma_plotdata()
         if not self.is_index:
             self._aggr_dataset = self._combine_fr_data()
-
-        if save_path is None:
-            if self.jsonmodel is not None:
-                save_path=self.jsonmodel.get_json_path().with_suffix('.png')
 
         self._plot(save_path=save_path)
 
@@ -1115,28 +1025,3 @@ class SectorAnalysis:
         ax.xaxis.set_major_formatter(
             mdates.DateFormatter('%Y-%m-%d')
         )
-
-# -----------------------------------------------------------------------------------------------
-# Usage examples
-# -----------------------------------------------------------------------------------------------
-if __name__ == "__main__": 
-    # company profile
-    code = '005930'
-    pr = Profile.get_item(code)
-    sa = SectorAnalysis().process(pr)
-
-    # component
-    name = "Memory"
-    cp = Component.get_item(name)
-    sa = SectorAnalysis().process(cp)
-
-    # valuechain
-    name = "Electronics"
-    vc = ValueChain.get_item(name)
-    sa = SectorAnalysis().process(vc)
-
-    # index
-    sa = SectorAnalysis().process_index('KOSDAQ')
-    sa.print()
-
-# %%

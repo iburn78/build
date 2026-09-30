@@ -11,9 +11,10 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from openai import AsyncOpenAI
 from build.models.json_model import JsonModel, InfoSection
 from build.models.segment import Segment
-from build.tools.settings import llm_selector
+from build.tools.settings import llm_selector, get_id
 from build.tools.settings import PROFILES_DIR, NEWS_DIR, get_name, DEFAULT_BIZ_LLM, DEFAULT_NEWS_LLM, get_FN_GUIDE_url
 from build.tools.crawl_news import crawl_news
+from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 
 OVERVIEW_REFRESH_THRES = 30 # days
 NEWS_REFRESH_THRES = 3 # days
@@ -220,6 +221,9 @@ class Profile(JsonModel):
 
     llm_manager: ClassVar[Profile_LLM_Manager] = Profile_LLM_Manager()
 
+    def _get_name(self):
+        return self.name
+
     def get_qualitative_dict(self):
         default = super().get_qualitative_dict()
         return default | {
@@ -227,18 +231,19 @@ class Profile(JsonModel):
             'news_summary': self.news_summary,
         }
 
-    def _get_subitems(self, force_profile_sync=False):
+    def _get_subitems(self):
         self._sub_items.clear()
         if self.info_section.reviewed and self.info_section.create_segments:
             for i, segment_name in enumerate(self.info_section.segments):
                 id = chr(ord('A')+i) # 0 to A, 1 to B, etc
                 key = self.code + f'({id})'
-                # segment share is revenue share
+
                 revenue_share = self.info_section.revenue_share[i]
                 self._sub_items[key] = Segment.get_item(
-                    key=key, company_name=self.name, company_code=self.code,
-                    segment_name=segment_name, revenue_share=revenue_share,
-                    force_profile_sync=force_profile_sync,
+                    key=key, 
+                    profile_name=self.name, 
+                    segment_name=segment_name, 
+                    revenue_share=revenue_share,
                 )
 
         # Reconcile even when review or segment creation is disabled, so stale
@@ -265,14 +270,34 @@ class Profile(JsonModel):
             return None 
         return paths[0]
 
+    def _get_financials(self, **kwargs):
+        self._financials_analyzer = SectorAnalysis()
+        self._financials_analyzer.meta['name'] = self.name
+        self._financials_analyzer.meta['code'] = self.code
+
+        fd_list = [FinancialsData(key=self.key)]
+        self._financials_analyzer.process(fd_list)
+
+        return super()._get_financials(**kwargs)
+
     def _update(self, **kwargs):
         changed = False
+        _info_section = kwargs.get('info_section')
         if self.overview.needs_refresh():
             print(f"Updating overview for {self.key}")
             self.overview = Overview.fetch(self.key)
 
-            if not self.info_section.reviewed:
+            if not self.info_section.reviewed and not _info_section:
                 self.info_section = self.llm_manager._gen_business(self.overview)
+            changed = True
+
+        if _info_section:
+            self.info_section = _info_section
+            changed = True
+
+        financials = self._get_financials(**kwargs)
+        if self.financials != financials:
+            self.financials = financials
             changed = True
 
         if self.news_summary is None or self.news_summary.needs_refresh():
@@ -284,12 +309,12 @@ class Profile(JsonModel):
 
     @classmethod
     def _create_new_item(cls, key, isection: InfoSection | None, **kwargs):
+        name = get_name(key)
+        filename = f"{key}_{name}"
+
         ov = Overview.fetch(key)
         if isection is None: 
             isection = cls.llm_manager._gen_business(ov)
-
-        name = get_name(key)
-        filename = f"{key}_{name}"
 
         profile = Profile(
             key=key,
@@ -299,8 +324,23 @@ class Profile(JsonModel):
             overview=ov,
             info_section=isection,
         )
+        # financials is filled after profile creation
+        profile.financials = profile._get_financials(**kwargs)
+
         # news summary is filled after profile creation
         profile.news_summary = cls.llm_manager._gen_news(profile)
+
+        return profile
+
+    @classmethod
+    def get_item(cls, key, **kwargs):
+        code, id = get_id(key)
+        profile = cls.get_item(code, **kwargs)
+        if id:
+            try:
+                return profile.get_subitems()[key]
+            except:
+                print(f"Segment {key} of {profile.name} is not available. Profile is used instead - re-run after review segments.")
         return profile
 
     def scrape_news(self):

@@ -1,13 +1,12 @@
 #%%
 import pandas as pd
-from build.tools.settings import get_name
+from build.tools.settings import get_name, get_id
 from data.tools.tools import dprint
 
 from build.models.profile import Profile
 from build.models.component import Component
 from build.models.valuechain import ValueChain
 from build.analysis.sector_analysis import SectorAnalysis
-from build.tools.analysis_tools import get_id
 
 # profiles may not need to be created before components' creation
 # components should be already created for valuechain to be created

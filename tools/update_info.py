@@ -3,15 +3,10 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-# projects/data
-ROOT = Path(__file__).resolve().parents[2]
-
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from build.models.profile import Profile, Segment
-from build.models.component import Component
-from build.models.valuechain import ValueChain
+from build.models.profile import Profile, Business
+from build.models.segment import Segment, FinancialsAdjuster
+from build.models.component import Component, Traits
+from build.models.valuechain import ValueChain,Landscape
 from build.models.json_model import InfoSection
 from build.analysis.sector_analysis import SectorAnalysis
 
@@ -22,86 +17,32 @@ MODELS = {
     "ValueChain": ValueChain,
 }
 
+INFO_SECTIONS = {
+    "Segment": FinancialsAdjuster, 
+    "Profile": Business,
+    "Component": Traits,
+    "ValueChain": Landscape,
+}
+
 def update_info(data):
     object_type = data["objectType"]
     object_id = data["objectId"]
-    section_name = data["section"]
     values = data["values"]
 
     model_class = MODELS.get(object_type)
+    info_section_class = INFO_SECTIONS.get(object_type)
 
-    if model_class is None:
+    if model_class is None or info_section_class is None:
         raise ValueError(f"Unknown object type: {object_type}")
 
-    if object_type == "Profile" or object_type == "Segment":
-        path = model_class._get_json_path_from_prefix(object_id)
-    else:
-        path = Path(model_class.DIR) / f"{object_id}.json"
-    obj = model_class._load_from_path(path)
+    updated_section = info_section_class.model_validate(values)
+    updated_section.updated = datetime.now().strftime("%Y-%m-%d %H:%M") 
 
-    if obj is None:
-        raise ValueError(
-            f"{object_type} not found: {object_id}"
-        )
-
-    # The model stores InfoSection class name (e.g. "business") under `info_section` 
-    if (
-        section_name != "info_section"
-        and section_name == type(obj.info_section).__name__.lower()
-    ):
-        section_name = "info_section"
-
-    section = getattr(obj, section_name, None)
-
-    if not isinstance(section, InfoSection):
-        raise ValueError(
-            f"{section_name} is not an InfoSection"
-        )
-
-    # Pydantic validation
-    updated_section = type(section).model_validate(values)
-
-    # Segment edits are accepted only after explicit review. An unchecked
-    # submission is intentionally a no-op: it must not rewrite JSON or reports.
-    if isinstance(obj, Segment) and not updated_section.reviewed:
-        return {
-            "ok": True,
-            "updated": section.updated,
-            "json_path": str(obj.get_json_path()),
-            "ignored": True,
-        }
-
-    # Server-generated timestamp
-    updated_section.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
-
-    setattr(obj, section_name, updated_section)
-
-    if isinstance(obj, Profile):
-        # The model was loaded before the edited Business section was applied.
-        # Rebuild its segment children now so renamed segments update their
-        # filenames and stale segment files can be reconciled in this save.
-        obj._sub_items.clear()
-        obj._get_subitems(force_profile_sync=True)
-
-    obj.save_to_file()
-    print(f"Saving: {obj.get_json_path()} and .html")
-    SectorAnalysis().process(obj)
-
-    if isinstance(obj, Segment):
-        # The parent page embeds the segment analyses and share rankings.
-        # Rebuild it after the edited segment's financials have been saved.
-        profile_path = Profile._get_json_path_from_prefix(obj.company_code)
-        if profile_path is None:
-            raise ValueError(f"Parent profile not found: {obj.company_code}")
-        profile = Profile._load_from_path(profile_path)
-        if profile is None:
-            raise ValueError(f"Parent profile could not be loaded: {obj.company_code}")
-        SectorAnalysis().process(profile)
-
+    item = model_class.get_item(object_id, info_section = updated_section)
     return {
         "ok": True,
         "updated": updated_section.updated,
-        "json_path": str(obj.get_json_path()),
+        "json_path": str(item.get_json_path()),
     }
 
 

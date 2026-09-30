@@ -6,7 +6,8 @@ from typing import Any, ClassVar
 import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from build.tools.settings import sanitized_filename
+from build.tools.settings import sanitized_filename, BUILD_DIR
+from build.tools.render_html import render_html
 
 NUM_THREAD_TO_RUN = 4
 
@@ -28,10 +29,12 @@ class JsonModel(BaseModel, ABC):
     filename: str # json filename (key_additional information)
     updated: str = ""
 
-    # info_section: InfoSection # to be defined in each sub-class  
-    financials: dict | None = None
+    # below to be defined in each sub-class 
+    # info_section: InfoSection 
 
+    financials: dict | None = None
     # PrivateAttr is not included in the json file, not validated when loading
+    _financials_analyzer: object | None = PrivateAttr(default=None)
     _sub_items: dict = PrivateAttr(default_factory=dict)
 
     # this is called when both loaded and created
@@ -62,13 +65,32 @@ class JsonModel(BaseModel, ABC):
     def get_news_dir(self) -> Path | None:
         return None
 
+    # separation of get sub_items from creatino
     def get_subitems(self): 
         return self._sub_items
 
+    def get_subitems_financial_analyzers(self):
+        res = []
+        for _, item in self._sub_items.items():
+            res.append(item._financials_analyzer)
+        return res
+
+    # creation and update of sub_items
     @abstractmethod
     def _get_subitems(self):
         # recursively refresh sub_items and perform cleanup if necessary
         ...
+
+    # this has to be called after instance creation so that sub_items to be created beforehand
+    @abstractmethod
+    def _get_financials(self, **kwargs) -> dict:
+        # perform common processes and return financials
+        self._financials_analyzer._create_plot(save_path=self.get_json_path().with_suffix('.png'), **kwargs)
+
+        sub_fas = self.get_subitems_financial_analyzers()
+        self._financials_analyzer._sub_sector_analyses(sub_sas=sub_fas)
+
+        return self._financials_analyzer.financials
 
     @abstractmethod
     def _update(self, **kwargs) -> bool:
@@ -158,6 +180,7 @@ class JsonModel(BaseModel, ABC):
             
         if changed: 
             item.save_to_file()
+            item.create_html()
 
         return item
 
@@ -177,3 +200,28 @@ class JsonModel(BaseModel, ABC):
         print("--------------------------------------------------")
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             list(executor.map(cls.get_item, keylist))
+
+    @abstractmethod
+    def _get_name(self)->str:
+        ...
+
+    def _get_html_link(self):
+        html_root = Path(BUILD_DIR)
+        return self.get_json_path().with_suffix('.html').relative_to(html_root)
+
+    def create_html(self):
+        _list = [self] + list(self._sub_items.values())
+        name_list = [
+            {
+                'name': item._get_name(),
+                'link': item._get_html_link(), 
+            }
+            for item in _list
+        ]
+        dict_list = [item._financials_analyzer.get_combined_dict() for item in _list]
+        qual_dict = self.get_qualitative_dict()
+        news_dir = self.get_news_dir() 
+        output_file = self.get_json_path().with_suffix('.html')
+
+        render_html(self.__class__.__name__, self.key, name_list, dict_list, qual_dict, 
+                    news_dir, output_file, INFO_SECTION_CLASS=InfoSection)

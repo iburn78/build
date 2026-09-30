@@ -72,3 +72,11 @@ def llm_selector(mode='local'):
         return ["", "", ""]
     
     return [base_url, api_key, model]
+
+# returns name/code, id:char in name(id) or code(id)
+def get_id(s: str) -> tuple[str, str | None]:
+    m = re.search(r"\(([A-Za-z])\)$", s)
+    if not m:
+        return s, None
+
+    return s[:m.start()], m.group(1)

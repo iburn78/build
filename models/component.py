@@ -1,8 +1,9 @@
 from pydantic import BaseModel, Field
-from build.tools.settings import df_krx, COMPONENTS_DIR
-from build.tools.analysis_tools import get_id
+from build.tools.settings import df_krx, COMPONENTS_DIR, get_id
 from build.models.json_model import JsonModel, InfoSection
 from build.models.profile import Profile
+from build.models.segment import Segment
+from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 
 class Member(BaseModel):
     # simple vehicle that carries only key and company name: works both for profile and segment 
@@ -75,29 +76,53 @@ class Component(JsonModel):
     info_section: Traits
     members: list[Member] = Field(default_factory=list)
 
+    def _get_name(self):
+        return self.key
+
     def _get_subitems(self):
+        self._sub_items.clear()
         for m in self.members:
-            code, id = get_id(m.key)
-            pr = Profile.get_item(code)
-            if id: 
-                segment = pr._sub_items.get(m.key)
-                if segment is None:
-                    raise ValueError(
-                        f"Segment {m.key} is not enabled in profile {code}; "
-                        "review the profile and enable segment creation first"
-                    )
-                self._sub_items[m.key] = segment
-            else: 
-                self._sub_items[m.key] = pr
+            self._sub_items[m.key] = Profile.get_item(m.key)
+
+    def _get_financials(self, **kwargs):
+        self._financials_analyzer = SectorAnalysis()
+        self._financials_analyzer.meta['name'] = self.key
+
+        fd_list = self._get_fd_list()
+        self._financials_analyzer.process(fd_list)
+
+        return super()._get_financials(**kwargs)
+
+    def _get_fd_list(self):
+        fd_list = []
+        for item in self.get_subitems().values():
+            fd_list.append(FinancialsData(
+                key = item.key, 
+                adjuster = item.info_section if type(item) is Segment else None
+            ))
+        return fd_list
 
     def _update(self, **kwargs) -> bool:
         changed = False
         members = Component._build_member_list(self.key, **kwargs)
-        if members:
+
+        # case when members are given
+        if members: 
             # set() operation does not work here due to basemodel instances characteristics
             if len(self.members) != len (members) or not all(x in members for x in self.members):
                 self.members = members
                 changed = True
+
+        _info_section = kwargs.get('info_section')
+        if _info_section:
+            self.info_section = _info_section
+            changed = True
+
+        financials = self._get_financials(**kwargs)
+        if self.financials != financials:
+            self.financials = financials
+            changed = True
+
         return changed
 
     @classmethod
@@ -112,6 +137,9 @@ class Component(JsonModel):
             members = members,
             info_section = isection if isection else Traits(),
         )
+        # financials is filled after component creation
+        component.financials = component._get_financials(**kwargs)
+
         return component
 
     @classmethod

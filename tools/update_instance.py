@@ -20,7 +20,6 @@ MODELS = {
     "ValueChain": ValueChain,
 }
 
-
 def update_instance(data):
     object_type = data.get("objectType")
     object_id = data.get("objectId")
@@ -32,7 +31,6 @@ def update_instance(data):
         raise ValueError(f"{object_type} not found: {object_id}")
 
     model = model_class.get_item(object_id)
-    SectorAnalysis().process(model)
     return {"ok": True, "json_path": str(model.get_json_path())}
 
 
