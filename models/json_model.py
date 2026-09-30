@@ -74,6 +74,17 @@ class JsonModel(BaseModel, ABC):
             res.append(item._financials_analyzer)
         return res
 
+    def _financials_changed(self, updated_financials) -> bool:
+        def signature(financials):
+            if financials is None:
+                return None
+            data = dict(financials)
+            data["meta"] = dict(data.get("meta", {}))
+            data["meta"].pop("updated", None)
+            return json.dumps(data, sort_keys=True, default=lambda value: value.item())
+
+        return signature(self.financials) != signature(updated_financials)
+
     # creation and update of sub_items
     @abstractmethod
     def _get_subitems(self):
@@ -84,7 +95,7 @@ class JsonModel(BaseModel, ABC):
     @abstractmethod
     def _get_financials(self, **kwargs) -> dict:
         # perform common processes and return financials
-        self._financials_analyzer._create_plot(save_path=self.get_json_path().with_suffix('.png'), **kwargs)
+        self._financials_analyzer._create_plot(save_path=self.get_json_path().with_suffix('.png'))
 
         sub_fas = self.get_subitems_financial_analyzers()
         self._financials_analyzer._sub_sector_analyses(sub_sas=sub_fas)

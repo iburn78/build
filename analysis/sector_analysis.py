@@ -12,7 +12,6 @@ from data.tools import load
 from data.tools.tools import set_KoreanFonts, dprint
 from build.tools.settings import df_krx, get_id
 from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta
-from build.models.segment import FinancialsAdjuster
 
 '''
 ma: MarCap (until last day if is_KRX_open == True; if strict False then include today if it is after 12:00), Amount
@@ -56,7 +55,7 @@ class FinancialsData:
     fr_data: pd.DataFrame | None = None
 
     unit: float = DEFAULT_KRW_UNIT
-    adjuster: FinancialsAdjuster | None = None
+    adjuster: object | None = None
 
     def __post_init__(self):
         self.code, self.id = get_id(self.key)
@@ -177,7 +176,7 @@ class SectorAnalysis:
         self.financials: dict | None = None
 
         self.is_index = False # fr_data not available
-        self.adjuster: FinancialsAdjuster | None = None
+        self.adjuster = None
 
     # =======================================================================================================================
     # Creation

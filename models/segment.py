@@ -55,7 +55,6 @@ class Segment(JsonModel):
                 financial_adjuster = FinancialsAdjuster(revenue_share=revenue_share)
                 if self.info_section != financial_adjuster:
                     self.info_section = financial_adjuster
-                    changed = True
 
         if _info_section:
             self.info_section = _info_section
@@ -63,7 +62,7 @@ class Segment(JsonModel):
 
         # check financials after checking FinancialsAdjuster
         financials = self._get_financials(**kwargs)
-        if self.financials != financials:
+        if self._financials_changed(financials):
             self.financials = financials
             changed = True
 

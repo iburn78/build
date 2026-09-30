@@ -1,7 +1,6 @@
 import requests
 from html import escape
 from datetime import datetime
-from build.models.json_model import InfoSection
 from build.tools.settings import THIS_PROJECT, QUARTERLY_PERFORMANCES_URL, INDEX_HTML, BASE_DATA_DIR, get_FN_GUIDE_url, get_NAVER_url
 from pydantic import BaseModel
 from pathlib import Path

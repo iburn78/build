@@ -52,7 +52,7 @@ class ValueChain(JsonModel):
 
         self._get_subitems()
         financials = self._get_financials(**kwargs)
-        if self.financials != financials:
+        if self._financials_changed(financials):
             self.financials = financials
             changed = True
 

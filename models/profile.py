@@ -299,7 +299,7 @@ class Profile(JsonModel):
         self._get_subitems()
 
         financials = self._get_financials(**kwargs)
-        if self.financials != financials:
+        if self._financials_changed(financials):
             self.financials = financials
             changed = True
 
@@ -339,7 +339,7 @@ class Profile(JsonModel):
     @classmethod
     def get_item(cls, key, **kwargs):
         code, id = get_id(key)
-        profile = cls.get_item(code, **kwargs)
+        profile = super().get_item(code, **kwargs) # cause this is overrided
         if id:
             try:
                 return profile.get_subitems()[key]
