@@ -8,7 +8,7 @@ from pathlib import Path
 # -----------------------------------------------------------------------------------
 # Display dict in html
 # -----------------------------------------------------------------------------------
-TEMPLATE_HTML = Path(THIS_PROJECT) / "analysis" / "templates"  / "dict_template.html"
+TEMPLATE_HTML = Path(THIS_PROJECT) / "tools" / "templates"  / "dict_template.html"
 
 COLLAPSED_PATHS = {
     'meta', 

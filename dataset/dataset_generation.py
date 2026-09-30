@@ -31,7 +31,7 @@ vc = ValueChain.get_item(
 # --------------------------------------------------
 # EV_Battery
 # --------------------------------------------------
-ev = pd.read_excel('analysis/refs/이차전지_밸류체인_Excel.xlsx')
+ev = pd.read_excel('refs/이차전지_밸류체인_Excel.xlsx')
 kr_ev = ev.loc[ev['티커'].str.contains('KS', na=False)]
 name_dict = {category: [get_name(ticker.replace(" KS", "")) for ticker in tickers] 
              for category, tickers in kr_ev.groupby("소분류")["티커"].apply(list).items()}

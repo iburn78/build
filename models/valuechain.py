@@ -1,9 +1,7 @@
-from pydantic import Field
 from build.tools.settings import VALUECHAIN_DIR
 from build.models.json_model import JsonModel, InfoSection
 from build.models.component import Component
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
-from pathlib import Path
 
 class Landscape(InfoSection):
     dynamics: str = "" # leading component, margin concentration, buyer-seller power dynamics
