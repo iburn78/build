@@ -221,17 +221,23 @@ class JsonModel(BaseModel, ABC):
 
     def create_html(self):
         _list = [self] + list(self._sub_items.values())
-        name_list = [
+        financials_names = [
             {
                 'name': item._get_name(),
                 'link': item._get_html_link(), 
             }
             for item in _list
         ]
-        dict_list = [item._financials_analyzer.get_combined_dict() for item in _list]
+        financials_dicts = [item._financials_analyzer.get_combined_dict() for item in _list]
         qual_dict = self.get_qualitative_dict()
         news_dir = self.get_news_dir() 
         output_file = self.get_json_path().with_suffix('.html')
 
-        render_html(self.__class__.__name__, self.key, name_list, dict_list, qual_dict, 
-                    news_dir, output_file, INFO_SECTION_CLASS=InfoSection)
+        render_html(type(self).__name__, 
+                    self.key, 
+                    financials_names, 
+                    financials_dicts, 
+                    qual_dict, 
+                    news_dir, 
+                    output_file, 
+                    info_section_validator=type(self.info_section))
