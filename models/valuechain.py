@@ -50,6 +50,7 @@ class ValueChain(JsonModel):
             self.info_section = _info_section
             changed = True
 
+        self._get_subitems()
         financials = self._get_financials(**kwargs)
         if self.financials != financials:
             self.financials = financials
@@ -70,6 +71,7 @@ class ValueChain(JsonModel):
             component_keys = component_keys,
             info_section = isection if isection else Landscape(), 
         )
+        vc._get_subitems()
         # financials is filled after valuechain creation
         vc.financials = vc._get_financials(**kwargs)
 

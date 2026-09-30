@@ -40,7 +40,6 @@ class JsonModel(BaseModel, ABC):
     # this is called when both loaded and created
     def model_post_init(self, context: Any) -> None:
         self.filename = sanitized_filename(self.filename)
-        self._get_subitems()
         return super().model_post_init(context)
 
     def get_json_path(self) -> Path:
@@ -65,7 +64,7 @@ class JsonModel(BaseModel, ABC):
     def get_news_dir(self) -> Path | None:
         return None
 
-    # separation of get sub_items from creatino
+    # Child items are populated by get_item after update inputs are applied.
     def get_subitems(self): 
         return self._sub_items
 

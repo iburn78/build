@@ -35,6 +35,9 @@ def update_info(data):
     if model_class is None or info_section_class is None:
         raise ValueError(f"Unknown object type: {object_type}")
 
+    if model_class._get_json_path_from_prefix(object_id) is None:
+        raise ValueError(f"{object_type} not found: {object_id}")
+
     updated_section = info_section_class.model_validate(values)
     updated_section.updated = datetime.now().strftime("%Y-%m-%d %H:%M") 
 

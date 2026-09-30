@@ -295,6 +295,9 @@ class Profile(JsonModel):
             self.info_section = _info_section
             changed = True
 
+        # Build derived segments once, using the final info_section for this update.
+        self._get_subitems()
+
         financials = self._get_financials(**kwargs)
         if self.financials != financials:
             self.financials = financials
@@ -324,6 +327,7 @@ class Profile(JsonModel):
             overview=ov,
             info_section=isection,
         )
+        profile._get_subitems()
         # financials is filled after profile creation
         profile.financials = profile._get_financials(**kwargs)
 

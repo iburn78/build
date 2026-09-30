@@ -118,6 +118,7 @@ class Component(JsonModel):
             self.info_section = _info_section
             changed = True
 
+        self._get_subitems()
         financials = self._get_financials(**kwargs)
         if self.financials != financials:
             self.financials = financials
@@ -137,6 +138,7 @@ class Component(JsonModel):
             members = members,
             info_section = isection if isection else Traits(),
         )
+        component._get_subitems()
         # financials is filled after component creation
         component.financials = component._get_financials(**kwargs)
 
