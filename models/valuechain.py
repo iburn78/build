@@ -6,9 +6,9 @@ from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 class Landscape(InfoSection):
     dynamics: str = "" # leading component, margin concentration, buyer-seller power dynamics
     key_drivers: str = "" # what drives the growth and determines who wins, technology innovation, demand growth, etc
-    notes: str = "" 
+    notes: str = ""
 
-class ValueChain(JsonModel): 
+class ValueChain(JsonModel):
     DIR = VALUECHAIN_DIR
     info_section: Landscape
     component_keys: list[str] # only component names
@@ -49,9 +49,9 @@ class ValueChain(JsonModel):
             changed = True
 
         self._get_subitems()
-        financials = self._get_financials(**kwargs)
-        if self._financials_changed(financials):
-            self.financials = financials
+
+        if changed or self._update_financials(**kwargs):
+            self.financials = self._get_financials(**kwargs)
             changed = True
 
         return changed
@@ -60,14 +60,14 @@ class ValueChain(JsonModel):
     def _create_new_item(cls, key, isection: InfoSection | None, **kwargs):
         # give component namelist to create new one
         component_keys = kwargs.get("component_keys", [])
-        if not component_keys: 
+        if not component_keys:
             raise ValueError(f"ValueChain {key} cannot be initiated without component keys")
 
         vc = ValueChain(
             key = key,
             filename = key,
             component_keys = component_keys,
-            info_section = isection if isection else Landscape(), 
+            info_section = isection if isection else Landscape(),
         )
         vc._get_subitems()
         # financials is filled after valuechain creation

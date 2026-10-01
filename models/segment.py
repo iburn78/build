@@ -4,7 +4,7 @@ from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 
 class FinancialsAdjuster(InfoSection):
     revenue_share: float | None = None
-    PER: float | None = None 
+    PER: float | None = None
     opmargin: float | None = None
 
 class Segment(JsonModel):
@@ -39,12 +39,12 @@ class Segment(JsonModel):
         changed = False
         segment_name = kwargs.get('segment_name')
         _info_section = kwargs.get('info_section')
-        if segment_name: 
+        if segment_name:
             if self.segment_name != segment_name:
                 self.segment_name = segment_name
                 self.filename = sanitized_filename(f"{self.key}_{segment_name}")
                 changed = True
-            
+
         revenue_share = kwargs.get('revenue_share')
         if revenue_share:
             if self.info_section.revenue_share != revenue_share and self.info_section.reviewed:
@@ -61,9 +61,8 @@ class Segment(JsonModel):
             changed = True
 
         # check financials after checking FinancialsAdjuster
-        financials = self._get_financials(**kwargs)
-        if self._financials_changed(financials):
-            self.financials = financials
+        if changed or self._update_financials(**kwargs):
+            self.financials = self._get_financials(**kwargs)
             changed = True
 
         return changed
@@ -73,7 +72,7 @@ class Segment(JsonModel):
         code, id = get_id(key)
         profile_name = kwargs.get('profile_name')
         segment_name = kwargs.get('segment_name')
-        if not profile_name or not segment_name: 
+        if not profile_name or not segment_name:
             raise ValueError(f"Segment {key} cannot be initiated without names")
         revenue_share = kwargs.get('revenue_share')
         if revenue_share is None:
@@ -83,9 +82,9 @@ class Segment(JsonModel):
         info_section = isection if isection else FinancialsAdjuster(revenue_share=revenue_share)
 
         segment = Segment(
-            key = key, 
+            key = key,
             filename = filename,
-            info_section = info_section, 
+            info_section = info_section,
             id = id,
             profile_name = profile_name,
             profile_code = code,

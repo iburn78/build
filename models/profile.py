@@ -25,16 +25,16 @@ MAX_COMPETITORS = 3
 DEFAULT_SEARCH_THEME = ['실적', '전망']
 NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
 NUM_TO_FEED_LLM = 5 # number of articles to provide to LLM
-AGENT_RETRIES = 5 
+AGENT_RETRIES = 5
 
 class Overview(BaseModel):
     # crawled from fnguide
-    title: str 
-    desc: str 
+    title: str
+    desc: str
     as_of: str # date fnguide created title/desc; yyyy-mm-dd
     updated: str # date current overview is updated: yyyy-mm-dd
 
-    def needs_refresh(self): 
+    def needs_refresh(self):
         try:
             updated = datetime.fromisoformat(self.updated)
             age = datetime.now() - updated
@@ -88,9 +88,9 @@ class Overview(BaseModel):
                 for li in content.select("li")
             )
         return cls(
-            title = title.get_text(strip=True) if title else "", 
+            title = title.get_text(strip=True) if title else "",
             desc = desc,
-            as_of = date.get_text(strip=True).strip("[]").replace("/","-") if date else "", 
+            as_of = date.get_text(strip=True).strip("[]").replace("/","-") if date else "",
             updated = datetime.now().strftime("%Y-%m-%d")
         )
 
@@ -137,7 +137,7 @@ class News(BaseModel):
         return True
 
 class Profile_LLM_Manager:
-    def __init__(self, biz_mode=DEFAULT_BIZ_LLM, news_mode=DEFAULT_NEWS_LLM): 
+    def __init__(self, biz_mode=DEFAULT_BIZ_LLM, news_mode=DEFAULT_NEWS_LLM):
         self.business_agent = self._make_agent(llm_mode=biz_mode, output_type=Business)
         self.news_agent = self._make_agent(llm_mode=news_mode, output_type=News)
 
@@ -206,7 +206,7 @@ Articles:
             print(f"News generation failed for {profile.code}: {e}")
             return None
 
-        res.updated = datetime.now().strftime("%Y-%m-%d") 
+        res.updated = datetime.now().strftime("%Y-%m-%d")
         return res
 
 class Profile(JsonModel):
@@ -240,9 +240,9 @@ class Profile(JsonModel):
 
                 revenue_share = self.info_section.revenue_share[i]
                 self._sub_items[key] = Segment.get_item(
-                    key=key, 
-                    profile_name=self.name, 
-                    segment_name=segment_name, 
+                    key=key,
+                    profile_name=self.name,
+                    segment_name=segment_name,
                     revenue_share=revenue_share,
                 )
 
@@ -267,7 +267,7 @@ class Profile(JsonModel):
         ]
         if len(paths) != 1:
             print(f"Cannot find unique news dir with {self.key}...")
-            return None 
+            return None
         return paths[0]
 
     def _get_financials(self, **kwargs):
@@ -298,9 +298,8 @@ class Profile(JsonModel):
         # Build derived segments once, using the final info_section for this update.
         self._get_subitems()
 
-        financials = self._get_financials(**kwargs)
-        if self._financials_changed(financials):
-            self.financials = financials
+        if changed or self._update_financials(**kwargs):
+            self.financials = self._get_financials(**kwargs)
             changed = True
 
         if self.news_summary is None or self.news_summary.needs_refresh():
@@ -316,7 +315,7 @@ class Profile(JsonModel):
         filename = f"{key}_{name}"
 
         ov = Overview.fetch(key)
-        if isection is None: 
+        if isection is None:
             isection = cls.llm_manager._gen_business(ov)
 
         profile = Profile(

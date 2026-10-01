@@ -168,7 +168,7 @@ class FinancialsData:
 class SectorAnalysis: 
     # a sector analysis
     def __init__(self):
-        self.meta = {'name': '', 'code': '', 'segment_name': '', 'id': '', 'updated': pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")}
+        self.meta = {'name': '', 'code': '', 'segment_name': '', 'id': '', 'updated': pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")}
         self.shape = {}
         self.assess_data = {}
         self.assess_result = {}
@@ -177,6 +177,17 @@ class SectorAnalysis:
 
         self.is_index = False # fr_data not available
         self.adjuster = None
+
+    @classmethod
+    def from_financials(cls, financials: dict):
+        """Restore the lightweight analyzer state needed by parent analyses and HTML."""
+        analysis = cls()
+        analysis.meta = financials.get('meta', {})
+        analysis.shape = financials.get('shape', {})
+        analysis.assess_data = financials.get('assess_data', {})
+        analysis.assess_result = financials.get('assess_result', {})
+        analysis.financials = financials
+        return analysis
 
     # =======================================================================================================================
     # Creation

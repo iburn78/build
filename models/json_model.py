@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 from pydantic import BaseModel, PrivateAttr
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, ClassVar
 import json
 import sys
@@ -70,27 +70,39 @@ class JsonModel(BaseModel, ABC):
         return self._sub_items
 
     def get_subitems_financial_analyzers(self):
+        from build.analysis.sector_analysis import SectorAnalysis
+
         res = []
         for _, item in self._sub_items.items():
-            res.append(item._financials_analyzer)
+            analyzer = item._financials_analyzer
+            if analyzer is None and item.financials is not None:
+                analyzer = SectorAnalysis.from_financials(item.financials)
+            res.append(analyzer)
         return res
-
-    def _financials_changed(self, updated_financials) -> bool:
-        def signature(financials):
-            if financials is None:
-                return None
-            data = dict(financials)
-            data["meta"] = dict(data.get("meta", {}))
-            data["meta"].pop("updated", None)
-            return json.dumps(data, sort_keys=True, default=lambda value: value.item())
-
-        return signature(self.financials) != signature(updated_financials)
 
     # creation and update of sub_items
     @abstractmethod
     def _get_subitems(self):
         # recursively refresh sub_items and perform cleanup if necessary
         ...
+
+    def _update_financials(self, **kwargs) -> bool:
+        if self.financials is None:
+            return True
+
+        updated = self.financials["meta"]["updated"]
+        updated_at = datetime.fromisoformat(updated)
+        if datetime.now() - updated_at >= timedelta(hours=3):
+            return True
+
+        # Timestamps are recorded to seconds; a one-second overlap covers ordering
+        # at that precision without repeatedly refreshing recent parent models.
+        child_refresh_cutoff = updated_at - timedelta(seconds=1)
+        return any(
+            item.financials
+            and datetime.fromisoformat(item.financials["meta"]["updated"]) >= child_refresh_cutoff
+            for item in self.get_subitems().values()
+        )
 
     # this has to be called after instance creation so that sub_items to be created beforehand
     @abstractmethod
@@ -229,7 +241,13 @@ class JsonModel(BaseModel, ABC):
             }
             for item in _list
         ]
-        financials_dicts = [item._financials_analyzer.get_combined_dict() for item in _list]
+        financials_dicts = [
+            {
+                key: item.financials[key]
+                for key in ("meta", "shape", "assess_data", "assess_result")
+            }
+            for item in _list
+        ]
         qual_dict = self.get_qualitative_dict()
         news_dir = self.get_news_dir() 
         output_file = self.get_json_path().with_suffix('.html')

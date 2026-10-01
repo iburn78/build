@@ -6,8 +6,8 @@ from build.models.segment import Segment
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 
 class Member(BaseModel):
-    # simple vehicle that carries only key and company name: works both for profile and segment 
-    key: str 
+    # simple vehicle that carries only key and company name: works both for profile and segment
+    key: str
     name: str
 
     @classmethod
@@ -16,7 +16,7 @@ class Member(BaseModel):
             # 1. exact match first
             matched = df_krx[df_krx["Name"] == name]
             if len(matched) == 1:
-                return str(matched.index[0]), matched.iloc[0]["Name"] 
+                return str(matched.index[0]), matched.iloc[0]["Name"]
 
             # 2. fallback to contains
             matched = df_krx[df_krx["Name"].str.contains(
@@ -26,7 +26,7 @@ class Member(BaseModel):
             )]
 
             if len(matched) == 1:
-                return str(matched.index[0]), matched.iloc[0]["Name"] 
+                return str(matched.index[0]), matched.iloc[0]["Name"]
 
             if len(matched) == 0:
                 raise ValueError(
@@ -49,7 +49,7 @@ class Member(BaseModel):
     @classmethod
     def from_key(cls, key, df_krx=df_krx):
         code, id = get_id(key)
-         
+
         if code not in df_krx.index:
             raise ValueError(f"Invalid code: {code}")
 
@@ -62,16 +62,16 @@ class Member(BaseModel):
 def cn(name):
     return Member.from_name(name)
 
-# member from key 
+# member from key
 def ck(key):
     return Member.from_key(key)
 
 class Traits(InfoSection):
     competition: str = "" # m/s, leader, competitive advatages
     key_drivers: str = "" # what drives the growth and determines who wins, technology innovation, demand growth, etc
-    notes: str = "" 
+    notes: str = ""
 
-class Component(JsonModel): 
+class Component(JsonModel):
     DIR = COMPONENTS_DIR
     info_section: Traits
     members: list[Member] = Field(default_factory=list)
@@ -97,7 +97,7 @@ class Component(JsonModel):
         fd_list = []
         for item in self.get_subitems().values():
             fd_list.append(FinancialsData(
-                key = item.key, 
+                key = item.key,
                 adjuster = item.info_section if type(item) is Segment else None
             ))
         return fd_list
@@ -107,7 +107,7 @@ class Component(JsonModel):
         members = Component._build_member_list(self.key, **kwargs)
 
         # case when members are given
-        if members: 
+        if members:
             # set() operation does not work here due to basemodel instances characteristics
             if len(self.members) != len (members) or not all(x in members for x in self.members):
                 self.members = members
@@ -119,9 +119,9 @@ class Component(JsonModel):
             changed = True
 
         self._get_subitems()
-        financials = self._get_financials(**kwargs)
-        if self._financials_changed(financials):
-            self.financials = financials
+
+        if changed or self._update_financials(**kwargs):
+            self.financials = self._get_financials(**kwargs)
             changed = True
 
         return changed
@@ -129,7 +129,7 @@ class Component(JsonModel):
     @classmethod
     def _create_new_item(cls, key, isection: InfoSection | None, **kwargs):
         members = cls._build_member_list(key, **kwargs)
-        if not members: 
+        if not members:
             raise ValueError(f"Component {key} cannot be initiated without members")
 
         component = Component(
@@ -157,7 +157,7 @@ class Component(JsonModel):
 
         # checking duplications
         codelist = []
-        for m in members: 
+        for m in members:
             codelist.append(get_id(m.key)[0])
         if len(codelist) != len(set(codelist)):
             raise ValueError(f'Duplication found in component {key} members')
