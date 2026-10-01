@@ -24,11 +24,19 @@ class JsonModel(BaseModel, ABC):
     # - data format is validated when loaded
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     # Directory where json files are stored
     DIR: ClassVar[str] # ClassVars is not included in json file, not validated when loading
 
     key: str # unqiue identifier within the DIR
     filename: str # json filename (key_additional information)
+=======
+    # Directory that the json files are stored
+    DIR: ClassVar[str] # ClassVars is not included in json file, not validated when loading
+
+    key: str # unqiue identifier within the DIR
+    filename: str # json filename ("key_additional" information) without .json
+>>>>>>> 864a4f5 (wip)
 =======
     # Directory that the json files are stored
     DIR: ClassVar[str] # ClassVars is not included in json file, not validated when loading
