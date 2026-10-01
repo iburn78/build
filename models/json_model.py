@@ -23,9 +23,10 @@ class JsonModel(BaseModel, ABC):
     # - a json file is maintained per a model instance
     # - data format is validated when loaded
 
+    # Directory where json files are stored
     DIR: ClassVar[str] # ClassVars is not included in json file, not validated when loading
 
-    key: str # unqiue identifier
+    key: str # unqiue identifier within the DIR
     filename: str # json filename (key_additional information)
     updated: str = ""
 

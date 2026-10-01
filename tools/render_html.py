@@ -247,7 +247,7 @@ def _get_ext_links(code):
                         <a class="ext-link" href="{INDEX_HTML}">QP</a>
                     </div>'''
 
-def _render_financials(target_type, target_key, financials_names: list, financials_list: list, output_file: Path, collapsed_paths=COLLAPSED_PATHS, no_chart_keys=NO_CHART_KEYS):
+def _render_financials(target_type, target_key, financials_names: list, financials_list: list, output_file: Path, collapsed_paths=None, no_chart_keys=None):
     meta_dict = financials_list[0].get('meta', {})
     header = _render_header(target_type, financials_names)
     rows = _render_rows(financials_list, collapsed_paths=collapsed_paths, no_chart_keys=no_chart_keys)
@@ -539,6 +539,7 @@ def render_html(target_class,
                 output_file: Path, 
                 template_html:Path=TEMPLATE_HTML, 
                 collapsed_paths=COLLAPSED_PATHS, 
+                no_chart_keys=NO_CHART_KEYS,
                 info_section_validator=None):
 
     if not financials_dicts:
@@ -551,7 +552,7 @@ def render_html(target_class,
         raise ValueError("signatures not matching")
 
     page_name = f"[{escape(str(target_class).lower())}] {escape(str(financials_names[0]['name']))}"
-    financials_section = _render_financials(target_class, target_key, financials_names, financials_dicts, output_file, collapsed_paths)
+    financials_section = _render_financials(target_class, target_key, financials_names, financials_dicts, output_file, collapsed_paths, no_chart_keys)
     qual_section = _render_qualitative(qual_dict, target_class, target_key, info_section_validator)
     news_section = _render_news(news_dir)
 
