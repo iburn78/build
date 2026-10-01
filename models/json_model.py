@@ -33,8 +33,8 @@ class JsonModel(BaseModel, ABC):
 
     financials: dict | None = None
     # PrivateAttr is not included in the json file, not validated when loading
-    _financials_analyzer: object | None = PrivateAttr(default=None)
     _sub_items: dict = PrivateAttr(default_factory=dict)
+    _subitems_financials_processed: list = PrivateAttr(default_factory=list)
 
     # this is called when both loaded and created
     def model_post_init(self, context: Any) -> None:
@@ -66,17 +66,6 @@ class JsonModel(BaseModel, ABC):
     # Child items are populated by get_item after update inputs are applied.
     def get_subitems(self): 
         return self._sub_items
-
-    # def get_subitems_financial_analyzers(self):
-    #     from build.analysis.sector_analysis import SectorAnalysis
-
-    #     res = []
-    #     for _, item in self._sub_items.items():
-    #         analyzer = item._financials_analyzer
-    #         if analyzer is None and item.financials is not None:
-    #             analyzer = SectorAnalysis.from_financials(item.financials)
-    #         res.append(analyzer)
-    #     return res
 
     # creation and update of sub_items
     @abstractmethod
@@ -111,13 +100,6 @@ class JsonModel(BaseModel, ABC):
     @abstractmethod
     def _get_financials(self, **kwargs):
         ...
-        # # perform common processes and return financials
-        # self._financials_analyzer._create_plot(save_path=self.get_json_path().with_suffix('.png'))
-
-        # sub_fas = self.get_subitems_financial_analyzers()
-        # self._financials_analyzer._sub_sector_analyses(sub_sas=sub_fas)
-
-        # return self._financials_analyzer.financials
 
     @abstractmethod
     def _update(self, **kwargs) -> bool:
@@ -245,13 +227,7 @@ class JsonModel(BaseModel, ABC):
             }
             for item in _list
         ]
-        financials_dicts = [
-            {
-                key: item.financials[key]
-                for key in ("meta", "shape", "assess_data", "assess_result")
-            }
-            for item in _list
-        ]
+        financials_dicts = [self.financials] + self._subitems_financials_processed
         qual_dict = self.get_qualitative_dict()
         news_dir = self.get_news_dir() 
         output_file = self.get_json_path().with_suffix('.html')

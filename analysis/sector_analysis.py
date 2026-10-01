@@ -173,21 +173,11 @@ class SectorAnalysis:
         self.assess_data = {}
         self.assess_result = {}
 
-        self.financials: dict | None = None
+        self.financials = {}
+        self._subitems_financials_processed = []
 
         self.is_index = False # fr_data not available
         self.adjuster = None
-
-    # @classmethod
-    # def from_financials(cls, financials: dict):
-    #     """Restore the lightweight analyzer state needed by parent analyses and HTML."""
-    #     analysis = cls()
-    #     analysis.meta = financials.get('meta', {})
-    #     analysis.shape = financials.get('shape', {})
-    #     analysis.assess_data = financials.get('assess_data', {})
-    #     analysis.assess_result = financials.get('assess_result', {})
-    #     analysis.financials = financials
-    #     return analysis
 
     # =======================================================================================================================
     # Creation
@@ -594,21 +584,7 @@ class SectorAnalysis:
 
                 '-o_rank': o_ranks[i],
             }
-        ###_ should save back to sub_items
-        ###_ should save back to sub_items
-        ###_ should save back to sub_items
-
-    # =======================================================================================================================
-    # Display in html
-    # =======================================================================================================================
-    def get_combined_dict(self):
-        combined_dict = {
-            'meta': self.meta,
-            'shape': self.shape,
-            'assess_data': self.assess_data,
-            'assess_result': self.assess_result
-        }
-        return combined_dict
+        self._subitems_financials_processed = subitems_financials
 
     # =======================================================================================================================
     # Aggregation and plotting

@@ -34,6 +34,7 @@ class Segment(JsonModel):
         _sa.process(fd_list,
                     subitems_financials=self._get_subitems_financials(),
                     plot_path=self.get_json_path().with_suffix('.png'))
+        self._subitems_financials_processed = _sa._subitems_financials_processed
 
     def _update(self, **kwargs) -> bool:
         changed = False
