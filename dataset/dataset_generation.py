@@ -1,12 +1,11 @@
 #%%
 import pandas as pd
-from build.tools.settings import get_name, get_id
+from build.tools.settings import get_name, THIS_PROJECT
 from data.tools.tools import dprint
+from pathlib import Path
 
-from build.models.profile import Profile
 from build.models.component import Component
 from build.models.valuechain import ValueChain
-from build.analysis.sector_analysis import SectorAnalysis
 
 # profiles may not need to be created before components' creation
 # components should be already created for valuechain to be created
@@ -31,7 +30,8 @@ vc = ValueChain.get_item(
 # --------------------------------------------------
 # EV_Battery
 # --------------------------------------------------
-ev = pd.read_excel('refs/이차전지_밸류체인_Excel.xlsx')
+
+ev = pd.read_excel(Path(THIS_PROJECT)/'dataset/refs/이차전지_밸류체인_Excel.xlsx')
 kr_ev = ev.loc[ev['티커'].str.contains('KS', na=False)]
 name_dict = {category: [get_name(ticker.replace(" KS", "")) for ticker in tickers] 
              for category, tickers in kr_ev.groupby("소분류")["티커"].apply(list).items()}
