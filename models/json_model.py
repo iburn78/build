@@ -6,10 +6,8 @@ from typing import Any, ClassVar
 import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from build.tools.settings import sanitized_filename, BUILD_DIR
+from build.tools.settings import sanitized_filename, BUILD_DIR, NUM_THREAD_TO_RUN 
 from build.tools.render_html import render_html
-
-NUM_THREAD_TO_RUN = 4
 
 class InfoSection(BaseModel):
     # to provide human-review-needed information to JsonModels
@@ -69,16 +67,16 @@ class JsonModel(BaseModel, ABC):
     def get_subitems(self): 
         return self._sub_items
 
-    def get_subitems_financial_analyzers(self):
-        from build.analysis.sector_analysis import SectorAnalysis
+    # def get_subitems_financial_analyzers(self):
+    #     from build.analysis.sector_analysis import SectorAnalysis
 
-        res = []
-        for _, item in self._sub_items.items():
-            analyzer = item._financials_analyzer
-            if analyzer is None and item.financials is not None:
-                analyzer = SectorAnalysis.from_financials(item.financials)
-            res.append(analyzer)
-        return res
+    #     res = []
+    #     for _, item in self._sub_items.items():
+    #         analyzer = item._financials_analyzer
+    #         if analyzer is None and item.financials is not None:
+    #             analyzer = SectorAnalysis.from_financials(item.financials)
+    #         res.append(analyzer)
+    #     return res
 
     # creation and update of sub_items
     @abstractmethod
@@ -104,16 +102,22 @@ class JsonModel(BaseModel, ABC):
             for item in self.get_subitems().values()
         )
 
-    # this has to be called after instance creation so that sub_items to be created beforehand
+    def _get_subitems_financials(self):
+        res = []
+        for k, v in self._sub_items.items():
+            res.append(v.financials)
+        return res
+
     @abstractmethod
-    def _get_financials(self, **kwargs) -> dict:
-        # perform common processes and return financials
-        self._financials_analyzer._create_plot(save_path=self.get_json_path().with_suffix('.png'))
+    def _get_financials(self, **kwargs):
+        ...
+        # # perform common processes and return financials
+        # self._financials_analyzer._create_plot(save_path=self.get_json_path().with_suffix('.png'))
 
-        sub_fas = self.get_subitems_financial_analyzers()
-        self._financials_analyzer._sub_sector_analyses(sub_sas=sub_fas)
+        # sub_fas = self.get_subitems_financial_analyzers()
+        # self._financials_analyzer._sub_sector_analyses(sub_sas=sub_fas)
 
-        return self._financials_analyzer.financials
+        # return self._financials_analyzer.financials
 
     @abstractmethod
     def _update(self, **kwargs) -> bool:

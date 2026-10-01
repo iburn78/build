@@ -85,13 +85,13 @@ class Component(JsonModel):
             self._sub_items[m.key] = Profile.get_item(m.key)
 
     def _get_financials(self, **kwargs):
-        self._financials_analyzer = SectorAnalysis()
-        self._financials_analyzer.meta['name'] = self.key
+        _sa = SectorAnalysis()
+        _sa.meta['name'] = self.key
 
         fd_list = self._get_fd_list()
-        self._financials_analyzer.process(fd_list)
-
-        return super()._get_financials(**kwargs)
+        _sa.process(fd_list,
+                    subitems_financials=self._get_subitems_financials(),
+                    plot_path=self.get_json_path().with_suffix('.png'))
 
     def _get_fd_list(self):
         fd_list = []

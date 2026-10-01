@@ -178,21 +178,21 @@ class SectorAnalysis:
         self.is_index = False # fr_data not available
         self.adjuster = None
 
-    @classmethod
-    def from_financials(cls, financials: dict):
-        """Restore the lightweight analyzer state needed by parent analyses and HTML."""
-        analysis = cls()
-        analysis.meta = financials.get('meta', {})
-        analysis.shape = financials.get('shape', {})
-        analysis.assess_data = financials.get('assess_data', {})
-        analysis.assess_result = financials.get('assess_result', {})
-        analysis.financials = financials
-        return analysis
+    # @classmethod
+    # def from_financials(cls, financials: dict):
+    #     """Restore the lightweight analyzer state needed by parent analyses and HTML."""
+    #     analysis = cls()
+    #     analysis.meta = financials.get('meta', {})
+    #     analysis.shape = financials.get('shape', {})
+    #     analysis.assess_data = financials.get('assess_data', {})
+    #     analysis.assess_result = financials.get('assess_result', {})
+    #     analysis.financials = financials
+    #     return analysis
 
     # =======================================================================================================================
     # Creation
     # =======================================================================================================================
-    def process(self, fd_list, unit=DEFAULT_KRW_UNIT, fill=True, start_date=DEFAULT_START_DATE):
+    def process(self, fd_list, unit=DEFAULT_KRW_UNIT, fill=True, start_date=DEFAULT_START_DATE, **kwargs):
 
         self.meta = self.meta | {
             'unit': unit,
@@ -218,8 +218,9 @@ class SectorAnalysis:
         if self.adjuster:
             self.financials['info_section'] = self.adjuster.model_dump()
 
+        self.post_process(**kwargs)
 
-    def process_index(self, name: str, unit=1e12, start_date=DEFAULT_START_DATE):
+    def process_index(self, name: str, unit=1e12, start_date=DEFAULT_START_DATE, **kwargs):
         self.meta = self.meta | {
             'name': name,
             'unit': unit if unit else DEFAULT_KRW_UNIT, # KRW unit
@@ -232,7 +233,12 @@ class SectorAnalysis:
         _ma_data['amount_daily'] = _ma_data['amount_daily']/self.meta['unit']
         self.ma_data = _ma_data
         self.is_index = True
-        return self
+
+        self.post_process(**kwargs)
+
+    def post_process(self, **kwargs):
+        self._sub_sector_analyses(subitems_financials=kwargs.get("subitems_financials"))
+        self._create_plot(save_path=kwargs.get("plot_path"))
 
     # function that sums multiple serises
     def _add_dfs(self, df_list, fill=False):
@@ -497,8 +503,8 @@ class SectorAnalysis:
     # =======================================================================================================================
     # Sub SA analyses
     # =======================================================================================================================
-    def _sub_sector_analyses(self, sub_sas: list):
-        if not sub_sas:
+    def _sub_sector_analyses(self, subitems_financials: list):
+        if not subitems_financials:
             return
 
         # Parent sector
@@ -513,18 +519,18 @@ class SectorAnalysis:
 
         # Collect raw financial values
         marcaps = [
-            sa.shape['financials']['marcap'] * sa.meta['unit']
-            for sa in sub_sas
+            sf['shape']['financials']['marcap'] * sf['meta']['unit']
+            for sf in subitems_financials
         ]
 
         revenues = [
-            sa.shape['financials']['revenue_qtr'] * sa.meta['unit']
-            for sa in sub_sas
+            sf['shape']['financials']['revenue_qtr'] * sf['meta']['unit']
+            for sf in subitems_financials
         ]
 
         opincomes = [
-            sa.shape['financials']['opincome_qtr'] * sa.meta['unit']
-            for sa in sub_sas
+            sf['shape']['financials']['opincome_qtr'] * sf['meta']['unit']
+            for sf in subitems_financials
         ]
 
         # Ranking: include negative values
@@ -560,13 +566,13 @@ class SectorAnalysis:
         total_opincome = sum(positive_opincomes)
 
         # Populate each sub-sector
-        for i, sa in enumerate(sub_sas):
+        for i, sf in enumerate(subitems_financials):
 
             marcap = marcaps[i]
             revenue = revenues[i]
             opincome = opincomes[i]
 
-            sa.shape['share'] = {
+            sf['shape']['share'] = {
                 'marcap': (
                     round_sig(marcap / total_marcap)
                     if total_marcap > 0 else '-'
@@ -588,6 +594,9 @@ class SectorAnalysis:
 
                 '-o_rank': o_ranks[i],
             }
+        ###_ should save back to sub_items
+        ###_ should save back to sub_items
+        ###_ should save back to sub_items
 
     # =======================================================================================================================
     # Display in html

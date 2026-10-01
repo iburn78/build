@@ -77,20 +77,6 @@ def _section_row(key, level=0, colspan=1, collapsed=False):
                             <td class="label" colspan="{colspan}">{escape(str(key))}</td>
                         </tr>"""
 
-# simpler core func 
-# def _value_row(key, values=None, level=0):
-#     values = values or []
-#     cells = "".join(
-#         f'''
-#                             <td class="value">{_fmt_value(key, v)}</td>'''
-#         for v in values
-#     ).strip()
-
-#     return f"""        
-#                         <tr class="value-row level-{level}">
-#                             <td class="label">{escape(str(key))}</td>
-#                             {cells}
-#                         </tr>"""
 def _value_row(key, values=None, level=0, chart=True):
     values = values or []
 

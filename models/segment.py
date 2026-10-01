@@ -23,17 +23,17 @@ class Segment(JsonModel):
         pass
 
     def _get_financials(self, **kwargs):
-        self._financials_analyzer = SectorAnalysis()
-        self._financials_analyzer.meta['name'] = self.profile_name
-        self._financials_analyzer.meta['code'] = self.profile_code
-        self._financials_analyzer.meta['id'] = self.id
-        self._financials_analyzer.meta['segment_name'] = self.segment_name
-        self._financials_analyzer.adjuster = self.info_section
+        _sa = SectorAnalysis()
+        _sa.meta['name'] = self.profile_name
+        _sa.meta['code'] = self.profile_code
+        _sa.meta['id'] = self.id
+        _sa.meta['segment_name'] = self.segment_name
+        _sa.adjuster = self.info_section
 
         fd_list = [FinancialsData(key=self.key, adjuster=self.info_section)]
-        self._financials_analyzer.process(fd_list)
-
-        return super()._get_financials(**kwargs)
+        _sa.process(fd_list,
+                    subitems_financials=self._get_subitems_financials(),
+                    plot_path=self.get_json_path().with_suffix('.png'))
 
     def _update(self, **kwargs) -> bool:
         changed = False

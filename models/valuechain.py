@@ -22,16 +22,16 @@ class ValueChain(JsonModel):
             self._sub_items[k] = Component.get_item(k)
 
     def _get_financials(self, **kwargs):
-        self._financials_analyzer = SectorAnalysis()
-        self._financials_analyzer.meta['name'] = self.key
+        _sa = SectorAnalysis()
+        _sa.meta['name'] = self.key
 
         fd_list = []
         for cp in self.get_subitems().values():
             fd_list += cp._get_fd_list()
         fd_list = FinancialsData.dedupe_fds(fd_list)
-        self._financials_analyzer.process(fd_list)
-
-        return super()._get_financials(**kwargs)
+        _sa.process(fd_list,
+                    subitems_financials=self._get_subitems_financials(),
+                    plot_path=self.get_json_path().with_suffix('.png'))
 
     def _update(self, **kwargs) -> bool:
         changed = False

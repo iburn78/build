@@ -271,14 +271,14 @@ class Profile(JsonModel):
         return paths[0]
 
     def _get_financials(self, **kwargs):
-        self._financials_analyzer = SectorAnalysis()
-        self._financials_analyzer.meta['name'] = self.name
-        self._financials_analyzer.meta['code'] = self.code
+        _sa = SectorAnalysis()
+        _sa.meta['name'] = self.name
+        _sa.meta['code'] = self.code
 
         fd_list = [FinancialsData(key=self.key)]
-        self._financials_analyzer.process(fd_list)
-
-        return super()._get_financials(**kwargs)
+        _sa.process(fd_list, 
+                    subitems_financials=self._get_subitems_financials(),
+                    plot_path=self.get_json_path().with_suffix('.png'))
 
     def _update(self, **kwargs):
         changed = False
