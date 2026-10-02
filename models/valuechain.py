@@ -32,6 +32,7 @@ class ValueChain(JsonModel):
         _sa.process(fd_list,
                     subitems_financials=self._get_subitems_financials(),
                     plot_path=self.get_json_path().with_suffix('.png'))
+        self.financials = _sa.financials
         self._subitems_financials_processed = _sa._subitems_financials_processed
 
     def _update(self, **kwargs) -> bool:
@@ -52,7 +53,7 @@ class ValueChain(JsonModel):
         self._get_subitems()
 
         if changed or self._update_financials(**kwargs):
-            self.financials = self._get_financials(**kwargs)
+            self._get_financials(**kwargs)
             changed = True
 
         return changed
@@ -72,6 +73,6 @@ class ValueChain(JsonModel):
         )
         vc._get_subitems()
         # financials is filled after valuechain creation
-        vc.financials = vc._get_financials(**kwargs)
+        vc._get_financials(**kwargs)
 
         return vc

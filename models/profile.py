@@ -279,6 +279,7 @@ class Profile(JsonModel):
         _sa.process(fd_list, 
                     subitems_financials=self._get_subitems_financials(),
                     plot_path=self.get_json_path().with_suffix('.png'))
+        self.financials = _sa.financials
         self._subitems_financials_processed = _sa._subitems_financials_processed
 
     def _update(self, **kwargs):
@@ -296,16 +297,16 @@ class Profile(JsonModel):
             self.info_section = _info_section
             changed = True
 
+        if self.news_summary is None or self.news_summary.needs_refresh():
+            print(f"Generating news_summary for {self.key}")
+            self.news_summary = self.llm_manager._gen_news(self)
+            changed = True
+
         # Build derived segments once, using the final info_section for this update.
         self._get_subitems()
 
         if changed or self._update_financials(**kwargs):
-            self.financials = self._get_financials(**kwargs)
-            changed = True
-
-        if self.news_summary is None or self.news_summary.needs_refresh():
-            print(f"Generating news_summary for {self.key}")
-            self.news_summary = self.llm_manager._gen_news(self)
+            self._get_financials(**kwargs)
             changed = True
 
         return changed
@@ -327,12 +328,12 @@ class Profile(JsonModel):
             overview=ov,
             info_section=isection,
         )
-        profile._get_subitems()
-        # financials is filled after profile creation
-        profile.financials = profile._get_financials(**kwargs)
-
         # news summary is filled after profile creation
         profile.news_summary = cls.llm_manager._gen_news(profile)
+
+        profile._get_subitems()
+        # financials is filled after profile creation
+        profile._get_financials(**kwargs)
 
         return profile
 

@@ -82,12 +82,9 @@ class JsonModel(BaseModel, ABC):
         if datetime.now() - updated_at >= timedelta(hours=3):
             return True
 
-        # Timestamps are recorded to seconds; a one-second overlap covers ordering
-        # at that precision without repeatedly refreshing recent parent models.
-        child_refresh_cutoff = updated_at - timedelta(seconds=1)
         return any(
             item.financials
-            and datetime.fromisoformat(item.financials["meta"]["updated"]) >= child_refresh_cutoff
+            and datetime.fromisoformat(item.financials["meta"]["updated"]) >= updated_at
             for item in self.get_subitems().values()
         )
 

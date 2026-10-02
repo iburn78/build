@@ -34,6 +34,7 @@ class Segment(JsonModel):
         _sa.process(fd_list,
                     subitems_financials=self._get_subitems_financials(),
                     plot_path=self.get_json_path().with_suffix('.png'))
+        self.financials = _sa.financials
         self._subitems_financials_processed = _sa._subitems_financials_processed
 
     def _update(self, **kwargs) -> bool:
@@ -63,7 +64,7 @@ class Segment(JsonModel):
 
         # check financials after checking FinancialsAdjuster
         if changed or self._update_financials(**kwargs):
-            self.financials = self._get_financials(**kwargs)
+            self._get_financials(**kwargs)
             changed = True
 
         return changed
@@ -93,6 +94,6 @@ class Segment(JsonModel):
         )
 
         # financials is filled after segment creation
-        segment.financials = segment._get_financials(**kwargs)
+        segment._get_financials(**kwargs)
 
         return segment

@@ -205,9 +205,6 @@ class SectorAnalysis:
             'assess_result': self.assess_result,
         }
 
-        if self.adjuster:
-            self.financials['info_section'] = self.adjuster.model_dump()
-
         self.post_process(**kwargs)
 
     def process_index(self, name: str, unit=1e12, start_date=DEFAULT_START_DATE, **kwargs):
