@@ -20,7 +20,7 @@ import os
 from typing import ClassVar
 
 NEWS_REFRESH_THRES = 3 # days
-DEFAULT_SEARCH_THEME = ['실적', '전망']
+DEFAULT_SEARCH_THEME = ['사업부 실적', '전망']
 NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
 NUM_TO_FEED_LLM = 10 # number of articles to provide to LLM
 AGENT_RETRIES = 5
@@ -189,8 +189,11 @@ class Segment(JsonModel):
                     changed = True
 
         if _info_section:
-            self.info_section = _info_section
-            changed = True
+            old_values = self.info_section.model_dump(exclude={"updated"})
+            new_values = _info_section.model_dump(exclude={"updated"})
+            if old_values != new_values:
+                self.info_section = _info_section
+                changed = True
 
         if segment_name_changed or self.news_summary is None or self.news_summary.needs_refresh():
             print(f"Generating segment news summary for {self.key}")

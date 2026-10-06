@@ -311,8 +311,11 @@ class Profile(JsonModel):
             changed = True
 
         if _info_section:
-            self.info_section = _info_section
-            changed = True
+            old_values = self.info_section.model_dump(exclude={"updated"})
+            new_values = _info_section.model_dump(exclude={"updated"})
+            if old_values != new_values:
+                self.info_section = _info_section
+                changed = True
 
         if changed or self.news_summary is None or self.news_summary.needs_refresh():
             print(f"Generating news_summary for {self.key}")

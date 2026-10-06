@@ -39,7 +39,7 @@ def update_info(data):
         raise ValueError(f"{object_type} not found: {object_id}")
 
     updated_section = info_section_class.model_validate(values)
-    updated_section.updated = datetime.now().strftime("%Y-%m-%d %H:%M") 
+    updated_section.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     item = model_class.get_item(object_id, info_section = updated_section)
     return {
