@@ -55,17 +55,19 @@ if __name__ == "__main__":
 
     try:
         result = update_info(data)
-        # handover to js the result
-        print(json.dumps(result), file=sys.stderr)
+        # fd 3 is a dedicated channel for the JSON response; stdout/stderr remain logs.
+        with open(3, "w", encoding="utf-8", closefd=False) as response_pipe:
+            response_pipe.write(json.dumps(result))
 
     except Exception as e:
         import traceback
 
         traceback.print_exc(file=sys.stdout)
 
-        print(json.dumps({
-            "ok": False,
-            "error": str(e),
-        }), file=sys.stderr)
+        with open(3, "w", encoding="utf-8", closefd=False) as response_pipe:
+            response_pipe.write(json.dumps({
+                "ok": False,
+                "error": str(e),
+            }))
 
         sys.exit(1)

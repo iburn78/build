@@ -84,7 +84,7 @@ class JsonModel(BaseModel, ABC):
 
         return any(
             item.financials
-            and datetime.fromisoformat(item.financials["meta"]["updated"]) >= updated_at
+            and datetime.fromisoformat(item.financials["meta"]["updated"]) > updated_at
             for item in self.get_subitems().values()
         )
 

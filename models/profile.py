@@ -1,4 +1,5 @@
 import os
+import shutil
 from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
@@ -260,6 +261,22 @@ class Profile(JsonModel):
             for _p in p.parent.glob(f"{p.stem}.*"):
                 _p.unlink(missing_ok=True)
 
+        # Segment news directories are keyed by segment key and profile name.
+        # Remove directories for segments that are no longer active, including
+        # directories left behind when a segment name changes.
+        active_news_dirs = {
+            segment.filename
+            for segment in self._sub_items.values()
+        }
+        stale_news_dirs = [
+            p for p in Path(NEWS_DIR).iterdir()
+            if p.is_dir()
+            and p.name.startswith(f"{self.key}(")
+            and p.name not in active_news_dirs
+        ]
+        for p in stale_news_dirs:
+            shutil.rmtree(p)
+
     def get_news_dir(self):
         paths = [
             p for p in Path(NEWS_DIR).glob("*")
@@ -351,17 +368,15 @@ class Profile(JsonModel):
     def scrape_news(self):
         search_set = self.info_section.search_theme + DEFAULT_SEARCH_THEME
         search_set = [f"{self.info_section.search_specifier} {k}" if self.info_section.search_specifier else k for k in search_set]
-        _code_name = self.code + '_' + self.name
 
         for k in search_set:
             _request = self.name + ' ' + k
-            crawl_news(_request, dest_dir=_code_name, max_result=NUM_TO_CRAWL)
+            crawl_news(_request, dest_dir=self.filename, max_result=NUM_TO_CRAWL)
 
         return self._get_news_collection()
 
     def _get_news_collection(self):
-        _code_name = self.code + '_' + self.name
-        _dest = Path(os.path.join(NEWS_DIR, _code_name))
+        _dest = Path(os.path.join(NEWS_DIR, self.filename))
 
         # choose latest INPUT_FILE_NUM articles
         combined = "\n".join(

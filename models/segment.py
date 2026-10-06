@@ -142,7 +142,7 @@ class Segment(JsonModel):
         return super().get_qualitative_dict() | {"news_summary": self.news_summary}
 
     def get_news_dir(self) -> Path | None:
-        news_dir = Path(NEWS_DIR) / f"{self.key}_{self.profile_name}"
+        news_dir = Path(NEWS_DIR) / self.filename
         return news_dir if news_dir.is_dir() else None
 
     def _get_subitems(self):
@@ -165,12 +165,14 @@ class Segment(JsonModel):
 
     def _update(self, **kwargs) -> bool:
         changed = False
+        segment_name_changed = False
         segment_name = kwargs.get('segment_name')
         _info_section = kwargs.get('info_section')
         if segment_name:
             if self.segment_name != segment_name:
                 self.segment_name = segment_name
                 self.filename = sanitized_filename(f"{self.key}_{segment_name}")
+                segment_name_changed = True
                 changed = True
 
         revenue_share = kwargs.get('revenue_share')
@@ -190,7 +192,7 @@ class Segment(JsonModel):
             self.info_section = _info_section
             changed = True
 
-        if self.news_summary is None or self.news_summary.needs_refresh():
+        if segment_name_changed or self.news_summary is None or self.news_summary.needs_refresh():
             print(f"Generating segment news summary for {self.key}")
             self.news_summary = self.llm_manager._gen_news(self)
             changed = True
@@ -213,6 +215,7 @@ class Segment(JsonModel):
         if revenue_share is None:
             raise ValueError(f"Segment {key} cannot be initiated without financials_adjuster parameters")
 
+        # sanitization happenes in model_post_init()
         filename = f"{key}_{segment_name}"
         info_section = isection if isection else FinancialsAdjuster(revenue_share=revenue_share)
 
@@ -237,17 +240,15 @@ class Segment(JsonModel):
     def scrape_news(self):
         search_set = list(dict.fromkeys(self.info_section.search_theme + DEFAULT_SEARCH_THEME))
         search_set = [f"{self.info_section.search_specifier} {k}" if self.info_section.search_specifier else k for k in search_set]
-        _key_name = self.key + '_' + self.profile_name
 
         for k in search_set:
             _request = f"{self.profile_name} {self.segment_name} {k}"
-            crawl_news(_request, dest_dir=_key_name, max_result=NUM_TO_CRAWL)
+            crawl_news(_request, dest_dir=self.filename, max_result=NUM_TO_CRAWL)
 
         return self._get_news_collection()
 
     def _get_news_collection(self):
-        _key_name = self.key + '_' + self.profile_name
-        _dest = Path(os.path.join(NEWS_DIR, _key_name))
+        _dest = Path(os.path.join(NEWS_DIR, self.filename))
 
         # Include the most recent articles for the segment summary.
         combined = "\n".join(
