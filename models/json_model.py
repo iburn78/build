@@ -79,7 +79,7 @@ class JsonModel(BaseModel, ABC):
 
         updated = self.financials["meta"]["updated"]
         updated_at = datetime.fromisoformat(updated)
-        if datetime.now() - updated_at >= timedelta(hours=3):
+        if datetime.now() - updated_at > timedelta(hours=3):
             return True
 
         return any(
