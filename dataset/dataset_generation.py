@@ -11,11 +11,6 @@ from build.models.valuechain import ValueChain
 # profiles may not need to be created before components' creation
 # components should be already created for valuechain to be created
 
-import sys
-a = Profile.get_item('005930')
-print(a._sub_items)
-sys.exit()
-
 # --------------------------------------------------
 # Electronics
 # --------------------------------------------------
