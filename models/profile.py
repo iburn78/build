@@ -24,7 +24,7 @@ MAX_COMPETITORS = 3
 
 DEFAULT_SEARCH_THEME = ['실적', '전망']
 NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
-NUM_TO_FEED_LLM = 5 # number of articles to provide to LLM
+NUM_TO_FEED_LLM = 10 # number of articles to provide to LLM
 AGENT_RETRIES = 5
 
 class Overview(BaseModel):
@@ -108,7 +108,7 @@ class Business(InfoSection):
     competitors: list[str] = Field(
         description="Direct competing companies in the same industry"
     )
-    search_specifier: str | None = None # keyword specific to this company to add in all news search
+    search_specifier: str | None = None # keyword specific to this profile to add in all news search
     search_theme: list[str] = Field(default_factory=list)
 
 class News(BaseModel):
@@ -297,7 +297,7 @@ class Profile(JsonModel):
             self.info_section = _info_section
             changed = True
 
-        if self.news_summary is None or self.news_summary.needs_refresh():
+        if changed or self.news_summary is None or self.news_summary.needs_refresh():
             print(f"Generating news_summary for {self.key}")
             self.news_summary = self.llm_manager._gen_news(self)
             changed = True
