@@ -46,8 +46,8 @@ class NewsModel(BaseModel):
         return True
 
 class LLM_Manager(ABC):
-    def __init__(self, output_type, news_mode=DEFAULT_NEWS_LLM):
-        self.news_agent = self._make_agent(llm_mode=news_mode, output_type=output_type)
+    def __init__(self, news_type, news_mode=DEFAULT_NEWS_LLM):
+        self.news_agent = self._make_agent(llm_mode=news_mode, output_type=news_type)
 
     def _make_agent(self, llm_mode, output_type):
         u, k, m = llm_selector(llm_mode)
@@ -134,10 +134,11 @@ class JsonModel(BaseModel, ABC):
 
     @abstractmethod
     def scrape_news(self, query_prefix="", search_theme=[]):
-        search_set = self.info_section.search_theme + search_theme
+        search_set = getattr(self.info_section, "search_theme", []) + search_theme
+        search_specifier = getattr(self.info_section, "search_specifier", None)
         search_set = [
-            f"{self.info_section.search_specifier} {theme}"
-            if self.info_section.search_specifier else theme
+            f"{search_specifier} {theme}"
+            if search_specifier else theme
             for theme in search_set
         ]
 

@@ -119,7 +119,7 @@ class News(NewsModel):
 class Profile_LLM_Manager(LLM_Manager):
     def __init__(self, biz_mode=DEFAULT_BIZ_LLM):
         self.business_agent = self._make_agent(llm_mode=biz_mode, output_type=Business)
-        super().__init__(News)
+        super().__init__(news_type=News)
 
     def gen_business(self, overview: Overview) -> Business:
 #----------------------------------------------------------------------------------------------------
@@ -129,12 +129,12 @@ Extract a company profile from the recent business summary below.
 {overview.desc}
 
 Rules:
-- segments: extract 1 to {MAX_SEGMENTS} core business areas.
-- revenue_share: estimate each segment's share of total company revenue as a number between 0 and 1. The shares should sum to 1 or less.
-- key_products: extract 1 to {MAX_PRODUCTS} representative products or services.
-- competitors: list up to {MAX_COMPETITORS} direct competitors. Use company names only.
-- Keep answers concise and structured.
-- Use Korean terminology when it is standard in Korean business language; otherwise use English.
+- For segments, identify 1 to {MAX_SEGMENTS} of the company's core business areas. Do not list products or competitors as segments.
+- For revenue_share, estimate each segment's share of total company revenue as a number between 0 and 1. The shares should sum to 1 or less.
+- For key_products, list 1 to {MAX_PRODUCTS} representative products or services.
+- For competitors, list up to {MAX_COMPETITORS} direct competitors using company names only.
+- Keep the answers concise and structured.
+- Use Korean terminology when it is standard in Korean business language; otherwise, use English.
 """
 #----------------------------------------------------------------------------------------------------
         # returns Business instance
@@ -151,14 +151,14 @@ Rules:
     def _get_news_request_text(self, target: JsonModel, news_collection: str):
 #----------------------------------------------------------------------------------------------------
         request_text = f"""
-Summarize the news articles about the company.
+Summarize the following news articles about the company.
 
 Output must follow the schema.
 
 Rules:
-- Use only information explicitly stated in the text.
+- Use only information explicitly stated in the articles.
 - Merge duplicate points across articles.
-- Keep facts company-specific and time-specific.
+- Keep each fact specific to the company and time-bound.
 - Write in Korean.
 
 Articles:
