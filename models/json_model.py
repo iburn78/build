@@ -11,12 +11,11 @@ import json
 import sys
 import re
 from concurrent.futures import ThreadPoolExecutor
-import os
-from build.tools.settings import sanitized_filename, BUILD_DIR, NEWS_DIR, DEFAULT_NEWS_LLM, llm_selector
+from build.tools.settings import sanitized_filename, BUILD_DIR, DEFAULT_NEWS_LLM, llm_selector
 from build.tools.render_html import render_html
 from build.tools.crawl_news import crawl_news
 
-FINANCIALS_UPDATE_PERIOD_HR = 3
+FINANCIALS_UPDATE_PERIOD_HR = 0 # Hours
 NUM_THREAD_TO_RUN = 8
 
 NEWS_REFRESH_THRES = 3 # days
@@ -35,7 +34,9 @@ class InfoSection(BaseModel):
     tags: str = ""
     notes: str = ""
 
-class News_Model(BaseModel):
+class NewsModel(BaseModel):
+    updated: str = ""
+
     def needs_refresh(self):
         if self.updated:
             return (
@@ -93,6 +94,7 @@ class JsonModel(BaseModel, ABC):
 
     # below to be defined in each sub-class 
     # info_section: InfoSection 
+    # news: NewsModel
 
     financials: dict | None = None
     # PrivateAttr is not included in the json file, not validated when loading
@@ -123,14 +125,14 @@ class JsonModel(BaseModel, ABC):
         formatted = re.sub(r'(?<!^)([A-Z])', r'_\1', s).lower()
         return {
             formatted: self.info_section,
+            "news": self.news,
         }
 
-    def get_news_dir(self) -> Path | None:
-        return None
+    @abstractmethod
+    def get_news_dir(self) -> Path:
+        ...
 
-    def _news_query_prefix(self) -> str:
-        return self._get_name()
-
+    @abstractmethod
     def scrape_news(self, query_prefix="", search_theme=[]):
         search_set = self.info_section.search_theme + search_theme
         search_set = [
@@ -143,13 +145,15 @@ class JsonModel(BaseModel, ABC):
             query = f"{query_prefix} {theme}" if query_prefix else theme
             crawl_news(
                 query,
-                dest_dir=self.filename,
+                dest_dir=self.get_news_dir(),
                 max_result=NUM_TO_CRAWL,
             )
         return self._get_news_collection()
 
     def _get_news_collection(self):
-        news_dir = Path(NEWS_DIR) / self.filename
+        news_dir = self.get_news_dir()
+        if not news_dir.exists():
+            return ""
         return "\n".join(
             path.read_text(encoding="utf-8")
             for path in sorted(news_dir.glob("*.md"), reverse=True)[:NUM_TO_FEED_LLM]
@@ -258,7 +262,7 @@ class JsonModel(BaseModel, ABC):
             if item:
                 changed = item._update(**kwargs)
                 if changed:
-                    print(f"Updating existing json for {key}")
+                    print(f"Existing json updated for {key}")
             else: 
                 # below handles when a valid json_path exists but failed to validate, retrieving partial info therein
                 print(f"Overwriting existing json for {key}")

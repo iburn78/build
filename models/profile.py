@@ -5,9 +5,9 @@ from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from typing import ClassVar
 from pydantic import BaseModel, Field
-from build.models.json_model import JsonModel, InfoSection, LLM_Manager, News_Model
+from build.models.json_model import JsonModel, InfoSection, NewsModel, LLM_Manager
 from build.models.segment import Segment
-from build.tools.settings import PROFILES_DIR, NEWS_DIR, get_id, get_name, DEFAULT_BIZ_LLM, get_FN_GUIDE_url
+from build.tools.settings import PROFILES_DIR, PROFILE_NEWS_DIR, get_id, get_name, DEFAULT_BIZ_LLM, get_FN_GUIDE_url
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 
 OVERVIEW_REFRESH_THRES = 30 # days
@@ -100,7 +100,7 @@ class Business(InfoSection):
     search_specifier: str | None = None # keyword specific to this profile to add in all news search
     search_theme: list[str] = Field(default_factory=list)
 
-class News(News_Model):
+class News(NewsModel):
     key_facts: list[str] = Field(
         description="Article-specific factual developments, explicitly stated.",
         min_length=1,
@@ -176,8 +176,8 @@ class Profile(JsonModel):
     name: str
 
     overview: Overview
-    news: News | None = None
 
+    news: News | None = None
     llm_manager: ClassVar[Profile_LLM_Manager] = Profile_LLM_Manager()
 
     def _get_name(self):
@@ -189,6 +189,14 @@ class Profile(JsonModel):
             'overview': self.overview,
             'news': self.news,
         }
+
+    def get_news_dir(self):
+        return Path(PROFILE_NEWS_DIR) / self.filename
+
+    def scrape_news(self, query_prefix="", search_theme=[]):
+        query_prefix = self.name
+        search_theme = PROFILE_SEARCH_THEME
+        return super().scrape_news(query_prefix, search_theme)
 
     def _get_subitems(self):
         self._sub_items.clear()
@@ -227,28 +235,13 @@ class Profile(JsonModel):
             for segment in self._sub_items.values()
         }
         stale_news_dirs = [
-            p for p in Path(NEWS_DIR).iterdir()
+            p for p in Path(PROFILE_NEWS_DIR).iterdir()
             if p.is_dir()
             and p.name.startswith(f"{self.key}(")
             and p.name not in active_news_dirs
         ]
         for p in stale_news_dirs:
             shutil.rmtree(p)
-
-    def get_news_dir(self):
-        paths = [
-            p for p in Path(NEWS_DIR).glob("*")
-            if p.is_dir() and p.name.startswith(f"{self.key}_")
-        ]
-        if len(paths) != 1:
-            print(f"Cannot find unique news dir with {self.key}...")
-            return None
-        return paths[0]
-
-    def scrape_news(self, query_prefix="", search_theme=[]):
-        query_prefix = self.name
-        search_theme = PROFILE_SEARCH_THEME
-        return super().scrape_news(query_prefix, search_theme)
 
     def _get_financials(self, **kwargs):
         _sa = SectorAnalysis()
@@ -315,7 +308,7 @@ class Profile(JsonModel):
             overview=ov,
             info_section=isection,
         )
-        # news summary is filled after profile creation
+        # news is filled after instance creation
         profile.news = cls.llm_manager.gen_news(profile)
 
         profile._get_subitems()

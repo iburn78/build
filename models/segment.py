@@ -1,11 +1,9 @@
 from pydantic import Field
-from build.tools.settings import PROFILES_DIR, NEWS_DIR, get_id, sanitized_filename
-from build.models.json_model import JsonModel, InfoSection, LLM_Manager, News_Model
-)
+from build.tools.settings import PROFILES_DIR, PROFILE_NEWS_DIR, get_id, sanitized_filename
+from build.models.json_model import JsonModel, InfoSection, NewsModel, LLM_Manager
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 from pathlib import Path
 from typing import ClassVar
-
 
 SEGMENT_SEARCH_THEME = ['사업부 실적', '전망']
 
@@ -16,7 +14,7 @@ class FinancialsAdjuster(InfoSection):
     search_specifier: str | None = None # keyword specific to this segment to add in all news search
     search_theme: list[str] = Field(default_factory=list)
 
-class News(News_Model):
+class News(NewsModel):
     key_financials: list[str] = Field(
         description="Recent financial results explicitly attributed to this segment, including the reporting period and trend when stated. Never infer segment figures from company-wide totals.",
         min_length=0,
@@ -38,9 +36,6 @@ class News(News_Model):
     )
 
 class Segment_LLM_Manager(LLM_Manager):
-    def __init__(self):
-        super().__init__(News)
-
     def _get_news_request_text(self, target: JsonModel, news_collection: str):
 #----------------------------------------------------------------------------------------------------
         request_text = f"""
@@ -78,18 +73,13 @@ class Segment(JsonModel):
     segment_name: str
 
     news: News | None = None
-
     llm_manager: ClassVar[Segment_LLM_Manager] = Segment_LLM_Manager()
 
     def _get_name(self):
         return f"{self.profile_name}({self.id})"
 
-    def get_qualitative_dict(self):
-        return super().get_qualitative_dict() | {"news": self.news}
-
-    def get_news_dir(self) -> Path | None:
-        news_dir = Path(NEWS_DIR) / self.filename
-        return news_dir if news_dir.is_dir() else None
+    def get_news_dir(self):
+        return Path(PROFILE_NEWS_DIR) / self.filename
 
     def scrape_news(self, query_prefix="", search_theme=[]):
         query_prefix = f"{self.profile_name} {self.segment_name}"
@@ -183,7 +173,7 @@ class Segment(JsonModel):
             segment_name = segment_name,
         )
 
-        # news is filled after segment creation
+        # news is filled after instance creation
         segment.news = cls.llm_manager.gen_news(segment)
 
         # financials is filled after segment creation

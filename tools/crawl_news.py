@@ -6,7 +6,7 @@ from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
 from crawl4ai.content_filter_strategy import PruningContentFilter
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
 from build.tools.ggl_news_feed import get_google_news_feed, add_banned_domain
-from build.tools.settings import NEWS_DIR, GENERAL_DIR
+from build.tools.settings import GENERAL_DIR
 
 CUTOFF_MONTHS=3 
 MAX_RESULT=10 
@@ -16,12 +16,10 @@ SHOW_RES=True
 _exetime = datetime.now().strftime('%y%m%d%H%M') 
 
 def _set_dir_path(dest_dir=None): # and create dirs
-    if dest_dir:
-        _dest = os.path.join(NEWS_DIR, dest_dir)
-    else: 
-        _dest = GENERAL_DIR
-    os.makedirs(_dest, exist_ok=True)
-    return _dest
+    if dest_dir is None:
+        dest_dir = GENERAL_DIR
+    os.makedirs(dest_dir, exist_ok=True)
+    return dest_dir
 
 def _set_filename(timestamp, title=None):
     if title:

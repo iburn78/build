@@ -482,8 +482,8 @@ def _render_qualitative(qual_dict, target_type, target_key, info_section_validat
     """
 
 # list all news articles in the given folder newest first
-def _render_news(news_dir):
-    if news_dir is None or not news_dir.exists():
+def _render_news(news_dir: Path):
+    if not news_dir.exists():
         return ""
 
     paths = sorted(
@@ -521,7 +521,7 @@ def render_html(target_class,
                 financials_names: list, 
                 financials_dicts: list, 
                 qual_dict: dict, 
-                news_dir: None,
+                news_dir: Path,
                 output_file: Path, 
                 template_html:Path=TEMPLATE_HTML, 
                 collapsed_paths=COLLAPSED_PATHS, 

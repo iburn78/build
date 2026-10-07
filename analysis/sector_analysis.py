@@ -177,7 +177,7 @@ class SectorAnalysis:
         self._subitems_financials_processed = []
 
         self.is_index = False # fr_data not available
-        self.adjuster = None
+        self.adjuster: object | None = None
 
     # =======================================================================================================================
     # Creation
