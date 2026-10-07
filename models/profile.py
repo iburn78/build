@@ -103,12 +103,12 @@ class Business(InfoSection):
 class News(NewsModel):
     key_facts: list[str] = Field(
         description="Article-specific factual developments, explicitly stated.",
-        min_length=1,
+        min_length=0,
         max_length=5,
     )
     key_issues: list[str] = Field(
         description="Explicitly stated risks, issues, or uncertainties (include resolution only if stated).",
-        min_length=1,
+        min_length=0,
         max_length=5,
     )
     news_summary: str = Field(
@@ -159,6 +159,7 @@ Rules:
 - Use only information explicitly stated in the articles.
 - Merge duplicate points across articles.
 - Keep each fact specific to the company and time-bound.
+- Use empty lists when the articles contain no supported facts or issues.
 - Write in Korean.
 
 Articles:

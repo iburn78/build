@@ -15,7 +15,7 @@ from build.tools.settings import sanitized_filename, BUILD_DIR, DEFAULT_NEWS_LLM
 from build.tools.render_html import render_html
 from build.tools.crawl_news import crawl_news
 
-FINANCIALS_UPDATE_PERIOD_HR = 0 # Hours
+FINANCIALS_UPDATE_PERIOD_HR = 3 # Hours
 NUM_THREAD_TO_RUN = 8
 
 NEWS_REFRESH_THRES = 3 # days
@@ -38,12 +38,15 @@ class NewsModel(BaseModel):
     updated: str = ""
 
     def needs_refresh(self):
-        if self.updated:
-            return (
-                datetime.now() - datetime.fromisoformat(self.updated)
-                >= timedelta(days=NEWS_REFRESH_THRES)
-            )
-        return True
+        if not self.updated:
+            return True
+        try:
+            updated_at = datetime.fromisoformat(self.updated)
+            if updated_at.tzinfo is not None:
+                return True
+            return datetime.now() - updated_at >= timedelta(days=NEWS_REFRESH_THRES)
+        except (TypeError, ValueError):
+            return True
 
 class LLM_Manager(ABC):
     def __init__(self, news_type, news_mode=DEFAULT_NEWS_LLM):
