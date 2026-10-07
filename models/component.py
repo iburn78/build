@@ -69,7 +69,6 @@ def ck(key):
 class Traits(InfoSection):
     competition: str = "" # m/s, leader, competitive advatages
     key_drivers: str = "" # what drives the growth and determines who wins, technology innovation, demand growth, etc
-    notes: str = ""
 
 class Component(JsonModel):
     DIR = COMPONENTS_DIR

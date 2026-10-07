@@ -300,7 +300,9 @@ class Profile(JsonModel):
         self._subitems_financials_processed = _sa._subitems_financials_processed
 
     def _update(self, **kwargs):
-        changed = False
+        overview_changed = False
+        info_section_changed = False
+        news_changed = False
         _info_section = kwargs.get('info_section')
         if self.overview.needs_refresh():
             print(f"Updating overview for {self.key}")
@@ -308,22 +310,24 @@ class Profile(JsonModel):
 
             if not self.info_section.reviewed and not _info_section:
                 self.info_section = self.llm_manager._gen_business(self.overview)
-            changed = True
+            overview_changed = True
 
         if _info_section:
             old_values = self.info_section.model_dump(exclude={"updated"})
             new_values = _info_section.model_dump(exclude={"updated"})
             if old_values != new_values:
                 self.info_section = _info_section
-                changed = True
+                info_section_changed = True
 
-        if changed or self.news_summary is None or self.news_summary.needs_refresh():
+        if overview_changed or self.news_summary is None or self.news_summary.needs_refresh():
             print(f"Generating news_summary for {self.key}")
             self.news_summary = self.llm_manager._gen_news(self)
-            changed = True
+            news_changed = True
 
         # Build derived segments once, using the final info_section for this update.
         self._get_subitems()
+
+        changed = overview_changed or info_section_changed or news_changed
 
         if changed or self._update_financials(**kwargs):
             self._get_financials(**kwargs)

@@ -5,9 +5,13 @@ from datetime import datetime, timedelta
 from typing import Any, ClassVar
 import json
 import sys
+import re
 from concurrent.futures import ThreadPoolExecutor
-from build.tools.settings import sanitized_filename, BUILD_DIR, NUM_THREAD_TO_RUN 
+from build.tools.settings import sanitized_filename, BUILD_DIR
 from build.tools.render_html import render_html
+
+FINANCIALS_UPDATE_PERIOD_HR = 3
+NUM_THREAD_TO_RUN = 8
 
 class InfoSection(BaseModel):
     # to provide human-review-needed information to JsonModels
@@ -15,6 +19,10 @@ class InfoSection(BaseModel):
     # - if needed, AI agent can be used
     reviewed: bool = False
     updated: str | None = None
+
+    # common attrs to be used as classification and notes
+    tags: str = ""
+    notes: str = ""
 
 class JsonModel(BaseModel, ABC):
     # to provide a basic pydantic structure to subclasses
@@ -56,8 +64,10 @@ class JsonModel(BaseModel, ABC):
     def get_qualitative_dict(self) -> dict:
         # return a dict, which contain BaseModels to be shown in html
         # single InfoSection is included in the dict
+        s = type(self.info_section).__name__
+        formatted = re.sub(r'(?<!^)([A-Z])', r'_\1', s).lower()
         return {
-            type(self.info_section).__name__.lower(): self.info_section,
+            formatted: self.info_section,
         }
 
     def get_news_dir(self) -> Path | None:
@@ -79,7 +89,7 @@ class JsonModel(BaseModel, ABC):
 
         updated = self.financials["meta"]["updated"]
         updated_at = datetime.fromisoformat(updated)
-        if datetime.now() - updated_at > timedelta(hours=3):
+        if datetime.now() - updated_at > timedelta(hours=FINANCIALS_UPDATE_PERIOD_HR):
             return True
 
         return any(

@@ -34,8 +34,6 @@ DEFAULT_NEWS_LLM = 'ollama'
 QUARTERLY_PERFORMANCES_URL = 'http://10.245.110.101:3000'
 INDEX_HTML = "http://localhost:3000"
 
-NUM_THREAD_TO_RUN = 8
-
 df_krx = df_krx
 get_name = get_name
 

@@ -6,7 +6,6 @@ from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 class Landscape(InfoSection):
     dynamics: str = "" # leading component, margin concentration, buyer-seller power dynamics
     key_drivers: str = "" # what drives the growth and determines who wins, technology innovation, demand growth, etc
-    notes: str = ""
 
 class ValueChain(JsonModel):
     DIR = VALUECHAIN_DIR
