@@ -53,7 +53,7 @@ class JsonModel(BaseModel, ABC):
         return Path(self.DIR) / f"{self.filename}.json"
 
     def save_to_file(self):
-        self.updated = datetime.now().strftime("%Y-%m-%d") 
+        self.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
         jp = self.get_json_path()
         jp.write_text(
             self.model_dump_json(indent=4, exclude_none=True),

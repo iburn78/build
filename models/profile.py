@@ -33,7 +33,7 @@ class Overview(BaseModel):
     title: str
     desc: str
     as_of: str # date fnguide created title/desc; yyyy-mm-dd
-    updated: str # date current overview is updated: yyyy-mm-dd
+    updated: str # current overview update time: yyyy-mm-dd HH:MM
 
     def needs_refresh(self):
         try:
@@ -92,7 +92,7 @@ class Overview(BaseModel):
             title = title.get_text(strip=True) if title else "",
             desc = desc,
             as_of = date.get_text(strip=True).strip("[]").replace("/","-") if date else "",
-            updated = datetime.now().strftime("%Y-%m-%d")
+            updated = datetime.now().strftime("%Y-%m-%d %H:%M")
         )
 
 class Business(InfoSection):
@@ -207,7 +207,7 @@ Articles:
             print(f"News generation failed for {profile.code}: {e}")
             return None
 
-        res.updated = datetime.now().strftime("%Y-%m-%d")
+        res.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
         return res
 
 class Profile(JsonModel):

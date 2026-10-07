@@ -86,8 +86,8 @@ class Segment_LLM_Manager:
                 key_financials=[],
                 key_facts=[],
                 key_issues=[],
-                news_summary="수집된 기사에서 이 사업 부문에 관한 명확한 정보를 찾지 못했습니다.",
-                updated=datetime.now().strftime("%Y-%m-%d"),
+                news_summary="",
+                updated=datetime.now().strftime("%Y-%m-%d %H:%M"),
             )
 
 #----------------------------------------------------------------------------------------------------
@@ -120,7 +120,7 @@ Articles:
             print(f"News generation failed for {segment.key}: {e}")
             return None
 
-        res.updated = datetime.now().strftime("%Y-%m-%d")
+        res.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
         return res
 
 class Segment(JsonModel):

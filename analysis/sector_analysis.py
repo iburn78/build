@@ -168,7 +168,7 @@ class FinancialsData:
 class SectorAnalysis: 
     # a sector analysis
     def __init__(self):
-        self.meta = {'name': '', 'code': '', 'segment_name': '', 'id': '', 'updated': pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")}
+        self.meta = {'name': '', 'code': '', 'segment_name': '', 'id': '', 'updated': pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")}
         self.shape = {}
         self.assess_data = {}
         self.assess_result = {}
