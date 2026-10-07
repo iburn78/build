@@ -1,4 +1,3 @@
-import os
 import shutil
 from pathlib import Path
 import requests
@@ -6,27 +5,16 @@ from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from typing import ClassVar
 from pydantic import BaseModel, Field
-from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.openai import OpenAIProvider
-from openai import AsyncOpenAI
-from build.models.json_model import JsonModel, InfoSection
+from build.models.json_model import JsonModel, InfoSection, LLM_Manager, News_Model
 from build.models.segment import Segment
-from build.tools.settings import llm_selector, get_id
-from build.tools.settings import PROFILES_DIR, NEWS_DIR, get_name, DEFAULT_BIZ_LLM, DEFAULT_NEWS_LLM, get_FN_GUIDE_url
-from build.tools.crawl_news import crawl_news
+from build.tools.settings import PROFILES_DIR, NEWS_DIR, get_id, get_name, DEFAULT_BIZ_LLM, get_FN_GUIDE_url
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 
 OVERVIEW_REFRESH_THRES = 30 # days
-NEWS_REFRESH_THRES = 3 # days
 MAX_SEGMENTS = 3
 MAX_PRODUCTS = 3
 MAX_COMPETITORS = 3
-
-DEFAULT_SEARCH_THEME = ['실적', '전망']
-NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
-NUM_TO_FEED_LLM = 10 # number of articles to provide to LLM
-AGENT_RETRIES = 5
+PROFILE_SEARCH_THEME = ['실적', '전망']
 
 class Overview(BaseModel):
     # crawled from fnguide
@@ -112,7 +100,7 @@ class Business(InfoSection):
     search_specifier: str | None = None # keyword specific to this profile to add in all news search
     search_theme: list[str] = Field(default_factory=list)
 
-class News(BaseModel):
+class News(News_Model):
     key_facts: list[str] = Field(
         description="Article-specific factual developments, explicitly stated.",
         min_length=1,
@@ -127,35 +115,13 @@ class News(BaseModel):
         description="Single concise synthesis of all articles.",
         max_length=500,
     )
-    updated: str = "" # give default so LLM not to generate a value for this field (also reassigned later)
 
-    def needs_refresh(self):
-        if self.updated:
-            return (
-                datetime.now() - datetime.fromisoformat(self.updated)
-                >= timedelta(days=NEWS_REFRESH_THRES)
-            )
-        return True
-
-class Profile_LLM_Manager:
-    def __init__(self, biz_mode=DEFAULT_BIZ_LLM, news_mode=DEFAULT_NEWS_LLM):
+class Profile_LLM_Manager(LLM_Manager):
+    def __init__(self, biz_mode=DEFAULT_BIZ_LLM):
         self.business_agent = self._make_agent(llm_mode=biz_mode, output_type=Business)
-        self.news_agent = self._make_agent(llm_mode=news_mode, output_type=News)
+        super().__init__(News)
 
-    def _make_agent(self, llm_mode, output_type): # llm_selector parameter - local, ollama, openai, etc
-        u, k, m = llm_selector(llm_mode)
-        client = AsyncOpenAI(base_url=u, api_key=k)
-        model = OpenAIChatModel(
-            model_name=m,
-            provider=OpenAIProvider(openai_client=client),
-        )
-        return Agent(
-            model=model,
-            output_type=output_type,
-            retries=AGENT_RETRIES,
-        )
-
-    def _gen_business(self, overview: Overview) -> Business:
+    def gen_business(self, overview: Overview) -> Business:
 #----------------------------------------------------------------------------------------------------
         request_text = f"""
 Extract a company profile from the recent business summary below.
@@ -182,8 +148,7 @@ Rules:
         bs.reviewed = False
         return bs
 
-    def _gen_news(self, profile: Profile):
-        news_collection = profile.scrape_news()
+    def _get_news_request_text(self, target: JsonModel, news_collection: str):
 #----------------------------------------------------------------------------------------------------
         request_text = f"""
 Summarize the news articles about the company.
@@ -201,14 +166,7 @@ Articles:
 {news_collection}
 """
 #----------------------------------------------------------------------------------------------------
-        try:
-            res = self.news_agent.run_sync(request_text).output   # CompanyRecentDevs class instance
-        except Exception as e:
-            print(f"News generation failed for {profile.code}: {e}")
-            return None
-
-        res.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
-        return res
+        return request_text
 
 class Profile(JsonModel):
     DIR = PROFILES_DIR
@@ -218,7 +176,7 @@ class Profile(JsonModel):
     name: str
 
     overview: Overview
-    news_summary: News | None = None
+    news: News | None = None
 
     llm_manager: ClassVar[Profile_LLM_Manager] = Profile_LLM_Manager()
 
@@ -229,7 +187,7 @@ class Profile(JsonModel):
         default = super().get_qualitative_dict()
         return default | {
             'overview': self.overview,
-            'news_summary': self.news_summary,
+            'news': self.news,
         }
 
     def _get_subitems(self):
@@ -287,6 +245,11 @@ class Profile(JsonModel):
             return None
         return paths[0]
 
+    def scrape_news(self, query_prefix="", search_theme=[]):
+        query_prefix = self.name
+        search_theme = PROFILE_SEARCH_THEME
+        return super().scrape_news(query_prefix, search_theme)
+
     def _get_financials(self, **kwargs):
         _sa = SectorAnalysis()
         _sa.meta['name'] = self.name
@@ -309,7 +272,7 @@ class Profile(JsonModel):
             self.overview = Overview.fetch(self.key)
 
             if not self.info_section.reviewed and not _info_section:
-                self.info_section = self.llm_manager._gen_business(self.overview)
+                self.info_section = self.llm_manager.gen_business(self.overview)
             overview_changed = True
 
         if _info_section:
@@ -319,9 +282,9 @@ class Profile(JsonModel):
                 self.info_section = _info_section
                 info_section_changed = True
 
-        if overview_changed or self.news_summary is None or self.news_summary.needs_refresh():
-            print(f"Generating news_summary for {self.key}")
-            self.news_summary = self.llm_manager._gen_news(self)
+        if overview_changed or self.news is None or self.news.needs_refresh():
+            print(f"Generating news for {self.key}")
+            self.news = self.llm_manager.gen_news(self)
             news_changed = True
 
         # Build derived segments once, using the final info_section for this update.
@@ -342,7 +305,7 @@ class Profile(JsonModel):
 
         ov = Overview.fetch(key)
         if isection is None:
-            isection = cls.llm_manager._gen_business(ov)
+            isection = cls.llm_manager.gen_business(ov)
 
         profile = Profile(
             key=key,
@@ -353,7 +316,7 @@ class Profile(JsonModel):
             info_section=isection,
         )
         # news summary is filled after profile creation
-        profile.news_summary = cls.llm_manager._gen_news(profile)
+        profile.news = cls.llm_manager.gen_news(profile)
 
         profile._get_subitems()
         # financials is filled after profile creation
@@ -361,6 +324,7 @@ class Profile(JsonModel):
 
         return profile
 
+    # below overrided
     @classmethod
     def get_item(cls, key, **kwargs):
         code, id = get_id(key)
@@ -371,24 +335,3 @@ class Profile(JsonModel):
             except:
                 print(f"Segment {key} of {profile.name} is not available. Profile is used instead - re-run after review segments.")
         return profile
-
-    def scrape_news(self):
-        search_set = self.info_section.search_theme + DEFAULT_SEARCH_THEME
-        search_set = [f"{self.info_section.search_specifier} {k}" if self.info_section.search_specifier else k for k in search_set]
-
-        for k in search_set:
-            _request = self.name + ' ' + k
-            crawl_news(_request, dest_dir=self.filename, max_result=NUM_TO_CRAWL)
-
-        return self._get_news_collection()
-
-    def _get_news_collection(self):
-        _dest = Path(os.path.join(NEWS_DIR, self.filename))
-
-        # choose latest INPUT_FILE_NUM articles
-        combined = "\n".join(
-            md_file.read_text(encoding="utf-8")
-            for md_file in sorted(_dest.glob("*.md"), reverse=True)[:NUM_TO_FEED_LLM]
-        )
-
-        return combined

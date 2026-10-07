@@ -1,17 +1,28 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 from pydantic import BaseModel, PrivateAttr
+from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIChatModel
+from openai import AsyncOpenAI
 from datetime import datetime, timedelta
 from typing import Any, ClassVar
 import json
 import sys
 import re
 from concurrent.futures import ThreadPoolExecutor
-from build.tools.settings import sanitized_filename, BUILD_DIR
+import os
+from build.tools.settings import sanitized_filename, BUILD_DIR, NEWS_DIR, DEFAULT_NEWS_LLM, llm_selector
 from build.tools.render_html import render_html
+from build.tools.crawl_news import crawl_news
 
 FINANCIALS_UPDATE_PERIOD_HR = 3
 NUM_THREAD_TO_RUN = 8
+
+NEWS_REFRESH_THRES = 3 # days
+NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
+NUM_TO_FEED_LLM = 10 # number of articles to provide to LLM
+AGENT_RETRIES = 5
 
 class InfoSection(BaseModel):
     # to provide human-review-needed information to JsonModels
@@ -23,6 +34,50 @@ class InfoSection(BaseModel):
     # common attrs to be used as classification and notes
     tags: str = ""
     notes: str = ""
+
+class News_Model(BaseModel):
+    def needs_refresh(self):
+        if self.updated:
+            return (
+                datetime.now() - datetime.fromisoformat(self.updated)
+                >= timedelta(days=NEWS_REFRESH_THRES)
+            )
+        return True
+
+class LLM_Manager(ABC):
+    def __init__(self, output_type, news_mode=DEFAULT_NEWS_LLM):
+        self.news_agent = self._make_agent(llm_mode=news_mode, output_type=output_type)
+
+    def _make_agent(self, llm_mode, output_type):
+        u, k, m = llm_selector(llm_mode)
+        client = AsyncOpenAI(base_url=u, api_key=k)
+        model = OpenAIChatModel(
+            model_name=m,
+            provider=OpenAIProvider(openai_client=client),
+        )
+        return Agent(
+            model=model,
+            output_type=output_type,
+            retries=AGENT_RETRIES,
+        )
+
+    def gen_news(self, target: "JsonModel"):
+        news_collection = target.scrape_news()
+        if not news_collection.strip():
+            return None
+        request_text = self._get_news_request_text(target, news_collection)
+        try:
+            res = self.news_agent.run_sync(request_text).output
+        except Exception as e:
+            print(f"News generation failed for {target.key}: {e}")
+            return None
+
+        res.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
+        return res
+
+    @abstractmethod
+    def _get_news_request_text(self, target: "JsonModel", news_collection: str) -> str:
+        ...
 
 class JsonModel(BaseModel, ABC):
     # to provide a basic pydantic structure to subclasses
@@ -72,6 +127,33 @@ class JsonModel(BaseModel, ABC):
 
     def get_news_dir(self) -> Path | None:
         return None
+
+    def _news_query_prefix(self) -> str:
+        return self._get_name()
+
+    def scrape_news(self, query_prefix="", search_theme=[]):
+        search_set = self.info_section.search_theme + search_theme
+        search_set = [
+            f"{self.info_section.search_specifier} {theme}"
+            if self.info_section.search_specifier else theme
+            for theme in search_set
+        ]
+
+        for theme in search_set:
+            query = f"{query_prefix} {theme}" if query_prefix else theme
+            crawl_news(
+                query,
+                dest_dir=self.filename,
+                max_result=NUM_TO_CRAWL,
+            )
+        return self._get_news_collection()
+
+    def _get_news_collection(self):
+        news_dir = Path(NEWS_DIR) / self.filename
+        return "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in sorted(news_dir.glob("*.md"), reverse=True)[:NUM_TO_FEED_LLM]
+        )
 
     # Child items are populated by get_item after update inputs are applied.
     def get_subitems(self): 
