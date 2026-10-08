@@ -154,15 +154,17 @@ class FinancialsData:
 
         if self.adjuster.PER is None:
             PER_ltm = self.ma_data['marcap'].iloc[-1]/self.fr_data['opincome_qtr'].iloc[-4:].sum()
-            self.adjuster.PER = round_sig(PER_ltm)
+            self.adjuster.PER = round_sig(PER_ltm, na_to_zero=True)
 
         if self.adjuster.opmargin is None:
             OPM_ltm = self.fr_data['opincome_qtr'].iloc[-4:].sum()/self.fr_data['revenue_qtr'].iloc[-4:].sum()
-            self.adjuster.opmargin = round_sig(OPM_ltm)
+            self.adjuster.opmargin = round_sig(OPM_ltm, na_to_zero=True)
 
         self.fr_data['revenue_qtr'] = self.fr_data['revenue_qtr']*self.adjuster.revenue_share
         self.fr_data['opincome_qtr'] = self.fr_data['revenue_qtr']*self.adjuster.opmargin
         marcap_ratio = (self.fr_data['opincome_qtr'].iloc[-4:].sum()*self.adjuster.PER)/self.ma_data['marcap'].iloc[-1]
+        if pd.isna(marcap_ratio):
+            marcap_ratio=self.adjuster.revenue_share
         self.ma_data['marcap'] = self.ma_data['marcap'] * marcap_ratio
 
 class SectorAnalysis: 
@@ -315,10 +317,10 @@ class SectorAnalysis:
     def _build_shape(self):  
         self.shape['financials'] = {}
         self.shape['financials']['marcap'] = round_sig(self.ma_data.iat[-1,0])
-        self.shape['financials']['revenue_4qtrs'] = round_sig(self.fr_data[-4:].sum().iat[0])
-        self.shape['financials']['opincome_4qtrs'] = round_sig(self.fr_data[-4:].sum().iat[1])
-        self.shape['financials']['revenue_qtr'] = round_sig(self.fr_data.iat[-1, 0])
-        self.shape['financials']['opincome_qtr'] = round_sig(self.fr_data.iat[-1, 1])
+        self.shape['financials']['revenue_4qtrs'] = round_sig(self.fr_data[-4:].sum().iat[0], na_to_zero=True)
+        self.shape['financials']['opincome_4qtrs'] = round_sig(self.fr_data[-4:].sum().iat[1], na_to_zero=True)
+        self.shape['financials']['revenue_qtr'] = round_sig(self.fr_data.iat[-1, 0], na_to_zero=True)
+        self.shape['financials']['opincome_qtr'] = round_sig(self.fr_data.iat[-1, 1], na_to_zero=True)
 
     def _build_assess_data(self):  
         if self.is_index: 
@@ -332,9 +334,25 @@ class SectorAnalysis:
 
         fr = fr.iloc[start_idx:]
 
-        if len(fr.dropna()) < 5: 
-            print('Need fr data at least 5 qtrly data points')
-            return False
+        # checker of usefulness of fr_data
+        # checker of usefulness of fr_data
+        for col in ['revenue_qtr', 'opincome_qtr']:
+            s = fr[col]
+
+            if len(s) < 5:
+                print(f'Need {col} at least 5 qtrly data points')
+                print(fr)
+                return False
+
+            if len(s.dropna()) < 5:
+                print(f'{col} needs at least 5 non-NA qtrly data points')
+                print(fr)
+                return False
+
+            if s.dropna().ne(0).sum() < 5:
+                print(f'{col} needs at least 5 non-zero qtrly data points')
+                print(fr)
+                return False
 
         opic = fr['opincome_qtr'] 
         rev = fr['revenue_qtr']
@@ -667,7 +685,7 @@ class SectorAnalysis:
         for col in ['marcap', 'amount_subtotal']:
             ma_plotdata.loc['recent_inc', col] = self._aggr_dataset[col].iloc[-1] / self._aggr_dataset[col].iloc[-2] - 1
 
-            slope, intercpet = get_slope_intercept(self._aggr_dataset[col])
+            slope, intercpet = get_slope_intercept(self._aggr_dataset[col], na_to_zero=True)
             ma_plotdata.loc['slope', col] = slope
             ma_plotdata.loc['intercept', col] = intercpet
 

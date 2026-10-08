@@ -67,9 +67,35 @@ def _same_signature(*dicts):
     passed = all(_dict_signature(d) == signature for d in dicts[1:])
     if not passed:
         print(f"Signature mismatching: ")
-        for d in dicts:
-            print(_dict_signature(d))
+        # for d in dicts:
+        #     print(_dict_signature(d))
     return passed
+
+def _align_dicts(*dicts):
+    keys = set().union(*(d.keys() for d in dicts))
+
+    result = [dict(d) for d in dicts]
+
+    for key in keys:
+        values = [d.get(key) for d in dicts]
+
+        # If at least one value is a dict, recursively align them.
+        dict_values = [v for v in values if isinstance(v, dict)]
+
+        if dict_values:
+            aligned = _align_dicts(*[
+                v if isinstance(v, dict) else {}
+                for v in values
+            ])
+
+            for d, value in zip(result, aligned):
+                d[key] = value
+        else:
+            for d, value in zip(result, values):
+                if key not in d:
+                    d[key] = None
+
+    return result
 
 def _section_row(key, level=0, colspan=1, collapsed=False):
     return f"""    
@@ -535,7 +561,8 @@ def render_html(target_class,
         raise ValueError("column_names and dict_list must have the same length")
 
     if not _same_signature(*financials_dicts):
-        raise ValueError("signatures not matching")
+        print('align financials_dicts ...')
+        financials_dicts = _align_dicts(*financials_dicts)
 
     page_name = f"[{escape(str(target_class).lower())}] {escape(str(financials_names[0]['name']))}"
     financials_section = _render_financials(target_class, target_key, financials_names, financials_dicts, output_file, collapsed_paths, no_chart_keys)

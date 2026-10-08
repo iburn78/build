@@ -85,16 +85,20 @@ class Overview(BaseModel):
 
 class Business(InfoSection):
     segments: list[str] = Field(
+        default_factory=list,
         description="Core business areas of the company (NOT products or competitors)"
     )
     revenue_share: list[float] = Field(
+        default_factory=list,
         description="Relative revenue size of segments of this company (total is 1)"
     )
     create_segments: bool = False
     key_products: list[str] = Field(
+        default_factory=list,
         description="Actual products or services offered by the company"
     )
     competitors: list[str] = Field(
+        default_factory=list,
         description="Direct competing companies in the same industry"
     )
     search_specifier: str | None = None # keyword specific to this profile to add in all news search
@@ -121,7 +125,7 @@ class Profile_LLM_Manager(LLM_Manager):
         self.business_agent = self._make_agent(llm_mode=biz_mode, output_type=Business)
         super().__init__(news_type=News)
 
-    def gen_business(self, overview: Overview) -> Business:
+    def gen_business(self, overview: Overview) -> Business | None:
 #----------------------------------------------------------------------------------------------------
         request_text = f"""
 Extract a company profile from the recent business summary below.
@@ -138,7 +142,12 @@ Rules:
 """
 #----------------------------------------------------------------------------------------------------
         # returns Business instance
-        bs = self.business_agent.run_sync(request_text).output
+        try:
+            bs = self.business_agent.run_sync(request_text).output
+        except Exception as e:
+            print(f"Business generation failed for an overview {overview.title[:30]}: {e}")
+            return None
+
 
         # ensure defaults again
         bs.create_segments = False
@@ -261,14 +270,18 @@ class Profile(JsonModel):
         info_section_changed = False
         news_changed = False
         _info_section = kwargs.get('info_section')
+
         if self.overview.needs_refresh():
             print(f"Updating overview for {self.key}")
             self.overview = Overview.fetch(self.key)
 
             if not self.info_section.reviewed and not _info_section:
-                self.info_section = self.llm_manager.gen_business(self.overview)
+                _is_generated = self.llm_manager.gen_business(self.overview)
+                if _is_generated:
+                    self.info_section = _is_generated
             overview_changed = True
 
+        # e.g., when info_section is modifed in the html (then replace with it even not reviewed)
         if _info_section:
             old_values = self.info_section.model_dump(exclude={"updated"})
             new_values = _info_section.model_dump(exclude={"updated"})
@@ -299,7 +312,11 @@ class Profile(JsonModel):
 
         ov = Overview.fetch(key)
         if isection is None:
-            isection = cls.llm_manager.gen_business(ov)
+            _is_generated = cls.llm_manager.gen_business(ov)
+            if _is_generated:
+                isection = _is_generated
+            else: 
+                isection = Business()
 
         profile = Profile(
             key=key,

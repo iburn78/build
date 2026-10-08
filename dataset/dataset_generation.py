@@ -51,3 +51,4 @@ vc = ValueChain.get_item(
 # Financial institutions
 # --------------------------------------------------
 Component.get_item('Bank', namelist = ['KB금융', '신한지주', '하나금융지주', '우리금융지주', 'BNK금융지주', 'iM금융지주', 'JB금융지주', '기업은행', '제주은행', '카카오뱅크'])
+Component.get_item('test', namelist = ['KB금융', '삼성전자',])

@@ -48,17 +48,25 @@ def is_KRX_open(now=None, strict=False):
 
     return market_open <= now.time() < market_close
 
-def get_slope_intercept(s: pd.Series):
+def get_slope_intercept(s: pd.Series, na_to_zero=False):
     s = s.dropna()
+    if len(s) < 2:
+        if na_to_zero:
+            return 0, 0
+        else: 
+            return None, None
     x = np.arange(len(s))
     y = s.values
     slope, intercept = np.polyfit(x,y,1)  
     return slope, intercept
 
 # round up to n significant numbers
-def round_sig(x, n=3):
+def round_sig(x, n=3, na_to_zero=False):
     if pd.isna(x):
-        return None
+        if na_to_zero: 
+            return 0
+        else: 
+            return None
     return float(f"{x:.{n}g}")
 
 def calc_increment(s: pd.Series, measure_duration, base_duration): 

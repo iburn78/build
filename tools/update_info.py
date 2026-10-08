@@ -1,14 +1,11 @@
 import sys
 import json
 from datetime import datetime
-from pathlib import Path
 
 from build.models.profile import Profile, Business
 from build.models.segment import Segment, FinancialsAdjuster
 from build.models.component import Component, Traits
 from build.models.valuechain import ValueChain,Landscape
-from build.models.json_model import InfoSection
-from build.analysis.sector_analysis import SectorAnalysis
 
 MODELS = {
     "Segment": Segment, 
