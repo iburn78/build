@@ -332,14 +332,14 @@ class SectorAnalysis:
 
         fr = fr.iloc[start_idx:]
 
-        if len(fr) < 5: 
+        if len(fr.dropna()) < 5: 
             print('Need fr data at least 5 qtrly data points')
             return False
 
         opic = fr['opincome_qtr'] 
         rev = fr['revenue_qtr']
-        
-        opic_slope , _ = get_slope_intercept(opic)
+
+        opic_slope, _ = get_slope_intercept(opic)
 
         res = {}
         # ------------------------------------------------------------------

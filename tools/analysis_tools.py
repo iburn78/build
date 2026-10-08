@@ -52,12 +52,13 @@ def get_slope_intercept(s: pd.Series):
     s = s.dropna()
     x = np.arange(len(s))
     y = s.values
-
     slope, intercept = np.polyfit(x,y,1)  
     return slope, intercept
 
 # round up to n significant numbers
 def round_sig(x, n=3):
+    if pd.isna(x):
+        return None
     return float(f"{x:.{n}g}")
 
 def calc_increment(s: pd.Series, measure_duration, base_duration): 
