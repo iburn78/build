@@ -1,7 +1,6 @@
 import sys
 import json
 from datetime import datetime
-
 from build.models.profile import Profile, Business
 from build.models.segment import Segment, FinancialsAdjuster
 from build.models.component import Component, Traits
@@ -44,7 +43,6 @@ def update_info(data):
         "updated": updated_section.updated,
         "json_path": str(item.get_json_path()),
     }
-
 
 # below is executed by nodejs
 if __name__ == "__main__":

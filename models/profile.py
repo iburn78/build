@@ -101,7 +101,7 @@ class Business(InfoSection):
         default_factory=list,
         description="Direct competing companies in the same industry"
     )
-    search_specifier: str | None = None # keyword specific to this profile to add in all news search
+    search_specifier: str = "" # keyword specific to this profile to add in all news search
     search_theme: list[str] = Field(default_factory=list)
 
 class News(NewsModel):

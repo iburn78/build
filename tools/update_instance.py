@@ -1,17 +1,9 @@
 import json
 import sys
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from build.analysis.sector_analysis import SectorAnalysis
 from build.models.component import Component
 from build.models.profile import Profile
 from build.models.segment import Segment
 from build.models.valuechain import ValueChain
-
 
 MODELS = {
     "Profile": Profile,
@@ -32,7 +24,6 @@ def update_instance(data):
 
     model = model_class.get_item(object_id)
     return {"ok": True, "json_path": str(model.get_json_path())}
-
 
 if __name__ == "__main__":
     try:

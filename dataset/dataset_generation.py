@@ -7,10 +7,9 @@ from pathlib import Path
 from build.models.profile import Profile
 from build.models.component import Component
 from build.models.valuechain import ValueChain
-
+'''
 # profiles may not need to be created before components' creation
 # components should be already created for valuechain to be created
-'''
 # --------------------------------------------------
 # Electronics
 # --------------------------------------------------
@@ -46,9 +45,9 @@ vc = ValueChain.get_item(
     component_keys=list(name_dict.keys()),
 )
 '''
-
 # --------------------------------------------------
 # Financial institutions
 # --------------------------------------------------
-Component.get_item('Bank', namelist = ['KB금융', '신한지주', '하나금융지주', '우리금융지주', 'BNK금융지주', 'iM금융지주', 'JB금융지주', '기업은행', '제주은행', '카카오뱅크'])
-Component.get_item('test', namelist = ['KB금융', '삼성전자',])
+Component.get_item('금융지주', namelist = ['KB금융', '신한지주', '하나금융지주', '우리금융지주', 'BNK금융지주', 'iM금융지주', 'JB금융지주', '기업은행', '제주은행', '카카오뱅크'])
+securities_companies = ['미래에셋증권', '한국금융지주', 'NH투자증권', '삼성증권', '키움증권', '대신증권', '한화투자증권', '유안타증권', '교보증권', '현대차증권', '신영증권', '유진투자증권', '부국증권', '한양증권', 'SK증권', 'DB증권', '다올투자증권', '상상인증권']
+Component.get_item('증권사', namelist = securities_companies)

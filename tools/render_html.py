@@ -269,9 +269,14 @@ def _render_financials(target_type, target_key, financials_names: list, financia
 
     return f"""<h3 class="financials-heading">
         <span>Financials Analysis</span>
-        <button class="model-instance-update-button" type="button"
-            data-object-type="{escape(str(target_type), quote=True)}"
-            data-object-id="{escape(str(target_key), quote=True)}">↻ Update</button>
+        <span class="model-instance-actions">
+            <button class="model-instance-delete-button" type="button"
+                data-object-type="{escape(str(target_type), quote=True)}"
+                data-object-id="{escape(str(target_key), quote=True)}">Delete</button>
+            <button class="model-instance-update-button" type="button"
+                data-object-type="{escape(str(target_type), quote=True)}"
+                data-object-id="{escape(str(target_key), quote=True)}">Update</button>
+        </span>
     </h3>
     <div class="dashboard">
         <div class="table-panel">

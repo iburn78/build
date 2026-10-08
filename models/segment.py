@@ -11,7 +11,7 @@ class FinancialsAdjuster(InfoSection):
     revenue_share: float | None = None
     PER: float | None = None
     opmargin: float | None = None
-    search_specifier: str | None = None # keyword specific to this segment to add in all news search
+    search_specifier: str = "" # keyword specific to this segment to add in all news search
     search_theme: list[str] = Field(default_factory=list)
 
 class News(NewsModel):

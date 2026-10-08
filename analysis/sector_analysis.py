@@ -149,6 +149,8 @@ class FinancialsData:
         return result
 
     # This is just a rough linear adjustment for simple and straightforward split of segments
+    # note: slope and growth_per_qtr of a segment is the same as "revenue" slope and growth_per_qtr of the corresponding profile 
+    #       under the following logic
     def adjust_data(self):
         if self.id is None: return 
 
@@ -162,6 +164,7 @@ class FinancialsData:
 
         self.fr_data['revenue_qtr'] = self.fr_data['revenue_qtr']*self.adjuster.revenue_share
         self.fr_data['opincome_qtr'] = self.fr_data['revenue_qtr']*self.adjuster.opmargin
+
         marcap_ratio = (self.fr_data['opincome_qtr'].iloc[-4:].sum()*self.adjuster.PER)/self.ma_data['marcap'].iloc[-1]
         if pd.isna(marcap_ratio):
             marcap_ratio=self.adjuster.revenue_share
@@ -334,7 +337,6 @@ class SectorAnalysis:
 
         fr = fr.iloc[start_idx:]
 
-        # checker of usefulness of fr_data
         # checker of usefulness of fr_data
         for col in ['revenue_qtr', 'opincome_qtr']:
             s = fr[col]
