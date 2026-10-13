@@ -7,7 +7,6 @@ from pathlib import Path
 from build.models.profile import Profile
 from build.models.component import Component
 from build.models.valuechain import ValueChain
-'''
 # profiles may not need to be created before components' creation
 # components should be already created for valuechain to be created
 # --------------------------------------------------
@@ -44,7 +43,6 @@ vc = ValueChain.get_item(
     key = "EV_Battery", 
     component_keys=list(name_dict.keys()),
 )
-'''
 # --------------------------------------------------
 # Financial institutions
 # --------------------------------------------------
