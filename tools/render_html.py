@@ -444,7 +444,7 @@ def _render_info_card(section_name, section, target_type, target_key):
                                 type="password"
                                 maxlength="4"
                                 inputmode="numeric"
-                                placeholder="••••"
+                                placeholder="....(p)"
                             >
 
                             <button
