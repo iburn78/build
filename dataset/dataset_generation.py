@@ -1,12 +1,11 @@
-#%%
-import pandas as pd
-from build.tools.settings import get_name, THIS_PROJECT
-from data.tools.tools import dprint
-from pathlib import Path
-
 from build.models.profile import Profile
 from build.models.component import Component
 from build.models.valuechain import ValueChain
+
+# --------------------------------------------------
+'''
+# --------------------------------------------------
+
 # profiles may not need to be created before components' creation
 # components should be already created for valuechain to be created
 # --------------------------------------------------
@@ -29,6 +28,10 @@ vc = ValueChain.get_item(
 # --------------------------------------------------
 # EV_Battery
 # --------------------------------------------------
+import pandas as pd
+from build.tools.settings import get_name, THIS_PROJECT
+from data.tools.tools import dprint
+from pathlib import Path
 
 ev = pd.read_excel(Path(THIS_PROJECT)/'dataset/refs/이차전지_밸류체인_Excel.xlsx')
 kr_ev = ev.loc[ev['티커'].str.contains('KS', na=False)]
@@ -49,3 +52,13 @@ vc = ValueChain.get_item(
 Component.get_item('금융지주', namelist = ['KB금융', '신한지주', '하나금융지주', '우리금융지주', 'BNK금융지주', 'iM금융지주', 'JB금융지주', '기업은행', '제주은행', '카카오뱅크'])
 securities_companies = ['미래에셋증권', '한국금융지주', 'NH투자증권', '삼성증권', '키움증권', '대신증권', '한화투자증권', '유안타증권', '교보증권', '현대차증권', '신영증권', '유진투자증권', '부국증권', '한양증권', 'SK증권', 'DB증권', '다올투자증권', '상상인증권']
 Component.get_item('증권사', namelist = securities_companies)
+
+# --------------------------------------------------
+# '''
+# --------------------------------------------------
+
+
+# --------------------------------------------------
+# Interest groups
+# --------------------------------------------------
+Component.get_item('Interest01', namelist = ['휴젤', '코웨이', '펌텍코리아'])

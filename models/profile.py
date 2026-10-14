@@ -148,8 +148,9 @@ Rules:
             print(f"Business generation failed for an overview {overview.title[:30]}: {e}")
             return None
 
-
         # ensure defaults again
+        bs.tags = ""
+        bs.notes = ""
         bs.create_segments = False
         bs.search_specifier = ""
         bs.search_theme = []
