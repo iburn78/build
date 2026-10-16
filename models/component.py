@@ -4,7 +4,7 @@ from build.models.json_model import JsonModel, InfoSection, NewsModel, LLM_Manag
 from build.models.profile import Profile
 from build.models.segment import Segment
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
-from typing import ClassVar
+from typing import Any, ClassVar
 from pathlib import Path
 
 COMPONENT_SEARCH_THEME = ['섹터 전망']
@@ -74,6 +74,11 @@ class Traits(InfoSection):
     competition: str = "" # m/s, leader, competitive advatages
     key_drivers: str = "" # what drives the growth and determines who wins, technology innovation, demand growth, etc
 
+    def model_post_init(self, context: Any) -> None:
+        if not self.search_theme:
+            self.search_theme = COMPONENT_SEARCH_THEME
+        return super().model_post_init(context)
+
 class News(NewsModel):
     key_facts: list[str] = Field(
         description="Distinct, explicitly reported developments relevant to this sector.",
@@ -132,10 +137,8 @@ class Component(JsonModel):
     def get_news_dir(self) -> Path:
         return Path(COMPONENT_NEWS_DIR) / self.filename
 
-    def scrape_news(self, query_prefix="", search_theme=[]):
-        query_prefix = self.key
-        search_theme = COMPONENT_SEARCH_THEME
-        return super().scrape_news(query_prefix, search_theme)
+    def get_search_key(self):
+        return self.key
 
     def _get_subitems(self):
         self._sub_items.clear()

@@ -3,7 +3,7 @@ from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
-from typing import ClassVar
+from typing import Any, ClassVar
 from pydantic import BaseModel, Field
 from build.models.json_model import JsonModel, InfoSection, NewsModel, LLM_Manager
 from build.models.segment import Segment
@@ -101,8 +101,11 @@ class Business(InfoSection):
         default_factory=list,
         description="Direct competing companies in the same industry"
     )
-    search_specifier: str = "" # keyword specific to this profile to add in all news search
-    search_theme: list[str] = Field(default_factory=list)
+
+    def model_post_init(self, context: Any) -> None:
+        if not self.search_theme:
+            self.search_theme = PROFILE_SEARCH_THEME
+        return super().model_post_init(context)
 
 class News(NewsModel):
     key_facts: list[str] = Field(
@@ -152,8 +155,7 @@ Rules:
         bs.tags = ""
         bs.notes = ""
         bs.create_segments = False
-        bs.search_specifier = ""
-        bs.search_theme = []
+        bs.search_theme = PROFILE_SEARCH_THEME
         bs.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
         bs.reviewed = False
         return bs
@@ -204,10 +206,8 @@ class Profile(JsonModel):
     def get_news_dir(self):
         return Path(PROFILE_NEWS_DIR) / self.filename
 
-    def scrape_news(self, query_prefix="", search_theme=[]):
-        query_prefix = self.name
-        search_theme = PROFILE_SEARCH_THEME
-        return super().scrape_news(query_prefix, search_theme)
+    def get_search_key(self):
+        return self.name
 
     def _get_subitems(self):
         self._sub_items.clear()

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from pydantic import BaseModel, PrivateAttr
+from pydantic import BaseModel, PrivateAttr, Field
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -29,6 +29,7 @@ class InfoSection(BaseModel):
     # - if needed, AI agent can be used
     reviewed: bool = False
     updated: str | None = None
+    search_theme: list[str] = Field(default_factory=list)
 
     # common attrs to be used as classification and notes
     tags: str = ""
@@ -136,19 +137,13 @@ class JsonModel(BaseModel, ABC):
         ...
 
     @abstractmethod
-    def scrape_news(self, query_prefix="", search_theme=[]):
-        search_set = getattr(self.info_section, "search_theme", []) + search_theme
-        search_specifier = getattr(self.info_section, "search_specifier", None)
-        search_set = [
-            f"{search_specifier} {theme}"
-            if search_specifier else theme
-            for theme in search_set
-        ]
+    def get_search_key(self) -> str:
+        ...
 
-        for theme in search_set:
-            query = f"{query_prefix} {theme}" if query_prefix else theme
+    def scrape_news(self):
+        for theme in self.info_section.search_theme:
             crawl_news(
-                query,
+                f"{self.get_search_key()} {theme}",
                 dest_dir=self.get_news_dir(),
                 max_result=NUM_TO_CRAWL,
             )

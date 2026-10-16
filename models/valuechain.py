@@ -3,7 +3,7 @@ from build.tools.settings import VALUECHAIN_DIR, VALUECHAIN_NEWS_DIR
 from build.models.json_model import JsonModel, InfoSection, NewsModel, LLM_Manager
 from build.models.component import Component
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
-from typing import ClassVar
+from typing import Any, ClassVar
 from pathlib import Path
 
 VALUECHAIN_SEARCH_THEME = ['산업 전망', '밸류체인']
@@ -11,6 +11,11 @@ VALUECHAIN_SEARCH_THEME = ['산업 전망', '밸류체인']
 class Landscape(InfoSection):
     dynamics: str = "" # leading component, margin concentration, buyer-seller power dynamics
     key_drivers: str = "" # what drives the growth and determines who wins, technology innovation, demand growth, etc
+
+    def model_post_init(self, context: Any) -> None:
+        if not self.search_theme:
+            self.search_theme = VALUECHAIN_SEARCH_THEME
+        return super().model_post_init(context)
 
 class News(NewsModel):
     key_facts: list[str] = Field(
@@ -70,10 +75,8 @@ class ValueChain(JsonModel):
     def get_news_dir(self):
         return Path(VALUECHAIN_NEWS_DIR) / self.filename
 
-    def scrape_news(self, query_prefix="", search_theme=[]):
-        query_prefix = self.key
-        search_theme = VALUECHAIN_SEARCH_THEME
-        return super().scrape_news(query_prefix, search_theme)
+    def get_search_key(self):
+        return self.key
 
     def _get_subitems(self):
         self._sub_items.clear()

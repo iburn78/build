@@ -11,12 +11,12 @@ class FinancialsAdjuster(InfoSection):
     revenue_share: float | None = None
     marcap_share: float | None = None
     opmargin: float | None = None
-    search_specifier: str = "" # keyword specific to this segment to add in all news search
-    search_theme: list[str] = Field(default_factory=list)
 
     def model_post_init(self, context: Any) -> None:
-        if not self.marcap_share:
+        if self.marcap_share is None:
             self.marcap_share = self.revenue_share
+        if not self.search_theme: 
+            self.search_theme = SEGMENT_SEARCH_THEME
         return super().model_post_init(context)
 
 class News(NewsModel):
@@ -89,10 +89,8 @@ class Segment(JsonModel):
     def get_news_dir(self):
         return Path(PROFILE_NEWS_DIR) / self.filename
 
-    def scrape_news(self, query_prefix="", search_theme=[]):
-        query_prefix = f"{self.profile_name} {self.segment_name}"
-        search_theme = SEGMENT_SEARCH_THEME
-        return super().scrape_news(query_prefix, search_theme)
+    def get_search_key(self):
+        return f"{self.profile_name} {self.segment_name}"
 
     def _get_subitems(self):
         pass
