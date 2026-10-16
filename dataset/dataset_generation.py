@@ -1,7 +1,7 @@
 from build.models.component import Component
 from build.models.valuechain import ValueChain
 
-'''
+# '''
 # ==================================================
 
 # profiles may not need to be created before components' creation

@@ -70,10 +70,12 @@ class FinancialsData:
             raise Exception(f'check code in key {self.key}')
 
         outshares = df_krx.at[self.code, 'Stocks']
+        price = prices[self.code]
+
         ma_data = pd.DataFrame({
-            'marcap': prices[self.code] * outshares / self.unit,
-            'amount_daily': volumes[self.code] * prices[self.code] / self.unit,
-        })
+            'marcap': price * outshares / self.unit,
+            'amount_daily': volumes[self.code] * price / self.unit,
+        }, dtype=np.float64)
 
         if ma_data.iloc[-1].isna().any():
             raise ValueError(f"ma data for code in key {self.key} is nan for last row - check")
@@ -128,7 +130,7 @@ class FinancialsData:
         fr_data = pd.DataFrame({
             'revenue_qtr': row_r,
             'opincome_qtr': row_o,
-        })
+        }, dtype=np.float64)
 
         return fr_data.ffill()
 
@@ -154,21 +156,14 @@ class FinancialsData:
     def adjust_data(self):
         if self.id is None: return 
 
-        if self.adjuster.PER is None:
-            PER_ltm = self.ma_data['marcap'].iloc[-1]/self.fr_data['opincome_qtr'].iloc[-4:].sum()
-            self.adjuster.PER = round_sig(PER_ltm, na_to_zero=True)
-
         if self.adjuster.opmargin is None:
             OPM_ltm = self.fr_data['opincome_qtr'].iloc[-4:].sum()/self.fr_data['revenue_qtr'].iloc[-4:].sum()
             self.adjuster.opmargin = round_sig(OPM_ltm, na_to_zero=True)
 
         self.fr_data['revenue_qtr'] = self.fr_data['revenue_qtr']*self.adjuster.revenue_share
         self.fr_data['opincome_qtr'] = self.fr_data['revenue_qtr']*self.adjuster.opmargin
+        self.ma_data = self.ma_data*self.adjuster.marcap_share
 
-        marcap_ratio = (self.fr_data['opincome_qtr'].iloc[-4:].sum()*self.adjuster.PER)/self.ma_data['marcap'].iloc[-1]
-        if pd.isna(marcap_ratio):
-            marcap_ratio=self.adjuster.revenue_share
-        self.ma_data['marcap'] = self.ma_data['marcap'] * marcap_ratio
 
 class SectorAnalysis: 
     # a sector analysis
@@ -339,20 +334,10 @@ class SectorAnalysis:
 
         # checker of usefulness of fr_data
         for col in ['revenue_qtr', 'opincome_qtr']:
-            s = fr[col]
+            s = fr[col].tail(5)
 
-            if len(s) < 5:
-                print(f'Need {col} at least 5 qtrly data points')
-                print(fr)
-                return False
-
-            if len(s.dropna()) < 5:
-                print(f'{col} needs at least 5 non-NA qtrly data points')
-                print(fr)
-                return False
-
-            if s.dropna().ne(0).sum() < 5:
-                print(f'{col} needs at least 5 non-zero qtrly data points')
+            if len(s) < 5 or s.isna().any():
+                print(f'{col} needs the last 5 quarterly data points to be non-NA')
                 print(fr)
                 return False
 
@@ -376,6 +361,7 @@ class SectorAnalysis:
         c2 = bool(vals.notna().all() and vals.iloc[0] >= vals.iloc[[1, 2]].max())
 
         # opincome slope over the average of last 4 quarters
+        # will be inf or na if mean is 0
         opic_growth = opic_slope / opic.iloc[-4:].mean() 
 
         res['opincome'] = {
@@ -448,40 +434,44 @@ class SectorAnalysis:
         if oh['growth_per_qtr'] >= OPINCOME_GROWTH_RATE: 
             finantially_sound = True
 
-        om = self.assess_data['opmargin'].values()
-        if all(x is not None and x > OPMARGIN_THRESHOLD for x in om):
-            finantially_sound = True
+        om = list(self.assess_data['opmargin'].values())[-5:]
+        if len(om) == 5 and all(np.isfinite(x) and x >= OPMARGIN_THRESHOLD for x in om):
+            financially_sound = True
 
         # PER_level
         per = self.assess_data['PER']
         if per['PER_ltm'] <= PER_LOW: PER_level = 'Low'
         elif per['PER_ltm'] <= PER_MED: PER_level = 'Mid'
-        else: PER_level = 'High'
+        elif per['PER_ltm'] > PER_MED: PER_level = 'High'
+        else: PER_level = '(na)'
 
         # volatility movement in measure period
         vol = self.assess_data['volatility']
         if vol['measure_to_base'] < 1-VOLATILITY_THRESHOLD: volatility = 'Dn'
-        elif vol['measure_to_base'] < 1+VOLATILITY_THRESHOLD: volatility = '-'
-        else: volatility = 'Up'
+        elif vol['measure_to_base'] <= 1+VOLATILITY_THRESHOLD: volatility = '-'
+        elif vol['measure_to_base'] > 1+VOLATILITY_THRESHOLD: volatility = 'Up'
+        else: volatility = '(na)'
 
         # amount movement in measure period
         amt = self.assess_data['amount']
         if amt['measure_to_base'] < 1-AMOUNT_DAILY_THRESHOLD: amount = 'Dn'
-        elif amt['measure_to_base'] < 1+AMOUNT_DAILY_THRESHOLD: amount = '-'
-        else: amount = 'Up'
+        elif amt['measure_to_base'] <= 1+AMOUNT_DAILY_THRESHOLD: amount = '-'
+        elif amt['measure_to_base'] > 1+AMOUNT_DAILY_THRESHOLD: amount = 'Up'
+        else: amount = '(na)'
 
         # alpha_level
         alp = self.assess_data['alpha_beta']['measure_duration']
-        if alp['alpha'] < -ALPHA_DAILY_THRESHOLD: alpha_level = 'underperform' # strong negative
-        elif alp['alpha'] <=  ALPHA_DAILY_THRESHOLD: alpha_level = 'at_market'
-        else: alpha_level = 'outperform' # strong positive
+        if alp['alpha'] < -ALPHA_DAILY_THRESHOLD: alpha_level = 'udr_pfm' # strong negative
+        elif alp['alpha'] <=  ALPHA_DAILY_THRESHOLD: alpha_level = 'at_mkt'
+        elif alp['alpha'] >  ALPHA_DAILY_THRESHOLD: alpha_level = 'out_pfm' # strong positive
+        else: alpha_level = '(na)' 
 
         # Choose Representative Categories
         market_sentiment = 'unchanged'
-        if amount == 'Up' and volatility == 'Dn': market_sentiment = 'confidence_created'
-        elif amount == 'Up' and volatility == 'Up': market_sentiment = 'unstable'
-        elif amount == 'Dn' and volatility == 'Dn': market_sentiment = 'events_consumed'
-        elif amount == 'Dn' and volatility == 'Up': market_sentiment = 'speculators_remained'
+        if amount == 'Up' and volatility == 'Dn': market_sentiment = 'confidence' # confidence created
+        elif amount == 'Up' and volatility == 'Up': market_sentiment = 'unstable' 
+        elif amount == 'Dn' and volatility == 'Dn': market_sentiment = 'consumed' # events consumed
+        elif amount == 'Dn' and volatility == 'Up': market_sentiment = 'speculators' # speculators remained
 
         # --------------------------------------------
         # categorization
@@ -687,7 +677,7 @@ class SectorAnalysis:
         for col in ['marcap', 'amount_subtotal']:
             ma_plotdata.loc['recent_inc', col] = self._aggr_dataset[col].iloc[-1] / self._aggr_dataset[col].iloc[-2] - 1
 
-            slope, intercpet = get_slope_intercept(self._aggr_dataset[col], na_to_zero=True)
+            slope, intercpet = get_slope_intercept(self._aggr_dataset[col])
             ma_plotdata.loc['slope', col] = slope
             ma_plotdata.loc['intercept', col] = intercpet
 

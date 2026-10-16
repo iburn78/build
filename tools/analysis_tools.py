@@ -48,13 +48,12 @@ def is_KRX_open(now=None, strict=False):
 
     return market_open <= now.time() < market_close
 
-def get_slope_intercept(s: pd.Series, na_to_zero=False):
+def get_slope_intercept(s: pd.Series):
     s = s.dropna()
-    if len(s) < 2:
-        if na_to_zero:
-            return 0, 0
-        else: 
-            return None, None
+    if len(s) == 0:
+        return 0.0, 0.0
+    if len(s) == 1:
+        return 0.0, float(s.iloc[0])
     x = np.arange(len(s))
     y = s.values
     slope, intercept = np.polyfit(x,y,1)  
@@ -62,65 +61,73 @@ def get_slope_intercept(s: pd.Series, na_to_zero=False):
 
 # round up to n significant numbers
 def round_sig(x, n=3, na_to_zero=False):
-    if pd.isna(x):
-        if na_to_zero: 
-            return 0
-        else: 
-            return None
+    if pd.isna(x) or not np.isfinite(x):
+        return 0 if na_to_zero else np.nan
     return float(f"{x:.{n}g}")
 
-def calc_increment(s: pd.Series, measure_duration, base_duration): 
-    # designed only for non-negative series
+def calc_increment(s: pd.Series, measure_duration, base_duration):
+    # Designed only for non-negative series
     # args: 
     # - measure_duration: 20 (1 months)
     # - base_duration: 120 (6 months, required length)
     # return: [measure to base, slope]
+    # Returns NaN metrics if insufficient valid data remains.
 
-    s = s.dropna()
-    s = s[s != 0] # dropping zeros too (e.g., suspended days etc)
-    if (s < 0).any(): raise ValueError(f"check nonnegative numbers in {s}")
+    s = s[np.isfinite(s) & (s != 0)] # dropping zeros too (e.g., suspended days etc)
+
+    if (s < 0).any():
+        raise ValueError(f"check nonnegative numbers in {s}")
 
     bd = min(len(s), base_duration)
     md = min(bd, measure_duration)
 
-    slope, intercept = get_slope_intercept(s[-bd:])
+    if md == 0:
+        return {'measure_to_base': np.nan, 'slope': np.nan}
 
-    # define floor 
-    # - if extrapolated_value becomes negative or close to zero, comparison with measure_periodis is meaningless
-    _min = s[-bd:].mean()*0.3
+    slope, intercept = get_slope_intercept(s.iloc[-bd:])
 
-    extrapolated_value = max(intercept + slope*(bd-md/2), _min)
-    measure_duration_average = s[-md:].mean()
+    # Floor to avoid meaningless comparisons near zero
+    _min = s.iloc[-bd:].mean() * 0.3
 
-    measure_to_base_ratio = measure_duration_average/extrapolated_value
+    extrapolated_value = max(intercept + slope * (bd - md / 2), _min)
+    measure_duration_average = s.iloc[-md:].mean()
+
+    measure_to_base_ratio = measure_duration_average / extrapolated_value
 
     return {
-        'measure_to_base': round_sig(measure_to_base_ratio), 
+        'measure_to_base': round_sig(measure_to_base_ratio),
         'slope': round_sig(slope),
     }
 
+
 def calc_alpha_beta(
-    stock: pd.Series, # price or marcap
-    market: pd.Series, # index or marcap
-    n = 1,
+    stock: pd.Series,
+    market: pd.Series,
+    n=1,
 ):
     """
-    alpha : float
-        Average return alpha per period if n = 1
-        if n > 1, then the result is for n-period return 
-    beta : float
-        CAPM beta
+    alpha: Average return alpha per period if n = 1.
+           If n > 1, result is for n-period return.
+    beta: CAPM beta.
     """
 
-    df = pd.concat([stock, market], axis=1, join="inner").dropna()
+    df = pd.concat([stock, market], axis=1, join="inner")
     df.columns = ["stock", "market"]
+
+    df = df.replace([np.inf, -np.inf], np.nan).dropna()
 
     ret = df.pct_change()
     ret = ret.replace([np.inf, -np.inf], np.nan).dropna()
 
+    if len(ret) < 2 or ret["market"].var() == 0:
+        return {'alpha': np.nan, 'beta': np.nan}
+
     beta = ret["stock"].cov(ret["market"]) / ret["market"].var()
     _alpha = ret["stock"].mean() - beta * ret["market"].mean()
-    alpha = (_alpha+1)**n - 1
+    alpha = (1 + _alpha) ** n - 1
+
+    if not np.isfinite(alpha) or not np.isfinite(beta):
+        return {'alpha': np.nan, 'beta': np.nan}
 
     return {
         'alpha': round_sig(alpha),

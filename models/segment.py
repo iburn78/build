@@ -3,16 +3,21 @@ from build.tools.settings import PROFILES_DIR, PROFILE_NEWS_DIR, get_id, sanitiz
 from build.models.json_model import JsonModel, InfoSection, NewsModel, LLM_Manager
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 from pathlib import Path
-from typing import ClassVar
+from typing import Any, ClassVar
 
 SEGMENT_SEARCH_THEME = ['사업부 실적', '전망']
 
 class FinancialsAdjuster(InfoSection):
     revenue_share: float | None = None
-    PER: float | None = None
+    marcap_share: float | None = None
     opmargin: float | None = None
     search_specifier: str = "" # keyword specific to this segment to add in all news search
     search_theme: list[str] = Field(default_factory=list)
+
+    def model_post_init(self, context: Any) -> None:
+        if not self.marcap_share:
+            self.marcap_share = self.revenue_share
+        return super().model_post_init(context)
 
 class News(NewsModel):
     key_financials: list[str] = Field(
