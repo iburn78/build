@@ -28,10 +28,12 @@ def update_instance(data):
 if __name__ == "__main__":
     try:
         result = update_instance(json.load(sys.stdin))
-        print(json.dumps(result), file=sys.stderr)
+        with open(3, "w", encoding="utf-8", closefd=False) as response_pipe:
+            response_pipe.write(json.dumps(result, ensure_ascii=False))
     except Exception as error:
         import traceback
 
         traceback.print_exc(file=sys.stdout)
-        print(json.dumps({"ok": False, "error": str(error)}), file=sys.stderr)
+        with open(3, "w", encoding="utf-8", closefd=False) as response_pipe:
+            response_pipe.write(json.dumps({"ok": False, "error": str(error)}, ensure_ascii=False))
         sys.exit(1)

@@ -1,10 +1,8 @@
-from build.models.profile import Profile
 from build.models.component import Component
 from build.models.valuechain import ValueChain
 
-# --------------------------------------------------
 '''
-# --------------------------------------------------
+# ==================================================
 
 # profiles may not need to be created before components' creation
 # components should be already created for valuechain to be created
@@ -22,43 +20,38 @@ Component.get_item('Folderable', namelist = ['KH바텍', '세경하이테크', '
 
 vc = ValueChain.get_item(
     key = "Electronics",
-    component_keys=['Memory', 'Appliances', 'Smart_glass', 'Camera_module', 'PCB', 'MLCC', 'Display', 'Folderable'],
+    component_keys=['Memory', 'Smart_glass', 'Camera_module', 'PCB', 'MLCC', 'Display', 'Folderable'],
 )
 
 # --------------------------------------------------
 # EV_Battery
 # --------------------------------------------------
-import pandas as pd
-from build.tools.settings import get_name, THIS_PROJECT
-from data.tools.tools import dprint
-from pathlib import Path
-
-ev = pd.read_excel(Path(THIS_PROJECT)/'dataset/refs/이차전지_밸류체인_Excel.xlsx')
-kr_ev = ev.loc[ev['티커'].str.contains('KS', na=False)]
-name_dict = {category: [get_name(ticker.replace(" KS", "")) for ticker in tickers] 
-             for category, tickers in kr_ev.groupby("소분류")["티커"].apply(list).items()}
-# dprint(name_dict)
-
-for key, val in name_dict.items():
-    cp = Component.get_item(key, namelist=val)
+Component.get_item('동박', namelist=['SKC', '롯데에너지머티리얼즈', '솔루스첨단소재'])
+Component.get_item('분리막', namelist=['SK아이이테크놀로지', '더블유씨피'])
+Component.get_item('셀', namelist=['LG에너지솔루션', '삼성SDI', 'SK이노베이션(C)'])
+Component.get_item('양극재', namelist=['에코프로비엠', '포스코퓨처엠', '엘앤에프', 'LG화학', '코스모신소재'])
+Component.get_item('음극재', namelist=['포스코퓨처엠', '대주전자재료'])
+Component.get_item('전고체', namelist=['효성티앤씨', '레이크머티리얼즈', '한농화성'])
+Component.get_item('전구체', namelist=['에코프로머티', '에코앤드림'])
+Component.get_item('전해질', namelist=['엔켐', '동화기업', '솔브레인홀딩스', '덕산테코피아'])
 
 vc = ValueChain.get_item(
-    key = "EV_Battery", 
-    component_keys=list(name_dict.keys()),
+    key='EV_Battery',
+    component_keys=['동박', '분리막', '셀', '양극재', '음극재', '전고체', '전구체', '전해질'],
 )
+
 # --------------------------------------------------
 # Financial institutions
 # --------------------------------------------------
 Component.get_item('금융지주', namelist = ['KB금융', '신한지주', '하나금융지주', '우리금융지주', 'BNK금융지주', 'iM금융지주', 'JB금융지주', '기업은행', '제주은행', '카카오뱅크'])
-securities_companies = ['미래에셋증권', '한국금융지주', 'NH투자증권', '삼성증권', '키움증권', '대신증권', '한화투자증권', '유안타증권', '교보증권', '현대차증권', '신영증권', '유진투자증권', '부국증권', '한양증권', 'SK증권', 'DB증권', '다올투자증권', '상상인증권']
-Component.get_item('증권사', namelist = securities_companies)
+Component.get_item('증권사', namelist=['미래에셋증권', '한국금융지주', 'NH투자증권', '삼성증권', '키움증권', '대신증권', '한화투자증권', '유안타증권', '교보증권', '현대차증권', '신영증권', '유진투자증권', '부국증권', '한양증권', 'SK증권', 'DB증권', '다올투자증권', '상상인증권'])
 
-# --------------------------------------------------
+# ==================================================
 # '''
-# --------------------------------------------------
-
 
 # --------------------------------------------------
 # Interest groups
 # --------------------------------------------------
 Component.get_item('Interest01', namelist = ['휴젤', '코웨이', '펌텍코리아'])
+
+Component.get_item('셀', namelist=['LG에너지솔루션', '삼성SDI', 'SK이노베이션(C)'])
