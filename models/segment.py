@@ -89,8 +89,9 @@ class Segment(JsonModel):
     def get_news_dir(self):
         return Path(PROFILE_NEWS_DIR) / self.filename
 
-    def get_search_key(self):
-        return f"{self.profile_name} {self.segment_name}"
+    def get_search_key(self, sk=''):
+        sk = f"{self.profile_name} {self.segment_name}"
+        return super().get_search_key(sk)
 
     def _get_subitems(self):
         pass

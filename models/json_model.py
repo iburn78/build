@@ -137,8 +137,12 @@ class JsonModel(BaseModel, ABC):
         ...
 
     @abstractmethod
-    def get_search_key(self) -> str:
-        ...
+    def get_search_key(self, sk) -> str:
+        # \w preserves letters, numbers, and underscores, \s preserves whitespace.
+        # replaces underscores and collapses multiple spaces into one.
+        sk = re.sub(r'[^\w\s]', ' ', sk)
+        sk = re.sub(r'[_\s]+', ' ', sk).strip()
+        return sk
 
     def scrape_news(self):
         for theme in self.info_section.search_theme:

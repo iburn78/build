@@ -206,8 +206,9 @@ class Profile(JsonModel):
     def get_news_dir(self):
         return Path(PROFILE_NEWS_DIR) / self.filename
 
-    def get_search_key(self):
-        return self.name
+    def get_search_key(self, sk=''):
+        sk = self.name
+        return super().get_search_key(sk)
 
     def _get_subitems(self):
         self._sub_items.clear()

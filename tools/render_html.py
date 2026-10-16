@@ -487,12 +487,22 @@ def _render_qualitative(qual_dict, target_type, target_key, info_section_validat
         else:
 
             content = _render_qualitative_value(value)
+            actions = ""
+            if key == "news":
+                actions = f"""
+                    <div class="qualitative-actions">
+                        <button class="news-update-button" type="button"
+                            data-object-type="{escape(str(target_type), quote=True)}"
+                            data-object-id="{escape(str(target_key), quote=True)}">Update</button>
+                    </div>
+                """
 
             cards.append(f"""
-                <div class="qualitative-card">
+                <div class="qualitative-card"{" data-news-card" if key == "news" else ""}>
 
                     <div class="qualitative-header">
                         <h4>{title}</h4>
+                        {actions}
                     </div>
 
                     <div class="qualitative-content">
@@ -513,7 +523,7 @@ def _render_qualitative(qual_dict, target_type, target_key, info_section_validat
     """
 
 # list all news articles in the given folder newest first
-def _render_news(news_dir: Path):
+def _render_news(news_dir: Path, target_type: str, target_key: str):
     if not news_dir.exists():
         return ""
 
@@ -533,10 +543,14 @@ def _render_news(news_dir: Path):
         url = "/" + path.relative_to(BASE_DATA_DIR).as_posix()
 
         rows.append(f"""
-            <div class="news-row">
+            <div class="news-row" data-news-file="{escape(path.name, quote=True)}"
+                data-object-type="{escape(str(target_type), quote=True)}"
+                data-object-id="{escape(str(target_key), quote=True)}">
                 <a href="#" onclick="openPopup('{url}'); return false;">
-                    {path.stem.replace('_', ' ')}
+                    {escape(path.stem.replace('_', ' '))}
                 </a>
+                <button class="news-delete-button" type="button" title="Delete article"
+                    aria-label="Delete article">×</button>
             </div>
         """)
 
@@ -572,7 +586,7 @@ def render_html(target_class,
     page_name = f"[{escape(str(target_class).lower())}] {escape(str(financials_names[0]['name']))}"
     financials_section = _render_financials(target_class, target_key, financials_names, financials_dicts, output_file, collapsed_paths, no_chart_keys)
     qual_section = _render_qualitative(qual_dict, target_class, target_key, info_section_validator)
-    news_section = _render_news(news_dir)
+    news_section = _render_news(news_dir, target_class, target_key)
 
     html = template_html.read_text(encoding="utf-8")
     html = html.replace("{{ page_name }}", page_name)
