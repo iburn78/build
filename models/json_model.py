@@ -92,7 +92,7 @@ class JsonModel(BaseModel, ABC):
     # Directory where json files are stored
     DIR: ClassVar[str] # ClassVars is not included in json file, not validated when loading
 
-    key: str # unqiue identifier within the DIR
+    key: str # unqiue identifier within the DIR: generic string (e.g., comma, _, space, etc, allowed)
     filename: str # json filename (key_additional information)
     updated: str = ""
 
@@ -214,11 +214,11 @@ class JsonModel(BaseModel, ABC):
     @classmethod
     def _get_json_path_from_prefix(cls, prefix: str) -> Path | None: 
         prefix = sanitized_filename(prefix)
-        paths = [p for p in Path(cls.DIR).glob("*.json") if p.name.startswith(prefix)]
+        paths = [p for p in Path(cls.DIR).glob("*.json") if p.name.lower().startswith(prefix)]
         if len(paths) == 0:
             return None
         if len(paths) > 1:
-            paths = [p for p in paths if p.name.startswith(f"{prefix}_")]
+            paths = [p for p in paths if p.name.lower().startswith(f"{prefix}_")]
             if len(paths) != 1:
                 print(f"Cannot load json file with prefix {prefix}...")
                 return None 

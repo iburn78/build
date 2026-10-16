@@ -54,7 +54,7 @@ def get_NAVER_url(code):
 def sanitized_filename(name): 
     if name is None or "": raise ValueError(f'name should be given: {name}')
     name = re.sub(r'[<>:"/\\|?*]+', "", name)
-    name = "_".join(name.split())
+    name = "_".join(name.split()).lower()
     return name
 
 def llm_selector(mode='local'):
