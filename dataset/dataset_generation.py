@@ -19,16 +19,18 @@ Component.get_item('가전 렌탈', namelist=['코웨이'])
 # --------------------------------------------------
 # 전자 부품
 # --------------------------------------------------
-Component.get_item('스마트글래스', namelist = ['사피엔반도체'])
-Component.get_item('카메라 모듈', namelist = ['LG이노텍', '삼성전기', '엠씨넥스', '세코닉스'])
-Component.get_item('PCB', namelist = ['LG이노텍', '삼성전기', '엠씨넥스', '세코닉스']) # PCB, FPCB
-Component.get_item('MLCC', namelist = ['삼성전기', '삼화콘덴서'])
-Component.get_item('Display', namelist = ['덕산네오룩스', '이녹스첨단소재', '피엔에이치테크', 'PI첨단소재', 'LX세미콘'])
-Component.get_item('폴더블', namelist = ['KH바텍', '세경하이테크', '파인엠텍'])
+cp_list = []
+cp_list.append(Component.get_item('스마트글래스', namelist = ['사피엔반도체']))
+cp_list.append(Component.get_item('카메라 모듈', namelist = ['LG이노텍(A)', '삼성전기', '엠씨넥스', '세코닉스']))
+cp_list.append(Component.get_item('메모리 기판', namelist = ['LG이노텍(B)', '삼성전기', '티엘비', '심텍', '해성디에스', '대덕전자'])) # PCB, FPCB
+cp_list.append(Component.get_item('PCB 기판', namelist = ['이수페타시스']))
+cp_list.append(Component.get_item('MLCC', namelist = ['삼성전기', '삼화콘덴서']))
+cp_list.append(Component.get_item('Display', namelist = ['덕산네오룩스', '이녹스첨단소재', '피엔에이치테크', 'PI첨단소재', 'LX세미콘']))
+cp_list.append(Component.get_item('폴더블', namelist = ['KH바텍', '세경하이테크', '파인엠텍']))
 
 vc = ValueChain.get_item(
     key = "전자 부품",
-    component_keys=['스마트글래스', '카메라 모듈', 'PCB', 'MLCC', 'Display', '폴더블'],
+    component_keys=[cp.key for cp in cp_list],
 )
 
 # --------------------------------------------------
@@ -80,7 +82,7 @@ Component.get_item('바이오의약품 위탁생산', namelist=['삼성바이오
 Component.get_item('화장품 ODM', namelist=['코스맥스', '한국콜마'])
 
 vs = ValueChain.get_item(
-    key="에스테틱, 바이오시밀러, 화장품 등", 
+    key='메디컬 바이오', 
     component_keys=['메디컬 에스테틱', '에스테틱 의료기기', '바이오시밀러', '바이오의약품 위탁생산', '화장품 ODM'], 
 )
 

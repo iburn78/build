@@ -322,6 +322,7 @@ class JsonModel(BaseModel, ABC):
             {
                 'name': item._get_name(),
                 'link': item._get_html_link(), 
+                'segment_name': getattr(item, 'segment_name', None),
             }
             for item in _list
         ]

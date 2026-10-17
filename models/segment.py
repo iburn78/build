@@ -125,11 +125,9 @@ class Segment(JsonModel):
 
         revenue_share = kwargs.get('revenue_share')
         if revenue_share is not None:
-            if self.info_section.revenue_share != revenue_share and self.info_section.reviewed:
-                raise ValueError(f"Segment {self.key} reviewed revenue_share mismatches the profile's data")
+            if self.info_section.revenue_share != revenue_share:
+                print(f"Segment {self.key} reviewed revenue_share mismatches the profile's data - overwriting...")
 
-            # not-reviewed data set back to default (only revenue_share)
-            if not self.info_section.reviewed and not _info_section:
                 if self.info_section.revenue_share != revenue_share:
                     self.info_section = self.info_section.model_copy(
                         update={"revenue_share": revenue_share}

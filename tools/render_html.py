@@ -189,6 +189,7 @@ def _render_rows(dict_list, level=0, path="", collapsed_paths=None, no_chart_key
 # column_names = [{'name': , 'link': }, ...]
 def _render_header(object_type, column_names):
     cells = []
+    segment_names = []
 
     for column in column_names:
         name = escape(str(column["name"]))
@@ -199,11 +200,27 @@ def _render_header(object_type, column_names):
 
         cells.append(f'''
                             <th class="value">{name}</th>''')
+        segment_name = column.get("segment_name")
+        if segment_name is not None:
+            segment_name = str(segment_name)
+            if len(segment_name) > 7:
+                segment_name = f"{segment_name[:7]}…"
+            segment_names.append(
+                f'<th class="value segment-name">{escape(segment_name)}</th>'
+            )
+        else:
+            segment_names.append('<th class="value segment-name"></th>')
 
-    return f"""<tr class="header-row">
+    header = f"""<tr class="header-row">
                             <th class="label"><a href="{INDEX_HTML}/#{escape(str(object_type).lower())}s">{escape(str(object_type))}</a></th>
                             {"".join(cells).strip()}
                         </tr>"""
+    if any(column.get("segment_name") is not None for column in column_names):
+        header += f'''\n                        <tr class="segment-name-row">
+                            <th class="label"></th>
+                            {"".join(segment_names)}
+                        </tr>'''
+    return header
 
 def _render_table(header, rows): 
     return f"""<thead>
