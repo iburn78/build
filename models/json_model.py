@@ -15,7 +15,7 @@ from build.tools.settings import sanitized_filename, BUILD_DIR, DEFAULT_NEWS_LLM
 from build.tools.render_html import render_html
 from build.tools.crawl_news import crawl_news
 
-FINANCIALS_UPDATE_PERIOD_HR = 0 # Hours
+FINANCIALS_UPDATE_PERIOD_HR = 1 # Hours
 NUM_THREAD_TO_RUN = 8
 
 NEWS_REFRESH_THRES = 3 # days
@@ -213,7 +213,7 @@ class JsonModel(BaseModel, ABC):
 
     @classmethod
     def _get_json_path_from_prefix(cls, prefix: str) -> Path | None: 
-        prefix = sanitized_filename(prefix)
+        prefix = sanitized_filename(prefix).lower()
         paths = [p for p in Path(cls.DIR).glob("*.json") if p.name.lower().startswith(prefix)]
         if len(paths) == 0:
             return None
