@@ -126,6 +126,7 @@ class LLM_Manager(ABC):
         if not COLLECT_NEWS:
             return target.news
 
+        print(f"News collection initiating for {target.key}")
         news_collection = target.scrape_news()
         if not news_collection.strip():
             return None
@@ -324,6 +325,7 @@ class JsonModel(BaseModel, ABC):
             item = cls._load_from_path(json_path)
 
             if item:
+                print(f"{cls.__name__} JSON loaded: {json_path}")
                 changed = item._update(**kwargs)
                 if changed:
                     print(f"Existing json updated for {key}")

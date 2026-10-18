@@ -304,6 +304,7 @@ class Profile(JsonModel):
     def _get_subitems(self):
         self._sub_items.clear()
         if self.info_section.reviewed and self.info_section.create_segments:
+            print(f"Segment creating/updating initiating for profile {self.name}")
             for i, segment_name in enumerate(self.info_section.segments):
                 id = chr(ord('A')+i) # 0 to A, 1 to B, etc
                 key = self.code + f'({id})'
@@ -359,6 +360,7 @@ class Profile(JsonModel):
         self._subitems_financials_processed = _sa._subitems_financials_processed
 
     def _update(self, **kwargs):
+        print(f"Profile updating: {self.name}")
         overview_changed = False
         info_section_changed = False
         research_changed = False
@@ -388,7 +390,7 @@ class Profile(JsonModel):
         research_timestamp_missing = research_file_exists and not self.llm_research_updated
         research_due = self.llm_research_needs_refresh()
         if research_due:
-            print(f"Generating LLM research for {self.key}")
+            print(f"LLM Research initiating for {self.name}")
             generated_research = self.llm_manager.get_LLM_research(self.name)
             if generated_research.strip():
                 self.save_llm_research(generated_research)
