@@ -35,7 +35,7 @@ OLLAMA_API_KEY = config['ollama_api_key']
 
 # local, ollama, openai
 DEFAULT_BIZ_LLM = 'ollama' 
-DEFAULT_RESEARCH_LLM = 'ollama'
+DEFAULT_RESEARCH_LLM = 'openai'
 DEFAULT_NEWS_LLM = 'ollama'
 
 # Set BUILD_COLLECT_NEWS=0 to skip news crawling and summarization during builds.

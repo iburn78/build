@@ -75,7 +75,12 @@ def update_llm_research_html(model):
 
     soup = BeautifulSoup(html_path.read_text(encoding="utf-8"), "html.parser")
     fragment = BeautifulSoup(
-        _render_llm_research(model.get_llm_research(), model.key, show_delete=True),
+        _render_llm_research(
+            model.get_llm_research(),
+            model.key,
+            show_delete=True,
+            updated=getattr(model, "llm_research_updated", ""),
+        ),
         "html.parser",
     )
     new_row = fragment.select_one(".llm-research-trigger-row")

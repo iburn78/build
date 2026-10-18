@@ -6,7 +6,15 @@ from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from typing import Any, ClassVar
 from pydantic import BaseModel, PrivateAttr, Field
-from build.models.json_model import JsonModel, InfoSection, NewsModel, LLM_Manager
+from pydantic_ai.usage import UsageLimits
+from build.models.json_model import (
+    JsonModel,
+    InfoSection,
+    NewsModel,
+    LLM_Manager,
+    LLM_RESEARCH_REFRESH_THRES,
+    USAGE_REQUEST_LIMIT,
+)
 from build.models.segment import Segment
 from build.tools.settings import (
     PROFILES_DIR,
@@ -136,7 +144,7 @@ class News(NewsModel):
 class Profile_LLM_Manager(LLM_Manager):
     def __init__(self, biz_mode=DEFAULT_BIZ_LLM, LLM_research_mode=DEFAULT_RESEARCH_LLM):
         self.business_agent = self._make_agent(llm_mode=biz_mode, output_type=Business)
-        self.LLM_research_agent = self._make_agent(llm_mode=LLM_research_mode, output_type=str)
+        self.LLM_research_agent = self._make_agent(llm_mode=LLM_research_mode, output_type=str, web_search=True)
         super().__init__(news_type=News)
 
     def gen_business(self, overview: Overview, company_name: str) -> Business | None:
@@ -170,25 +178,28 @@ Rules:
         bs.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
         bs.reviewed = False
 
-        bs._llm_research = self.get_LLM_research(company_name)
         return bs
 
     def get_LLM_research(self, company_name: str) -> str:
 #----------------------------------------------------------------------------------------------------
         request_text = f"""
-Prepare an independent research brief about {company_name}, a company listed in Korea.
+한국 상장사 {company_name} 에 대한 아래 질문에 인터넷 검색해서 답변:
 
-Return Markdown with:
-1. A concise independent description of the company's main business areas.
-2. Any available recent segment revenue and operating-margin figures, with period and source.
-3. A short list of important uncertainties or unresolved items.
+- 회사의 가장 중요한 사업부는 어떻게 나눌수 있것? (3-5개)
+- 각 사업부의 최근 매출과 영업이익, 영업이익률 조사
+- 각 사업부 매출 및 영업이익이 분기별로 증가세였는지, 하락세였는지?
+- 각 사업부별 경쟁사는 어디이고, 경쟁사 중에서서 상장사가 있다면 평균 PER는
 
-Do not claim to have searched the internet or invent citations. If you cannot verify a detail or provide a source, mark it as unverified.
-Keep the answer concise and use Korean terminology where standard. Answer in Korean.
+한국어 Markdown 으로 답변할것
 """
 #----------------------------------------------------------------------------------------------------
         try:
-            return self.LLM_research_agent.run_sync(request_text).output
+            # Bound the web-search agent to a small number of model turns. Without
+            # this, an agent can keep searching instead of finishing its report.
+            return self.LLM_research_agent.run_sync(
+                request_text,
+                usage_limits=UsageLimits(request_limit=USAGE_REQUEST_LIMIT),
+            ).output
         except Exception as e:
             print(f"LLM research failed for profile {company_name}: {e}")
             return ""
@@ -224,6 +235,7 @@ class Profile(JsonModel):
     overview: Overview
 
     news: News | None = None
+    llm_research_updated: str = ""
     llm_manager: ClassVar[Profile_LLM_Manager] = Profile_LLM_Manager()
 
     def _get_name(self):
@@ -250,6 +262,28 @@ class Profile(JsonModel):
             path.write_text(research.strip() + "\n", encoding="utf-8")
         else:
             path.unlink(missing_ok=True)
+
+    def llm_research_needs_refresh(self) -> bool:
+        path = self.get_llm_research_path()
+        if not path.is_file():
+            return True
+
+        # Older profiles have no saved research timestamp; use the Markdown
+        # file's modification time as their initial timestamp.
+        if not self.llm_research_updated:
+            self.llm_research_updated = datetime.fromtimestamp(
+                path.stat().st_mtime
+            ).strftime("%Y-%m-%d %H:%M")
+
+        try:
+            updated = datetime.fromisoformat(self.llm_research_updated)
+            if updated.tzinfo is not None:
+                return True
+        except (TypeError, ValueError):
+            updated = datetime.fromtimestamp(path.stat().st_mtime)
+            self.llm_research_updated = updated.strftime("%Y-%m-%d %H:%M")
+
+        return datetime.now() - updated >= timedelta(days=LLM_RESEARCH_REFRESH_THRES)
 
     def llm_research_html_needs_refresh(self, research: str) -> bool:
         if not research.strip():
@@ -328,7 +362,6 @@ class Profile(JsonModel):
         overview_changed = False
         info_section_changed = False
         research_changed = False
-        research_attempted = False
         news_changed = False
         _info_section = kwargs.get('info_section')
 
@@ -340,9 +373,6 @@ class Profile(JsonModel):
                 _is_generated = self.llm_manager.gen_business(self.overview, self.name)
                 if _is_generated:
                     self.info_section = _is_generated
-                    self.save_llm_research(_is_generated._llm_research)
-                    research_changed = bool(_is_generated._llm_research.strip())
-                    research_attempted = True
             overview_changed = True
 
         # e.g., when info_section is modifed in the html (then replace with it even not reviewed)
@@ -351,20 +381,21 @@ class Profile(JsonModel):
             new_values = _info_section.model_dump(exclude={"updated"})
             if old_values != new_values:
                 self.info_section = _info_section
-                self.info_section._llm_research = self.llm_manager.get_LLM_research(self.name)
-                self.save_llm_research(self.info_section._llm_research)
                 info_section_changed = True
-                research_changed = bool(self.info_section._llm_research.strip())
-                research_attempted = True
 
-        # Existing profiles may predate the Markdown research file. Generate it
-        # from the current Business fields the first time they are updated.
         research = self.get_llm_research()
-        if not research_attempted and not research.strip():
-            self.info_section._llm_research = self.llm_manager.get_LLM_research(self.name)
-            self.save_llm_research(self.info_section._llm_research)
-            research_changed = bool(self.info_section._llm_research.strip())
-        elif self.llm_research_html_needs_refresh(research):
+        research_file_exists = self.get_llm_research_path().is_file()
+        research_timestamp_missing = research_file_exists and not self.llm_research_updated
+        research_due = self.llm_research_needs_refresh()
+        if research_due:
+            print(f"Generating LLM research for {self.key}")
+            generated_research = self.llm_manager.get_LLM_research(self.name)
+            if generated_research.strip():
+                self.save_llm_research(generated_research)
+                self.llm_research_updated = datetime.now().strftime("%Y-%m-%d %H:%M")
+                research = generated_research
+                research_changed = True
+        elif research_timestamp_missing or self.llm_research_html_needs_refresh(research):
             research_changed = True
 
         if overview_changed or self.news is None or self.news.needs_refresh():
@@ -404,7 +435,10 @@ class Profile(JsonModel):
             overview=ov,
             info_section=isection,
         )
-        profile.save_llm_research(isection._llm_research)
+        research = cls.llm_manager.get_LLM_research(name)
+        if research.strip():
+            profile.save_llm_research(research)
+            profile.llm_research_updated = datetime.now().strftime("%Y-%m-%d %H:%M")
         # news is filled after instance creation
         profile.news = cls.llm_manager.gen_news(profile)
 

@@ -541,7 +541,12 @@ def _render_qualitative(qual_dict, target_type, target_key, info_section_validat
         </div>
     """
 
-def _render_llm_research(research: str, target_key: str, show_delete: bool = False):
+def _render_llm_research(
+    research: str,
+    target_key: str,
+    show_delete: bool = False,
+    updated: str = "",
+):
     research = (research or "").strip()
     if not research and not show_delete:
         return ""
@@ -553,6 +558,10 @@ def _render_llm_research(research: str, target_key: str, show_delete: bool = Fal
     research_hash_attr = ""
     content = '<p class="llm-research-missing">LLM research md file is missing...</p>'
     delete_button = ""
+    updated_label = (
+        f'<p class="llm-research-updated">Updated: {escape(updated)}</p>'
+        if research and updated else ""
+    )
     if research:
         research_hash = hashlib.sha256(research.encode("utf-8")).hexdigest()
         content = MarkdownIt().enable("table").render(research)
@@ -575,6 +584,7 @@ def _render_llm_research(research: str, target_key: str, show_delete: bool = Fal
             </div>
         </div>
         <div class="llm-research-dialog-content">
+            {updated_label}
             <div class="llm-research-markdown">{content}</div>
             <div class="llm-research-dialog-actions">
                 <span class="llm-research-status" role="status" aria-live="polite"></span>
@@ -636,6 +646,7 @@ def render_html(target_class,
                 no_chart_keys=NO_CHART_KEYS,
                 info_section_validator=None,
                 llm_research: str = "",
+                llm_research_updated: str = "",
                 show_research_delete: bool = False):
 
     if not financials_dicts:
@@ -651,7 +662,12 @@ def render_html(target_class,
     page_name = f"[{escape(str(target_class).lower())}] {escape(str(financials_names[0]['name']))}"
     financials_section = _render_financials(target_class, target_key, financials_names, financials_dicts, output_file, collapsed_paths, no_chart_keys)
     qual_section = _render_qualitative(qual_dict, target_class, target_key, info_section_validator)
-    news_section = _render_llm_research(llm_research, target_key, show_research_delete) + _render_news(news_dir, target_class, target_key)
+    news_section = _render_llm_research(
+        llm_research,
+        target_key,
+        show_research_delete,
+        llm_research_updated,
+    ) + _render_news(news_dir, target_class, target_key)
 
     html = template_html.read_text(encoding="utf-8")
     html = html.replace("{{ page_name }}", page_name)

@@ -4,8 +4,10 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from pydantic import BaseModel, PrivateAttr, Field
 from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai import Agent, WebSearchTool
+from pydantic_ai.capabilities import NativeTool
+from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
+from pydantic_ai.usage import UsageLimits
 from openai import AsyncOpenAI
 from datetime import datetime, timedelta
 from typing import Any, ClassVar
@@ -27,9 +29,13 @@ FINANCIALS_UPDATE_PERIOD_HR = 1 # Hours
 NUM_THREAD_TO_RUN = 8
 
 NEWS_REFRESH_THRES = 3 # days
+LLM_RESEARCH_REFRESH_THRES = 90 # days
 NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
 NUM_TO_FEED_LLM = 10 # number of articles to provide to LLM
 AGENT_RETRIES = 5
+
+SEARCH_CONTEXT_SIZE = "medium"
+USAGE_REQUEST_LIMIT = 8
 
 class InfoSection(BaseModel):
     # to provide human-review-needed information to JsonModels
@@ -61,18 +67,60 @@ class LLM_Manager(ABC):
     def __init__(self, news_type, news_mode=DEFAULT_NEWS_LLM):
         self.news_agent = self._make_agent(llm_mode=news_mode, output_type=news_type)
 
-    def _make_agent(self, llm_mode, output_type):
+    def _make_agent(self, llm_mode, output_type, web_search=False):
         u, k, m = llm_selector(llm_mode)
         client = AsyncOpenAI(base_url=u, api_key=k)
-        model = OpenAIChatModel(
-            model_name=m,
-            provider=OpenAIProvider(openai_client=client),
-        )
-        return Agent(
+        provider = OpenAIProvider(openai_client=client)
+        capabilities = None
+        model_settings = None
+
+        if web_search and llm_mode == "openai":
+            # OpenAI's hosted web search is available through its Responses API.
+            model = OpenAIResponsesModel(model_name=m, provider=provider)
+            capabilities = [NativeTool(WebSearchTool(search_context_size=SEARCH_CONTEXT_SIZE))]
+            model_settings = {"tool_choice": "auto"}
+        else:
+            model = OpenAIChatModel(model_name=m, provider=provider)
+
+        agent = Agent(
             model=model,
             output_type=output_type,
             retries=AGENT_RETRIES,
+            capabilities=capabilities,
+            model_settings=model_settings,
         )
+
+        if web_search and llm_mode == "ollama":
+            @agent.tool_plain(name="web_search")
+            def web_search_tool(query: str, max_results: int = 5) -> str:
+                """Search the web for current information relevant to the query."""
+                if not k or k == "-":
+                    raise RuntimeError("An Ollama API key is required for web search")
+
+                import requests
+
+                response = requests.post(
+                    "https://ollama.com/api/web_search",
+                    headers={"Authorization": f"Bearer {k}"},
+                    json={
+                        "query": query,
+                        "max_results": max(1, min(max_results, 10)),
+                    },
+                    timeout=30,
+                )
+                response.raise_for_status()
+                results = response.json().get("results", [])
+                if not results:
+                    return "No web search results found."
+                return "\n\n".join(
+                    f"{item.get('title', 'Untitled')}\n{item.get('url', '')}\n"
+                    f"{item.get('content', '')}"
+                    for item in results
+                )
+        elif web_search and llm_mode != "openai":
+            raise ValueError(f"Web search is not configured for LLM mode: {llm_mode}")
+
+        return agent
 
     def gen_news(self, target: "JsonModel"):
         if not COLLECT_NEWS:
@@ -353,4 +401,5 @@ class JsonModel(BaseModel, ABC):
                     output_file, 
                     info_section_validator=type(self.info_section),
                     llm_research=llm_research,
+                    llm_research_updated=getattr(self, "llm_research_updated", ""),
                     show_research_delete=callable(research_getter))
