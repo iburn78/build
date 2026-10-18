@@ -81,6 +81,11 @@ def delete_instance(data: dict) -> dict:
             raise ValueError("Profile data has no valid company code")
 
     deleted = _delete_model_files(json_path)
+    if model_type == "Profile":
+        research_path = json_path.with_suffix(".md")
+        if research_path.is_file():
+            research_path.unlink()
+            deleted.append(str(research_path))
     if model_type in NEWS_DIRS:
         deleted.extend(_delete_news_dir(NEWS_DIRS[model_type], filename))
 

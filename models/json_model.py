@@ -339,6 +339,8 @@ class JsonModel(BaseModel, ABC):
         ]
         financials_dicts = [self.financials] + self._subitems_financials_processed
         qual_dict = self.get_qualitative_dict()
+        research_getter = getattr(self, "get_llm_research", None)
+        llm_research = research_getter() if callable(research_getter) else ""
         news_dir = self.get_news_dir() 
         output_file = self.get_json_path().with_suffix('.html')
 
@@ -349,4 +351,6 @@ class JsonModel(BaseModel, ABC):
                     qual_dict, 
                     news_dir, 
                     output_file, 
-                    info_section_validator=type(self.info_section))
+                    info_section_validator=type(self.info_section),
+                    llm_research=llm_research,
+                    show_research_delete=callable(research_getter))

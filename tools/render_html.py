@@ -1,9 +1,11 @@
 import requests
+import hashlib
 from html import escape
 from datetime import datetime
 from build.tools.settings import THIS_PROJECT, QUARTERLY_PERFORMANCES_URL, INDEX_HTML, BASE_DATA_DIR, get_FN_GUIDE_url, get_NAVER_url
 from pydantic import BaseModel
 from pathlib import Path
+from markdown_it import MarkdownIt
 
 # -----------------------------------------------------------------------------------
 # Display dict in html
@@ -539,6 +541,48 @@ def _render_qualitative(qual_dict, target_type, target_key, info_section_validat
         </div>
     """
 
+def _render_llm_research(research: str, target_key: str, show_delete: bool = False):
+    research = (research or "").strip()
+    if not research and not show_delete:
+        return ""
+
+    dialog_id = "llm-research-dialog-" + "".join(
+        char if char.isalnum() or char in "-_" else "-"
+        for char in str(target_key)
+    )
+    research_hash_attr = ""
+    content = '<p class="llm-research-missing">LLM research md file is missing...</p>'
+    delete_button = ""
+    if research:
+        research_hash = hashlib.sha256(research.encode("utf-8")).hexdigest()
+        content = MarkdownIt().enable("table").render(research)
+        research_hash_attr = f' data-research-hash="{research_hash}"'
+        delete_button = '<button class="llm-research-delete-button" type="button">Delete</button>'
+    return f"""
+    <div class="llm-research-trigger-row" data-object-type="Profile"
+        data-object-id="{escape(str(target_key), quote=True)}">
+        <button class="llm-research-link" type="button" aria-haspopup="dialog"
+            aria-controls="{escape(dialog_id, quote=True)}">LLM Research</button>
+    </div>
+    <dialog class="llm-research-dialog" id="{escape(dialog_id, quote=True)}"
+        data-object-type="Profile" data-object-id="{escape(str(target_key), quote=True)}"{research_hash_attr}
+        aria-labelledby="{escape(dialog_id, quote=True)}-title">
+        <div class="llm-research-dialog-header">
+            <h2 id="{escape(dialog_id, quote=True)}-title">LLM Research</h2>
+            <div class="llm-research-dialog-header-actions">
+                {delete_button}
+                <button class="llm-research-close" type="button" aria-label="Close research">×</button>
+            </div>
+        </div>
+        <div class="llm-research-dialog-content">
+            <div class="llm-research-markdown">{content}</div>
+            <div class="llm-research-dialog-actions">
+                <span class="llm-research-status" role="status" aria-live="polite"></span>
+            </div>
+        </div>
+    </dialog>
+    """
+
 # list all news articles in the given folder newest first
 def _render_news(news_dir: Path, target_type: str, target_key: str):
     if not news_dir.exists():
@@ -557,10 +601,12 @@ def _render_news(news_dir: Path, target_type: str, target_key: str):
 
     for path in paths:
         # URL path served by Node, NOT file://
-        url = "/" + path.relative_to(BASE_DATA_DIR).as_posix()
+        relative_path = path.relative_to(BASE_DATA_DIR).as_posix()
+        url = "/" + relative_path
 
         rows.append(f"""
             <div class="news-row" data-news-file="{escape(path.name, quote=True)}"
+                data-news-path="{escape(relative_path, quote=True)}"
                 data-object-type="{escape(str(target_type), quote=True)}"
                 data-object-id="{escape(str(target_key), quote=True)}">
                 <a href="#" onclick="openPopup('{url}'); return false;">
@@ -588,7 +634,9 @@ def render_html(target_class,
                 template_html:Path=TEMPLATE_HTML, 
                 collapsed_paths=COLLAPSED_PATHS, 
                 no_chart_keys=NO_CHART_KEYS,
-                info_section_validator=None):
+                info_section_validator=None,
+                llm_research: str = "",
+                show_research_delete: bool = False):
 
     if not financials_dicts:
         raise ValueError("dict_list cannot be empty")
@@ -603,7 +651,7 @@ def render_html(target_class,
     page_name = f"[{escape(str(target_class).lower())}] {escape(str(financials_names[0]['name']))}"
     financials_section = _render_financials(target_class, target_key, financials_names, financials_dicts, output_file, collapsed_paths, no_chart_keys)
     qual_section = _render_qualitative(qual_dict, target_class, target_key, info_section_validator)
-    news_section = _render_news(news_dir, target_class, target_key)
+    news_section = _render_llm_research(llm_research, target_key, show_research_delete) + _render_news(news_dir, target_class, target_key)
 
     html = template_html.read_text(encoding="utf-8")
     html = html.replace("{{ page_name }}", page_name)

@@ -1,13 +1,22 @@
 import shutil
+import hashlib
 from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from typing import Any, ClassVar
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, PrivateAttr, Field
 from build.models.json_model import JsonModel, InfoSection, NewsModel, LLM_Manager
 from build.models.segment import Segment
-from build.tools.settings import PROFILES_DIR, PROFILE_NEWS_DIR, get_id, get_name, DEFAULT_BIZ_LLM, get_FN_GUIDE_url
+from build.tools.settings import (
+    PROFILES_DIR,
+    PROFILE_NEWS_DIR,
+    get_id,
+    get_name,
+    DEFAULT_BIZ_LLM,
+    DEFAULT_RESEARCH_LLM,
+    get_FN_GUIDE_url,
+)
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 
 OVERVIEW_REFRESH_THRES = 30 # days
@@ -80,7 +89,7 @@ class Overview(BaseModel):
             title = title.get_text(strip=True) if title else "",
             desc = desc,
             as_of = date.get_text(strip=True).strip("[]").replace("/","-") if date else "",
-            updated = datetime.now().strftime("%Y-%m-%d %H:%M")
+            updated = datetime.now().strftime("%Y-%m-%d %H:%M"),
         )
 
 class Business(InfoSection):
@@ -101,6 +110,7 @@ class Business(InfoSection):
         default_factory=list,
         description="Direct competing companies in the same industry"
     )
+    _llm_research: str = PrivateAttr(default="")
 
     def model_post_init(self, context: Any) -> None:
         if not self.search_theme:
@@ -124,11 +134,12 @@ class News(NewsModel):
     )
 
 class Profile_LLM_Manager(LLM_Manager):
-    def __init__(self, biz_mode=DEFAULT_BIZ_LLM):
+    def __init__(self, biz_mode=DEFAULT_BIZ_LLM, LLM_research_mode=DEFAULT_RESEARCH_LLM):
         self.business_agent = self._make_agent(llm_mode=biz_mode, output_type=Business)
+        self.LLM_research_agent = self._make_agent(llm_mode=LLM_research_mode, output_type=str)
         super().__init__(news_type=News)
 
-    def gen_business(self, overview: Overview) -> Business | None:
+    def gen_business(self, overview: Overview, company_name: str) -> Business | None:
 #----------------------------------------------------------------------------------------------------
         request_text = f"""
 Extract a company profile from the recent business summary below.
@@ -137,14 +148,13 @@ Extract a company profile from the recent business summary below.
 
 Rules:
 - For segments, identify 1 to {MAX_SEGMENTS} of the company's core business areas. Do not list products or competitors as segments.
-- For revenue_share, estimate each segment's share of total company revenue as a number between 0 and 1. The shares should sum to 1 or less.
 - For key_products, list 1 to {MAX_PRODUCTS} representative products or services.
 - For competitors, list up to {MAX_COMPETITORS} direct competitors using company names only.
 - Keep the answers concise and structured.
 - Use Korean terminology when it is standard in Korean business language; otherwise, use English.
 """
 #----------------------------------------------------------------------------------------------------
-        # returns Business instance
+        # return Business instance
         try:
             bs = self.business_agent.run_sync(request_text).output
         except Exception as e:
@@ -154,11 +164,34 @@ Rules:
         # ensure defaults again
         bs.tags = ""
         bs.notes = ""
+        bs.revenue_share = []
         bs.create_segments = False
         bs.search_theme = PROFILE_SEARCH_THEME
         bs.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
         bs.reviewed = False
+
+        bs._llm_research = self.get_LLM_research(company_name)
         return bs
+
+    def get_LLM_research(self, company_name: str) -> str:
+#----------------------------------------------------------------------------------------------------
+        request_text = f"""
+Prepare an independent research brief about {company_name}, a company listed in Korea.
+
+Return Markdown with:
+1. A concise independent description of the company's main business areas.
+2. Any available recent segment revenue and operating-margin figures, with period and source.
+3. A short list of important uncertainties or unresolved items.
+
+Do not claim to have searched the internet or invent citations. If you cannot verify a detail or provide a source, mark it as unverified.
+Keep the answer concise and use Korean terminology where standard. Answer in Korean.
+"""
+#----------------------------------------------------------------------------------------------------
+        try:
+            return self.LLM_research_agent.run_sync(request_text).output
+        except Exception as e:
+            print(f"LLM research failed for profile {company_name}: {e}")
+            return ""
 
     def _get_news_request_text(self, target: JsonModel, news_collection: str):
 #----------------------------------------------------------------------------------------------------
@@ -197,11 +230,35 @@ class Profile(JsonModel):
         return self.name
 
     def get_qualitative_dict(self):
-        default = super().get_qualitative_dict()
-        return default | {
-            'overview': self.overview,
-            'news': self.news,
+        return {
+            "Business": self.info_section,
+            "news": self.news,
+            "overview": self.overview,
         }
+
+    def get_llm_research_path(self) -> Path:
+        return self.get_json_path().with_suffix(".md")
+
+    def get_llm_research(self) -> str:
+        path = self.get_llm_research_path()
+        return path.read_text(encoding="utf-8") if path.is_file() else ""
+
+    def save_llm_research(self, research: str | None = None) -> None:
+        research = research if research is not None else self.info_section._llm_research
+        path = self.get_llm_research_path()
+        if research and research.strip():
+            path.write_text(research.strip() + "\n", encoding="utf-8")
+        else:
+            path.unlink(missing_ok=True)
+
+    def llm_research_html_needs_refresh(self, research: str) -> bool:
+        if not research.strip():
+            return False
+        expected_hash = hashlib.sha256(research.strip().encode("utf-8")).hexdigest()
+        html_path = self.get_json_path().with_suffix(".html")
+        if not html_path.is_file():
+            return True
+        return f'data-research-hash="{expected_hash}"' not in html_path.read_text(encoding="utf-8")
 
     def get_news_dir(self):
         return Path(PROFILE_NEWS_DIR) / self.filename
@@ -257,8 +314,8 @@ class Profile(JsonModel):
 
     def _get_financials(self, **kwargs):
         _sa = SectorAnalysis()
-        _sa.meta['name'] = self.name
         _sa.meta['code'] = self.code
+        _sa.meta['name'] = self.name
 
         fd_list = [FinancialsData(key=self.key)]
         _sa.process(fd_list, 
@@ -270,6 +327,8 @@ class Profile(JsonModel):
     def _update(self, **kwargs):
         overview_changed = False
         info_section_changed = False
+        research_changed = False
+        research_attempted = False
         news_changed = False
         _info_section = kwargs.get('info_section')
 
@@ -278,9 +337,12 @@ class Profile(JsonModel):
             self.overview = Overview.fetch(self.key)
 
             if not self.info_section.reviewed and not _info_section:
-                _is_generated = self.llm_manager.gen_business(self.overview)
+                _is_generated = self.llm_manager.gen_business(self.overview, self.name)
                 if _is_generated:
                     self.info_section = _is_generated
+                    self.save_llm_research(_is_generated._llm_research)
+                    research_changed = bool(_is_generated._llm_research.strip())
+                    research_attempted = True
             overview_changed = True
 
         # e.g., when info_section is modifed in the html (then replace with it even not reviewed)
@@ -289,7 +351,21 @@ class Profile(JsonModel):
             new_values = _info_section.model_dump(exclude={"updated"})
             if old_values != new_values:
                 self.info_section = _info_section
+                self.info_section._llm_research = self.llm_manager.get_LLM_research(self.name)
+                self.save_llm_research(self.info_section._llm_research)
                 info_section_changed = True
+                research_changed = bool(self.info_section._llm_research.strip())
+                research_attempted = True
+
+        # Existing profiles may predate the Markdown research file. Generate it
+        # from the current Business fields the first time they are updated.
+        research = self.get_llm_research()
+        if not research_attempted and not research.strip():
+            self.info_section._llm_research = self.llm_manager.get_LLM_research(self.name)
+            self.save_llm_research(self.info_section._llm_research)
+            research_changed = bool(self.info_section._llm_research.strip())
+        elif self.llm_research_html_needs_refresh(research):
+            research_changed = True
 
         if overview_changed or self.news is None or self.news.needs_refresh():
             print(f"Generating news for {self.key}")
@@ -299,7 +375,7 @@ class Profile(JsonModel):
         # Build derived segments once, using the final info_section for this update.
         self._get_subitems()
 
-        changed = overview_changed or info_section_changed or news_changed
+        changed = overview_changed or info_section_changed or research_changed or news_changed
 
         if changed or self._update_financials(**kwargs):
             self._get_financials(**kwargs)
@@ -314,7 +390,7 @@ class Profile(JsonModel):
 
         ov = Overview.fetch(key)
         if isection is None:
-            _is_generated = cls.llm_manager.gen_business(ov)
+            _is_generated = cls.llm_manager.gen_business(ov, name)
             if _is_generated:
                 isection = _is_generated
             else: 
@@ -328,6 +404,7 @@ class Profile(JsonModel):
             overview=ov,
             info_section=isection,
         )
+        profile.save_llm_research(isection._llm_research)
         # news is filled after instance creation
         profile.news = cls.llm_manager.gen_news(profile)
 
