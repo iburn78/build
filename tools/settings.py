@@ -37,6 +37,12 @@ OLLAMA_API_KEY = config['ollama_api_key']
 DEFAULT_BIZ_LLM = 'ollama' 
 DEFAULT_NEWS_LLM = 'ollama'
 
+# Set BUILD_COLLECT_NEWS=0 to skip news crawling and summarization during builds.
+# News collection stays enabled by default for existing workflows.
+COLLECT_NEWS = os.getenv("BUILD_COLLECT_NEWS", "1").strip().lower() not in {
+    "0", "false", "no", "off"
+}
+
 QUARTERLY_PERFORMANCES_URL = 'http://10.245.110.101:3000'
 INDEX_HTML = "http://localhost:3000"
 

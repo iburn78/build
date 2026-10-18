@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from pathlib import Path
 from pydantic import BaseModel, PrivateAttr, Field
@@ -11,7 +13,13 @@ import json
 import sys
 import re
 from concurrent.futures import ThreadPoolExecutor
-from build.tools.settings import sanitized_filename, BUILD_DIR, DEFAULT_NEWS_LLM, llm_selector
+from build.tools.settings import (
+    sanitized_filename,
+    BUILD_DIR,
+    COLLECT_NEWS,
+    DEFAULT_NEWS_LLM,
+    llm_selector,
+)
 from build.tools.render_html import render_html
 from build.tools.crawl_news import crawl_news
 
@@ -67,6 +75,9 @@ class LLM_Manager(ABC):
         )
 
     def gen_news(self, target: "JsonModel"):
+        if not COLLECT_NEWS:
+            return target.news
+
         news_collection = target.scrape_news()
         if not news_collection.strip():
             return None
