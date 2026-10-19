@@ -302,7 +302,7 @@ class Profile(JsonModel):
         return f'data-research-hash="{expected_hash}"' not in html_path.read_text(encoding="utf-8")
 
     def get_news_dir(self):
-        return Path(PROFILE_NEWS_DIR) / self.filename
+        return PROFILE_NEWS_DIR / self.filename
 
     def get_search_key(self, sk=''):
         sk = self.name
@@ -330,7 +330,7 @@ class Profile(JsonModel):
 
     def _reconcile_sub_items(self):
         # removing unnecessary stall sub-item files
-        paths = [p for p in Path(self.DIR).glob("*.json") if p.name.startswith(self.key)]
+        paths = [p for p in self.DIR.glob("*.json") if p.name.startswith(self.key)]
         base = [self.get_json_path()] + [v.get_json_path() for v in self._sub_items.values()]
         to_remove = [p for p in paths if p not in base]
         # removing not only json, but also html, png, etc
@@ -346,7 +346,7 @@ class Profile(JsonModel):
             for segment in self._sub_items.values()
         }
         stale_news_dirs = [
-            p for p in Path(PROFILE_NEWS_DIR).iterdir()
+            p for p in PROFILE_NEWS_DIR.iterdir()
             if p.is_dir()
             and p.name.startswith(f"{self.key}(")
             and p.name not in active_news_dirs

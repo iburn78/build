@@ -3,7 +3,6 @@ from build.tools.tools import sanitized_filename, get_id
 from build.models.settings import PROFILES_DIR, PROFILE_NEWS_DIR, SEGMENT_SEARCH_THEME
 from build.models.json_model import JsonModel, InfoSection, NewsModel, LLM_Manager
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
-from pathlib import Path
 from typing import Any, ClassVar
 
 class FinancialsAdjuster(InfoSection):
@@ -86,7 +85,7 @@ class Segment(JsonModel):
         return f"{self.profile_name}({self.id})"
 
     def get_news_dir(self):
-        return Path(PROFILE_NEWS_DIR) / self.filename
+        return PROFILE_NEWS_DIR / self.filename
 
     def get_search_key(self, sk=''):
         sk = f"{self.profile_name} {self.segment_name}"

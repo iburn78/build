@@ -71,31 +71,32 @@ NO_CHART_KEYS = {
 #------------------------------------------------------------------
 # Project settings:
 #------------------------------------------------------------------
-THIS_PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
-ppd_ = os.path.dirname(THIS_PROJECT) 
-BASE_DATA_DIR = os.path.join(ppd_, 'data') # in global data repo
-BUILD_DIR = os.path.join(BASE_DATA_DIR, 'build') # in global data repo
-GENERAL_DIR = os.path.join(BUILD_DIR , 'general') # to be created when needed
-NEWS_DIR = os.path.join(BUILD_DIR , 'news')
-PROFILE_NEWS_DIR = os.path.join(NEWS_DIR , 'profiles')
-COMPONENT_NEWS_DIR = os.path.join(NEWS_DIR , 'components')
-VALUECHAIN_NEWS_DIR = os.path.join(NEWS_DIR , 'valuechains')
-PROFILES_DIR = os.path.join(BUILD_DIR , 'profiles')
-COMPONENTS_DIR = os.path.join(BUILD_DIR , 'components')
-VALUECHAIN_DIR = os.path.join(BUILD_DIR , 'valuechains')
+THIS_PROJECT = Path(__file__).resolve().parents[1]
+PROJECTS_DIR = THIS_PROJECT.parent
+BASE_DATA_DIR = PROJECTS_DIR / "data"
+BUILD_DIR = BASE_DATA_DIR / "build"
+GENERAL_DIR = BUILD_DIR / "general" # to be created when needed
+NEWS_DIR = BUILD_DIR / "news"
+PROFILE_NEWS_DIR = NEWS_DIR / "profiles"
+COMPONENT_NEWS_DIR = NEWS_DIR / "components"
+VALUECHAIN_NEWS_DIR = NEWS_DIR / "valuechains"
+PROFILES_DIR = BUILD_DIR / "profiles"
+COMPONENTS_DIR = BUILD_DIR / "components"
+VALUECHAINS_DIR = BUILD_DIR / "valuechains"
 
-os.makedirs(BASE_DATA_DIR, exist_ok=True)
-os.makedirs(BUILD_DIR , exist_ok=True)
-os.makedirs(NEWS_DIR, exist_ok=True)
-os.makedirs(PROFILE_NEWS_DIR, exist_ok=True)
-os.makedirs(COMPONENT_NEWS_DIR, exist_ok=True)
-os.makedirs(VALUECHAIN_NEWS_DIR, exist_ok=True)
-os.makedirs(PROFILES_DIR, exist_ok=True)
-os.makedirs(COMPONENTS_DIR, exist_ok=True)
-os.makedirs(VALUECHAIN_DIR, exist_ok=True)
+for directory in (
+    GENERAL_DIR,
+    PROFILE_NEWS_DIR,
+    COMPONENT_NEWS_DIR,
+    VALUECHAIN_NEWS_DIR,
+    PROFILES_DIR,
+    COMPONENTS_DIR,
+    VALUECHAINS_DIR,
+):
+    directory.mkdir(parents=True, exist_ok=True)
 
 # may need to turn on local llm server (i.e., ollama: >> ollama serve)
-OPENAI_CONF = os.path.join(ppd_, 'config/openai_api.json')
+OPENAI_CONF = PROJECTS_DIR / "config" / "openai_api.json"
 with open(OPENAI_CONF, 'r') as json_file:
     config = json.load(json_file)
 OPENAI_API_KEY = config['openai_api_key']
@@ -113,7 +114,7 @@ COLLECT_LLM_RESEARCH = os.getenv("BUILD_LLM_RESEARCH", "1").strip().lower() not 
 
 QUARTERLY_PERFORMANCES_URL = 'http://10.245.110.101:3000'
 
-TEMPLATE_HTML = Path(THIS_PROJECT) / "tools" / "templates"  / "dict_template.html"
+TEMPLATE_HTML = THIS_PROJECT / "tools" / "templates" / "dict_template.html"
 INDEX_HTML = "http://localhost:3000"
 
 def llm_selector(mode='local'):
@@ -137,4 +138,3 @@ def llm_selector(mode='local'):
         return ["", "", ""]
     
     return [base_url, api_key, model]
-

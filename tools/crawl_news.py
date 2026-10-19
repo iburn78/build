@@ -1,7 +1,7 @@
 import re
-import os
 import asyncio
 from datetime import datetime
+from pathlib import Path
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
 from crawl4ai.content_filter_strategy import PruningContentFilter
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
@@ -18,7 +18,8 @@ _exetime = datetime.now().strftime('%y%m%d%H%M')
 def _set_dir_path(dest_dir=None): # and create dirs
     if dest_dir is None:
         dest_dir = GENERAL_DIR
-    os.makedirs(dest_dir, exist_ok=True)
+    dest_dir = Path(dest_dir)
+    dest_dir.mkdir(parents=True, exist_ok=True)
     return dest_dir
 
 def _set_filename(timestamp, title=None):
@@ -80,9 +81,9 @@ async def _crawl_url_and_save(crawler, url, title=None, published=None, dest_dir
         pdate = '_'
 
     filename = _set_filename(pdate, title_)
-    _file = os.path.join(dirname, filename)
+    _file = dirname / filename
 
-    with open(_file, "w", encoding="utf-8") as f:
+    with _file.open("w", encoding="utf-8") as f:
         if title_:
             f.write(f"# {title_}\n\n")
         f.write(f"source: {url}\n")

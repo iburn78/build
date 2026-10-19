@@ -8,7 +8,7 @@ from build.models.settings import (
     COMPONENTS_DIR,
     PROFILE_NEWS_DIR,
     PROFILES_DIR,
-    VALUECHAIN_DIR,
+    VALUECHAINS_DIR,
     VALUECHAIN_NEWS_DIR,
 )
 
@@ -16,7 +16,7 @@ HTML_DIRS = {
     "Profile": PROFILES_DIR,
     "Segment": PROFILES_DIR,
     "Component": COMPONENTS_DIR,
-    "ValueChain": VALUECHAIN_DIR,
+    "ValueChain": VALUECHAINS_DIR,
 }
 NEWS_DIRS = {
     "Profile": PROFILE_NEWS_DIR,
@@ -24,7 +24,7 @@ NEWS_DIRS = {
     "Component": COMPONENT_NEWS_DIR,
     "ValueChain": VALUECHAIN_NEWS_DIR,
 }
-DATA_DIR = Path(BASE_DATA_DIR)
+DATA_DIR = BASE_DATA_DIR
 
 def _safe_project_path(root: Path, relative_path: str) -> Path:
     relative = PurePosixPath(relative_path)
@@ -48,7 +48,7 @@ def _html_path(data: dict, object_type: str) -> Path:
     path = _safe_project_path(DATA_DIR, relative_path)
     if path.suffix.lower() != ".html":
         raise ValueError("Invalid current HTML path")
-    expected_dir = Path(HTML_DIRS[object_type]).resolve()
+    expected_dir = HTML_DIRS[object_type].resolve()
     if path.parent != expected_dir:
         raise ValueError("HTML path does not match the model type")
     if not path.is_file():
@@ -112,7 +112,7 @@ def delete_markdown(data: dict) -> dict:
     if not isinstance(relative_path, str):
         raise ValueError("Missing Markdown file path")
     article_path = _safe_project_path(DATA_DIR, relative_path)
-    expected_news_dir = Path(NEWS_DIRS[object_type]).resolve()
+    expected_news_dir = NEWS_DIRS[object_type].resolve()
     if (
         article_path.name != filename
         or article_path.parent.parent != expected_news_dir

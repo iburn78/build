@@ -1,10 +1,9 @@
 from pydantic import Field
-from build.models.settings import VALUECHAIN_DIR, VALUECHAIN_NEWS_DIR, VALUECHAIN_SEARCH_THEME
+from build.models.settings import VALUECHAINS_DIR, VALUECHAIN_NEWS_DIR, VALUECHAIN_SEARCH_THEME
 from build.models.json_model import JsonModel, InfoSection, NewsModel, LLM_Manager
 from build.models.component import Component
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 from typing import Any, ClassVar
-from pathlib import Path
 
 class Landscape(InfoSection):
     dynamics: str = "" # leading component, margin concentration, buyer-seller power dynamics
@@ -60,7 +59,7 @@ Articles:
         return request_text
 
 class ValueChain(JsonModel):
-    DIR = VALUECHAIN_DIR
+    DIR = VALUECHAINS_DIR
     info_section: Landscape
     component_keys: list[str] # only component names
 
@@ -71,7 +70,7 @@ class ValueChain(JsonModel):
         return self.key
 
     def get_news_dir(self):
-        return Path(VALUECHAIN_NEWS_DIR) / self.filename
+        return VALUECHAIN_NEWS_DIR / self.filename
 
     def get_search_key(self, sk=''):
         sk= self.key

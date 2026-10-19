@@ -7,7 +7,7 @@ from build.models.settings import (
     COMPONENT_NEWS_DIR,
     PROFILE_NEWS_DIR,
     PROFILES_DIR,
-    VALUECHAIN_DIR,
+    VALUECHAINS_DIR,
     VALUECHAIN_NEWS_DIR,
 )
 
@@ -22,7 +22,7 @@ MODEL_DIRS = {
     "Profile": PROFILES_DIR,
     "Segment": PROFILES_DIR,
     "Component": COMPONENTS_DIR,
-    "ValueChain": VALUECHAIN_DIR,
+    "ValueChain": VALUECHAINS_DIR,
 }
 
 # Profile news are kept intentionally
@@ -33,7 +33,7 @@ NEWS_DIRS = {
 }
 
 def _resolve_json_path(model_type: str, object_id: str) -> Path:
-    model_dir = Path(MODEL_DIRS[model_type])
+    model_dir = MODEL_DIRS[model_type]
     matches = []
     for path in model_dir.glob("*.json"):
         try:
@@ -55,8 +55,8 @@ def _delete_model_files(json_path: Path) -> list[str]:
             deleted.append(str(path))
     return deleted
 
-def _delete_news_dir(news_root: str | Path, filename: str) -> list[str]:
-    news_dir = Path(news_root) / filename
+def _delete_news_dir(news_root: Path, filename: str) -> list[str]:
+    news_dir = news_root / filename
     if not news_dir.is_dir():
         return []
     shutil.rmtree(news_dir)
@@ -91,7 +91,7 @@ def delete_instance(data: dict) -> dict:
         deleted.extend(_delete_news_dir(NEWS_DIRS[model_type], filename))
 
     if model_type == "Profile":
-        profile_dir = Path(PROFILES_DIR)
+        profile_dir = PROFILES_DIR
         segment_paths = []
         for candidate in profile_dir.glob("*.json"):
             if candidate == json_path:

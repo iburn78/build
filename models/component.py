@@ -134,7 +134,7 @@ class Component(JsonModel):
         return self.key
 
     def get_news_dir(self) -> Path:
-        return Path(COMPONENT_NEWS_DIR) / self.filename
+        return COMPONENT_NEWS_DIR / self.filename
 
     def get_search_key(self, sk=''):
         sk= self.key

@@ -144,7 +144,7 @@ class JsonModel(BaseModel, ABC):
     # - data format is validated when loaded
 
     # Directory where json files are stored
-    DIR: ClassVar[str] # ClassVars is not included in json file, not validated when loading
+    DIR: ClassVar[Path] # ClassVars is not included in json file, not validated when loading
 
     key: str # unqiue identifier within the DIR: generic string (e.g., comma, _, space, etc, allowed)
     filename: str # json filename (key_additional information)
@@ -165,7 +165,7 @@ class JsonModel(BaseModel, ABC):
         return super().model_post_init(context)
 
     def get_json_path(self) -> Path:
-        return Path(self.DIR) / f"{self.filename}.json"
+        return self.DIR / f"{self.filename}.json"
 
     def save_to_file(self):
         self.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -268,7 +268,7 @@ class JsonModel(BaseModel, ABC):
     @classmethod
     def _get_json_path_from_prefix(cls, prefix: str) -> Path | None: 
         prefix = sanitized_filename(prefix).lower()
-        paths = list(Path(cls.DIR).glob("*.json"))
+        paths = list(cls.DIR.glob("*.json"))
 
         # Prefer an exact key match before considering longer keys with this
         # prefix (for example, "메모리" must resolve before "메모리_기판").
@@ -376,7 +376,7 @@ class JsonModel(BaseModel, ABC):
         ...
 
     def _get_html_link(self):
-        html_root = Path(BUILD_DIR)
+        html_root = BUILD_DIR
         return self.get_json_path().with_suffix('.html').relative_to(html_root)
 
     def create_html(self):
