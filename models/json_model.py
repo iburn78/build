@@ -35,6 +35,7 @@ from build.models.settings import (
     COLLECT_LLM_RESEARCH,
     LLM_RESEARCH_REFRESH_THRES,
     OLLAMA_WEB_SEARCH_MAX_ATTEMPTS,
+    OLLAMA_WEB_SEARCH_RESULT_CONTENT_CHARS,
 )
 from build.tools.render_html import render_html
 from build.tools.crawl_news import crawl_news
@@ -116,7 +117,7 @@ class LLM_Manager(ABC):
                     )
                     if response.status_code != 429:
                         break
-                    if attempt == 3:
+                    if attempt == OLLAMA_WEB_SEARCH_MAX_ATTEMPTS - 1:
                         response.raise_for_status()
 
                     retry_after = response.headers.get("Retry-After")
@@ -136,11 +137,15 @@ class LLM_Manager(ABC):
                 results = response.json().get("results", [])
                 if not results:
                     return "No web search results found."
-                return "\n\n".join(
+
+                formatted_results = [
                     f"{item.get('title', 'Untitled')}\n{item.get('url', '')}\n"
-                    f"{item.get('content', '')}"
+                    f"{str(item.get('content', ''))[:OLLAMA_WEB_SEARCH_RESULT_CONTENT_CHARS]}"
                     for item in results
-                )
+                ]
+                result_text = "\n\n".join(formatted_results)
+                return result_text
+
         elif web_search and llm_mode != "openai":
             raise ValueError(f"Web search is not configured for LLM mode: {llm_mode}")
 

@@ -544,6 +544,9 @@ def _render_llm_research(
     research_hash_attr = ""
     content = '<p class="llm-research-missing">LLM research md file is missing...</p>'
     delete_button = ""
+    research_button_class = "llm-research-link"
+    if not research:
+        research_button_class += " llm-research-missing"
     updated_label = (
         f'<p class="llm-research-updated">Updated: {escape(updated)}</p>'
         if research and updated else ""
@@ -556,7 +559,7 @@ def _render_llm_research(
     return f"""
     <div class="llm-research-trigger-row" data-object-type="{escape(target_type, quote=True)}"
         data-object-id="{escape(str(target_key), quote=True)}">
-        <button class="llm-research-link" type="button" aria-haspopup="dialog"
+        <button class="{research_button_class}" type="button" aria-haspopup="dialog"
             aria-controls="{escape(dialog_id, quote=True)}">LLM Research</button>
     </div>
     <dialog class="llm-research-dialog" id="{escape(dialog_id, quote=True)}"

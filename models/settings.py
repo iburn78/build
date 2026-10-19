@@ -1,5 +1,6 @@
 import os
 import json
+import sys
 from pathlib import Path
 
 #------------------------------------------------------------------
@@ -19,14 +20,15 @@ FINANCIALS_UPDATE_PERIOD_HR = 1 # Hours
 NEWS_REFRESH_THRES = 3 # days
 NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
 NUM_TO_FEED_LLM = 10 # number of articles to provide to LLM
-os.environ["BUILD_COLLECT_NEWS"] = "1" # True: 1, False: 0
+# os.environ["BUILD_COLLECT_NEWS"] = "1" # to override defaults - True: 1 (mac), False: 0 (other)
 
 # research
 LLM_RESEARCH_REFRESH_THRES = 20 # days
 SEARCH_CONTEXT_SIZE = "medium"
 USAGE_REQUEST_LIMIT = 4
-OLLAMA_WEB_SEARCH_MAX_ATTEMPTS = 4
-os.environ["BUILD_LLM_RESEARCH"] = "1" # True: 1, False: 0
+OLLAMA_WEB_SEARCH_MAX_ATTEMPTS = 3
+OLLAMA_WEB_SEARCH_RESULT_CONTENT_CHARS = 2000
+# os.environ["BUILD_LLM_RESEARCH"] = "1" # to override defaults - True: 1 (mac), False: 0 (other)
 
 # parallel running
 NUM_THREAD_TO_RUN = 8
@@ -101,15 +103,15 @@ with open(OPENAI_CONF, 'r') as json_file:
 OPENAI_API_KEY = config['openai_api_key']
 OLLAMA_API_KEY = config['ollama_api_key']
 
-# Set BUILD_COLLECT_NEWS=0 to skip news crawling and summarization during builds.
-COLLECT_NEWS = os.getenv("BUILD_COLLECT_NEWS", "1").strip().lower() not in {
-    "0", "false", "no", "off", "False"
-}
+_PLATFORM_COLLECTION_DEFAULT = "1" if sys.platform == "darwin" else "0"
 
-# Set BUILD_LLM_RESEARCH=0 to skip LLM research during builds.
-COLLECT_LLM_RESEARCH = os.getenv("BUILD_LLM_RESEARCH", "1").strip().lower() not in {
-    "0", "false", "no", "off", "False"
-}
+
+def _env_enabled(name: str, default: str) -> bool:
+    return os.getenv(name, default).strip().lower() not in {"0", "false", "no", "off"}
+
+
+COLLECT_NEWS = _env_enabled("BUILD_COLLECT_NEWS", _PLATFORM_COLLECTION_DEFAULT)
+COLLECT_LLM_RESEARCH = _env_enabled("BUILD_LLM_RESEARCH", _PLATFORM_COLLECTION_DEFAULT)
 
 QUARTERLY_PERFORMANCES_URL = 'http://10.245.110.101:3000'
 
