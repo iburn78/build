@@ -14,6 +14,8 @@ from typing import Any, ClassVar
 import json
 import sys
 import re
+import time
+import random
 from concurrent.futures import ThreadPoolExecutor
 from build.tools.tools import sanitized_filename
 from build.models.settings import (
@@ -32,6 +34,7 @@ from build.models.settings import (
     USAGE_REQUEST_LIMIT,
     COLLECT_LLM_RESEARCH,
     LLM_RESEARCH_REFRESH_THRES,
+    OLLAMA_WEB_SEARCH_MAX_ATTEMPTS,
 )
 from build.tools.render_html import render_html
 from build.tools.crawl_news import crawl_news
@@ -101,15 +104,34 @@ class LLM_Manager(ABC):
 
                 import requests
 
-                response = requests.post(
-                    "https://ollama.com/api/web_search",
-                    headers={"Authorization": f"Bearer {k}"},
-                    json={
-                        "query": query,
-                        "max_results": max(1, min(max_results, 10)),
-                    },
-                    timeout=30,
-                )
+                for attempt in range(OLLAMA_WEB_SEARCH_MAX_ATTEMPTS):
+                    response = requests.post(
+                        "https://ollama.com/api/web_search",
+                        headers={"Authorization": f"Bearer {k}"},
+                        json={
+                            "query": query,
+                            "max_results": max(1, min(max_results, 10)),
+                        },
+                        timeout=30,
+                    )
+                    if response.status_code != 429:
+                        break
+                    if attempt == 3:
+                        response.raise_for_status()
+
+                    retry_after = response.headers.get("Retry-After")
+                    try:
+                        delay = (
+                            float(retry_after)
+                            if retry_after
+                            else 2 ** (attempt + 1)
+                        )
+                    except ValueError:
+                        delay = 2 ** (attempt + 1)
+                    time.sleep(
+                        min(delay, 60) + random.uniform(0, 0.5)
+                    )
+
                 response.raise_for_status()
                 results = response.json().get("results", [])
                 if not results:
@@ -399,6 +421,7 @@ class JsonModel(BaseModel, ABC):
     @classmethod
     def get_item(cls, key, **kwargs):
         json_path = cls._get_json_path_from_prefix(key)
+        created = False
 
         if json_path:
             item = cls._load_from_path(json_path)
@@ -419,13 +442,16 @@ class JsonModel(BaseModel, ABC):
 
                 item = cls._create_new_item(key, isection, **kwargs)
                 changed = True
+                created = True
 
         else:
             print(f"Creating new json for {key}")
             item = cls._create_new_item(key, None, **kwargs)
             changed = True
+            created = True
 
-        changed = item._refresh_llm_research() or changed
+        if created:
+            item._refresh_llm_research()
             
         if changed: 
             item.save_to_file()

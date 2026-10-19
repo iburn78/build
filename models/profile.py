@@ -275,10 +275,6 @@ class Profile(JsonModel):
             return True
         return f'data-research-hash="{expected_hash}"' not in html_path.read_text(encoding="utf-8")
 
-    def _refresh_llm_research(self) -> bool:
-        # Profile refreshes research before business generation inside _update.
-        return False
-
     def get_news_dir(self):
         return PROFILE_NEWS_DIR / self.filename
 

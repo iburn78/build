@@ -19,15 +19,14 @@ FINANCIALS_UPDATE_PERIOD_HR = 1 # Hours
 NEWS_REFRESH_THRES = 3 # days
 NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
 NUM_TO_FEED_LLM = 10 # number of articles to provide to LLM
-# os.environ["BUILD_COLLECT_NEWS"] = "true"
-os.environ["BUILD_COLLECT_NEWS"] = "false"
+os.environ["BUILD_COLLECT_NEWS"] = "1" # True: 1, False: 0
 
 # research
 LLM_RESEARCH_REFRESH_THRES = 20 # days
 SEARCH_CONTEXT_SIZE = "medium"
 USAGE_REQUEST_LIMIT = 4
-# os.environ["BUILD_LLM_RESEARCH"] = "true"
-os.environ["BUILD_LLM_RESEARCH"] = "false"
+OLLAMA_WEB_SEARCH_MAX_ATTEMPTS = 4
+os.environ["BUILD_LLM_RESEARCH"] = "1" # True: 1, False: 0
 
 # parallel running
 NUM_THREAD_TO_RUN = 8

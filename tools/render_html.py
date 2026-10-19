@@ -639,6 +639,8 @@ def render_html(target_class,
         raise ValueError("dict_list cannot be empty")
 
     if len(financials_names) != len(financials_dicts):
+        print(financials_names)
+        print(financials_dicts)
         raise ValueError("column_names and dict_list must have the same length")
 
     if not _same_signature(*financials_dicts):

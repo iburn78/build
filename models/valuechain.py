@@ -117,6 +117,8 @@ class ValueChain(JsonModel):
         if _info_section:
             self.info_section = _info_section
             changed = True
+
+        changed = self._refresh_llm_research() or changed
         
         if self.news is None or self.news.needs_refresh():
             print(f"Generating valuechain news summary for {self.key}")

@@ -151,8 +151,30 @@ class Component(JsonModel):
 
     def _get_subitems(self):
         self._sub_items.clear()
+        resolved_members = []
+        changed = False
         for m in self.members:
-            self._sub_items[m.key] = Profile.get_item(m.key)
+            item = Profile.get_item(m.key)
+            member_key = item.key
+            member_name = getattr(item, "name", m.name)
+            resolved_member = Member(key=member_key, name=member_name)
+
+            if resolved_member.key != m.key or resolved_member.name != m.name:
+                changed = True
+            if member_key in self._sub_items:
+                print(
+                    f"Component {self.key}: skipping duplicate resolved member "
+                    f"{member_name} ({member_key})"
+                )
+                changed = True
+                continue
+
+            resolved_members.append(resolved_member)
+            self._sub_items[member_key] = item
+
+        if changed:
+            self.members = resolved_members
+        return changed
 
     def _get_financials(self, **kwargs):
         _sa = SectorAnalysis()
@@ -190,12 +212,14 @@ class Component(JsonModel):
             self.info_section = _info_section
             changed = True
 
+        changed = self._refresh_llm_research() or changed
+
         if self.news is None or self.news.needs_refresh():
             print(f"Generating component news summary for {self.key}")
             self.news = self.llm_manager.gen_news(self)
             changed = True
 
-        self._get_subitems()
+        changed = self._get_subitems() or changed
 
         if changed or self._update_financials(**kwargs):
             self._get_financials(**kwargs)
