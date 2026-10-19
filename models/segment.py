@@ -9,6 +9,7 @@ class FinancialsAdjuster(InfoSection):
     revenue_share: float | None = None
     marcap_share: float | None = None
     opmargin: float | None = None
+    trend: str = ""
 
     def model_post_init(self, context: Any) -> None:
         if self.marcap_share is None:
@@ -69,6 +70,14 @@ Articles:
 #----------------------------------------------------------------------------------------------------
         return request_text
 
+    def _get_llm_research_request_text(self, target: JsonModel):
+        return f"""
+Research the business segment {target.segment_name} of {target.profile_name} using web search.
+Write a concise Korean Markdown report covering the segment's products and markets, recent
+revenue and operating results, growth direction, competitors, and material risks. Cite source
+URLs, include reporting periods, and do not infer segment figures from company-wide results.
+"""
+
 class Segment(JsonModel):
     DIR = PROFILES_DIR
     info_section: FinancialsAdjuster
@@ -121,16 +130,27 @@ class Segment(JsonModel):
                 segment_name_changed = True
                 changed = True
 
-        revenue_share = kwargs.get('revenue_share')
-        if revenue_share is not None:
-            if self.info_section.revenue_share != revenue_share:
-                print(f"Segment {self.key} reviewed revenue_share mismatches the profile's data - overwriting...")
+        parent_values = {}
+        for field in ("revenue_share", "opmargin", "trend"):
+            if field not in kwargs:
+                continue
+            value = kwargs[field]
+            if field in {"revenue_share", "opmargin"} and value is None:
+                continue
+            if field == "trend":
+                value = value or ""
+            if getattr(self.info_section, field) != value:
+                parent_values[field] = value
 
-                if self.info_section.revenue_share != revenue_share:
-                    self.info_section = self.info_section.model_copy(
-                        update={"revenue_share": revenue_share}
-                    )
-                    changed = True
+        if parent_values:
+            if self.info_section.reviewed:
+                fields = ", ".join(parent_values)
+                print(
+                    f"Segment {self.key} reviewed fields differ from the profile's data "
+                    f"({fields}); overwriting..."
+                )
+            self.info_section = self.info_section.model_copy(update=parent_values)
+            changed = True
 
         if _info_section:
             old_values = self.info_section.model_dump(exclude={"updated"})
@@ -161,10 +181,25 @@ class Segment(JsonModel):
         revenue_share = kwargs.get('revenue_share')
         if revenue_share is None:
             raise ValueError(f"Segment {key} cannot be initiated without financials_adjuster parameters")
+        opmargin = kwargs.get("opmargin")
+        trend = kwargs.get("trend") or ""
 
         # sanitization happenes in model_post_init()
         filename = f"{key}_{segment_name}"
-        info_section = isection if isection else FinancialsAdjuster(revenue_share=revenue_share)
+        if isection:
+            info_section = isection.model_copy(
+                update={
+                    "revenue_share": revenue_share,
+                    "opmargin": opmargin,
+                    "trend": trend,
+                }
+            )
+        else:
+            info_section = FinancialsAdjuster(
+                revenue_share=revenue_share,
+                opmargin=opmargin,
+                trend=trend,
+            )
 
         segment = Segment(
             key = key,

@@ -72,9 +72,6 @@ def delete_markdown(data: dict) -> dict:
         raise ValueError("Invalid model type or identifier")
     if kind not in {"news_article", "llm_research"}:
         raise ValueError("Invalid Markdown deletion kind")
-    if kind == "llm_research" and object_type != "Profile":
-        raise ValueError("LLM research can only be deleted from a Profile")
-
     html_path = _html_path(data, object_type)
     soup = BeautifulSoup(html_path.read_text(encoding="utf-8"), "html.parser")
 

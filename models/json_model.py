@@ -4,6 +4,7 @@ from pathlib import Path
 from pydantic import BaseModel, PrivateAttr, Field
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai import Agent, WebSearchTool
+from pydantic_ai.usage import UsageLimits
 from pydantic_ai.capabilities import NativeTool
 from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
 from pydantic_ai.settings import ModelSettings
@@ -19,6 +20,7 @@ from build.models.settings import (
     BUILD_DIR,
     COLLECT_NEWS,
     DEFAULT_NEWS_LLM,
+    DEFAULT_RESEARCH_LLM,
     llm_selector,
     FINANCIALS_UPDATE_PERIOD_HR,
     NUM_THREAD_TO_RUN,
@@ -27,6 +29,9 @@ from build.models.settings import (
     NUM_TO_FEED_LLM,
     AGENT_RETRIES,
     SEARCH_CONTEXT_SIZE,
+    USAGE_REQUEST_LIMIT,
+    COLLECT_LLM_RESEARCH,
+    LLM_RESEARCH_REFRESH_THRES,
 )
 from build.tools.render_html import render_html
 from build.tools.crawl_news import crawl_news
@@ -58,8 +63,11 @@ class NewsModel(BaseModel):
             return True
 
 class LLM_Manager(ABC):
-    def __init__(self, news_type, news_mode=DEFAULT_NEWS_LLM):
+    def __init__(self, news_type, news_mode=DEFAULT_NEWS_LLM, research_mode=DEFAULT_RESEARCH_LLM):
         self.news_agent = self._make_agent(llm_mode=news_mode, output_type=news_type)
+        self.research_agent = self._make_agent(
+            llm_mode=research_mode, output_type=str, web_search=True
+        )
 
     def _make_agent(self, llm_mode, output_type, web_search=False):
         u, k, m = llm_selector(llm_mode)
@@ -138,6 +146,21 @@ class LLM_Manager(ABC):
     def _get_news_request_text(self, target: "JsonModel", news_collection: str) -> str:
         ...
 
+    @abstractmethod
+    def _get_llm_research_request_text(self, target: "JsonModel") -> str:
+        ...
+
+    def get_llm_research(self, target: "JsonModel") -> str:
+        request_text = self._get_llm_research_request_text(target)
+        try:
+            return self.research_agent.run_sync(
+                request_text,
+                usage_limits=UsageLimits(request_limit=USAGE_REQUEST_LIMIT),
+            ).output
+        except Exception as e:
+            print(f"LLM research failed for {type(target).__name__} {target.key}: {e}")
+            return ""
+
 class JsonModel(BaseModel, ABC):
     # to provide a basic pydantic structure to subclasses
     # - a json file is maintained per a model instance
@@ -149,6 +172,7 @@ class JsonModel(BaseModel, ABC):
     key: str # unqiue identifier within the DIR: generic string (e.g., comma, _, space, etc, allowed)
     filename: str # json filename (key_additional information)
     updated: str = ""
+    llm_research_updated: str = ""
 
     # below to be defined in each sub-class 
     # info_section: InfoSection 
@@ -166,6 +190,59 @@ class JsonModel(BaseModel, ABC):
 
     def get_json_path(self) -> Path:
         return self.DIR / f"{self.filename}.json"
+
+    def get_llm_research_path(self) -> Path:
+        return self.get_json_path().with_suffix(".md")
+
+    def get_llm_research(self) -> str:
+        path = self.get_llm_research_path()
+        return path.read_text(encoding="utf-8") if path.is_file() else ""
+
+    def save_llm_research(self, research: str | None = None) -> None:
+        path = self.get_llm_research_path()
+        if research and research.strip():
+            path.write_text(research.strip() + "\n", encoding="utf-8")
+        else:
+            path.unlink(missing_ok=True)
+
+    def llm_research_needs_refresh(self) -> bool:
+        path = self.get_llm_research_path()
+        if not path.is_file():
+            return True
+        if not self.llm_research_updated:
+            self.llm_research_updated = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+        try:
+            updated = datetime.fromisoformat(self.llm_research_updated)
+            if updated.tzinfo is not None:
+                return True
+        except (TypeError, ValueError):
+            updated = datetime.fromtimestamp(path.stat().st_mtime)
+            self.llm_research_updated = updated.strftime("%Y-%m-%d %H:%M")
+        return datetime.now() - updated >= timedelta(days=LLM_RESEARCH_REFRESH_THRES)
+
+    def _refresh_llm_research(self) -> bool:
+        if not COLLECT_LLM_RESEARCH:
+            return False
+        research = self.get_llm_research()
+        timestamp_missing = not self.llm_research_updated
+        needs_html = bool(research.strip()) and self.llm_research_html_needs_refresh(research)
+        if not self.llm_research_needs_refresh():
+            return needs_html or timestamp_missing
+        print(f"LLM Research initiating for {type(self).__name__} {self.key}")
+        generated = self.llm_manager.get_llm_research(self)
+        if not generated.strip():
+            return needs_html
+        self.save_llm_research(generated)
+        self.llm_research_updated = datetime.now().strftime("%Y-%m-%d %H:%M")
+        return True
+
+    def llm_research_html_needs_refresh(self, research: str) -> bool:
+        import hashlib
+        expected_hash = hashlib.sha256(research.strip().encode("utf-8")).hexdigest()
+        html_path = self.get_json_path().with_suffix(".html")
+        if not html_path.is_file():
+            return True
+        return f'data-research-hash="{expected_hash}"' not in html_path.read_text(encoding="utf-8")
 
     def save_to_file(self):
         self.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -347,6 +424,8 @@ class JsonModel(BaseModel, ABC):
             print(f"Creating new json for {key}")
             item = cls._create_new_item(key, None, **kwargs)
             changed = True
+
+        changed = item._refresh_llm_research() or changed
             
         if changed: 
             item.save_to_file()

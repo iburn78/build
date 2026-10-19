@@ -530,6 +530,8 @@ def _render_llm_research(
     target_key: str,
     show_delete: bool = False,
     updated: str = "",
+    *,
+    target_type: str,
 ):
     research = (research or "").strip()
     if not research and not show_delete:
@@ -552,13 +554,13 @@ def _render_llm_research(
         research_hash_attr = f' data-research-hash="{research_hash}"'
         delete_button = '<button class="llm-research-delete-button" type="button">Delete</button>'
     return f"""
-    <div class="llm-research-trigger-row" data-object-type="Profile"
+    <div class="llm-research-trigger-row" data-object-type="{escape(target_type, quote=True)}"
         data-object-id="{escape(str(target_key), quote=True)}">
         <button class="llm-research-link" type="button" aria-haspopup="dialog"
             aria-controls="{escape(dialog_id, quote=True)}">LLM Research</button>
     </div>
     <dialog class="llm-research-dialog" id="{escape(dialog_id, quote=True)}"
-        data-object-type="Profile" data-object-id="{escape(str(target_key), quote=True)}"{research_hash_attr}
+        data-object-type="{escape(target_type, quote=True)}" data-object-id="{escape(str(target_key), quote=True)}"{research_hash_attr}
         aria-labelledby="{escape(dialog_id, quote=True)}-title">
         <div class="llm-research-dialog-header">
             <h2 id="{escape(dialog_id, quote=True)}-title">LLM Research</h2>
@@ -649,8 +651,9 @@ def render_html(target_class,
     news_section = _render_llm_research(
         llm_research,
         target_key,
-        show_research_delete,
-        llm_research_updated,
+        show_delete=show_research_delete,
+        updated=llm_research_updated,
+        target_type=target_class,
     ) + _render_news(news_dir, target_class, target_key)
 
     html = template_html.read_text(encoding="utf-8")

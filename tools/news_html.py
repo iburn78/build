@@ -80,6 +80,7 @@ def update_llm_research_html(model):
             model.key,
             show_delete=True,
             updated=getattr(model, "llm_research_updated", ""),
+            target_type=type(model).__name__,
         ),
         "html.parser",
     )

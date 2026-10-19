@@ -6,7 +6,6 @@ from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from typing import Any, ClassVar
 from pydantic import BaseModel, Field
-from pydantic_ai.usage import UsageLimits
 from build.models.json_model import (
     JsonModel,
     InfoSection,
@@ -22,7 +21,6 @@ from build.models.settings import (
     DEFAULT_RESEARCH_LLM,
     COLLECT_LLM_RESEARCH,
     LLM_RESEARCH_REFRESH_THRES,
-    USAGE_REQUEST_LIMIT,
     OVERVIEW_REFRESH_THRES,
     MAX_SEGMENTS,
     PROFILE_SEARCH_THEME,
@@ -147,8 +145,7 @@ class News(NewsModel):
 class Profile_LLM_Manager(LLM_Manager):
     def __init__(self, biz_mode=DEFAULT_BIZ_LLM, llm_research_mode=DEFAULT_RESEARCH_LLM):
         self.business_agent = self._make_agent(llm_mode=biz_mode, output_type=Business)
-        self.llm_research_agent = self._make_agent(llm_mode=llm_research_mode, output_type=str, web_search=True)
-        super().__init__(news_type=News)
+        super().__init__(news_type=News, research_mode=llm_research_mode)
 
     def gen_business(self, overview: Overview, llm_research: str = "") -> Business | None:
 #----------------------------------------------------------------------------------------------------
@@ -188,10 +185,10 @@ Rules:
 
         return bs
 
-    def get_llm_research(self, company_name: str) -> str:
+    def _get_llm_research_request_text(self, target: JsonModel) -> str:
 #----------------------------------------------------------------------------------------------------
         request_text = f"""
-한국 상장사 {company_name} 에 대한 아래 질문에 인터넷 검색해서 답변:
+한국 상장사 {target.name} 에 대한 아래 질문에 인터넷 검색해서 답변:
 
 - 회사의 가장 중요한 사업부는 어떻게 나눌수 있것? (3-5개)
 - 각 사업부의 최근 매출과 영업이익, 영업이익률 조사
@@ -201,16 +198,7 @@ Rules:
 한국어 Markdown 으로 답변할것
 """
 #----------------------------------------------------------------------------------------------------
-        try:
-            # Bound the web-search agent to a small number of model turns. Without
-            # this, an agent can keep searching instead of finishing its report.
-            return self.llm_research_agent.run_sync(
-                request_text,
-                usage_limits=UsageLimits(request_limit=USAGE_REQUEST_LIMIT),
-            ).output
-        except Exception as e:
-            print(f"LLM research failed for profile {company_name}: {e}")
-            return ""
+        return request_text
 
     def _get_news_request_text(self, target: JsonModel, news_collection: str):
 #----------------------------------------------------------------------------------------------------
@@ -256,20 +244,6 @@ class Profile(JsonModel):
             "overview": self.overview,
         }
 
-    def get_llm_research_path(self) -> Path:
-        return self.get_json_path().with_suffix(".md")
-
-    def get_llm_research(self) -> str:
-        path = self.get_llm_research_path()
-        return path.read_text(encoding="utf-8") if path.is_file() else ""
-
-    def save_llm_research(self, research: str | None = None) -> None:
-        path = self.get_llm_research_path()
-        if research and research.strip():
-            path.write_text(research.strip() + "\n", encoding="utf-8")
-        else:
-            path.unlink(missing_ok=True)
-
     def llm_research_needs_refresh(self) -> bool:
         path = self.get_llm_research_path()
         if not path.is_file():
@@ -301,6 +275,10 @@ class Profile(JsonModel):
             return True
         return f'data-research-hash="{expected_hash}"' not in html_path.read_text(encoding="utf-8")
 
+    def _refresh_llm_research(self) -> bool:
+        # Profile refreshes research before business generation inside _update.
+        return False
+
     def get_news_dir(self):
         return PROFILE_NEWS_DIR / self.filename
 
@@ -317,11 +295,23 @@ class Profile(JsonModel):
                 key = self.code + f'({id})'
 
                 revenue_share = self.info_section.revenue_share[i]
+                opmargin = (
+                    self.info_section.opmargin[i]
+                    if i < len(self.info_section.opmargin)
+                    else None
+                )
+                trend = (
+                    self.info_section.trend[i]
+                    if i < len(self.info_section.trend)
+                    else ""
+                )
                 self._sub_items[key] = Segment.get_item(
                     key=key,
                     profile_name=self.name,
                     segment_name=segment_name,
                     revenue_share=revenue_share,
+                    opmargin=opmargin,
+                    trend=trend,
                 )
 
         # Reconcile even when review or segment creation is disabled, so stale
@@ -381,7 +371,7 @@ class Profile(JsonModel):
         research_due = COLLECT_LLM_RESEARCH and self.llm_research_needs_refresh()
         if research_due:
             print(f"LLM Research initiating for {self.name}")
-            generated_research = self.llm_manager.get_llm_research(self.name)
+            generated_research = self.llm_manager.get_llm_research(self)
             if generated_research.strip():
                 self.save_llm_research(generated_research)
                 self.llm_research_updated = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -447,23 +437,24 @@ class Profile(JsonModel):
     def _create_new_item(cls, key, isection: InfoSection | None, **kwargs):
         name = get_name(key)
         filename = f"{key}_{name}"
-        research = cls.llm_manager.get_llm_research(name) if COLLECT_LLM_RESEARCH else ""
         ov = Overview.fetch(key)
-        if isection is None:
-            _is_generated = cls.llm_manager.gen_business(ov, research)
-            if _is_generated:
-                isection = _is_generated
-            else: 
-                isection = Business()
-
         profile = Profile(
             key=key,
             filename=filename,
             code=key,
             name=name,
             overview=ov,
-            info_section=isection,
+            info_section=isection if isection else Business(),
         )
+        research = cls.llm_manager.get_llm_research(profile) if COLLECT_LLM_RESEARCH else ""
+        if isection is None:
+            _is_generated = cls.llm_manager.gen_business(ov, research)
+            if _is_generated:
+                isection = _is_generated
+            else:
+                isection = Business()
+
+        profile.info_section = isection
         if research.strip():
             profile.save_llm_research(research)
             profile.llm_research_updated = datetime.now().strftime("%Y-%m-%d %H:%M")
