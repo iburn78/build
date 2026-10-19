@@ -15,9 +15,9 @@ def print_components() -> None:
     for path in sorted(COMPONENTS_DIR.glob("*.json")):
         data = json.loads(path.read_text(encoding="utf-8"))
         namelist = []
-        for member in data.get("members", []):
-            name = member["name"]
-            match = re.search(r"\(([A-Za-z])\)$", member.get("key", ""))
+        for listed_company in data.get("listed_companies", []):
+            name = listed_company["name"]
+            match = re.search(r"\(([A-Za-z])\)$", listed_company.get("key", ""))
             if match:
                 name += f"({match.group(1)})"
             namelist.append(name)

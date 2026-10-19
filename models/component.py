@@ -1,5 +1,5 @@
 from pydantic import Field
-from build.tools.tools import get_id, Member
+from build.tools.tools import get_id, ListedCompany
 from build.models.settings import COMPONENTS_DIR, COMPONENT_NEWS_DIR, COMPONENT_SEARCH_THEME
 from build.models.json_model import JsonModel, InfoSection, NewsModel, LLM_Manager
 from build.models.profile import Profile
@@ -73,7 +73,7 @@ and material risks. Cite source URLs and distinguish reported facts from forecas
 class Component(JsonModel):
     DIR = COMPONENTS_DIR
     info_section: Traits
-    members: list[Member] = Field(default_factory=list)
+    listed_companies: list[ListedCompany] = Field(default_factory=list)
 
     news: News | None = None
     llm_manager: ClassVar[Component_LLM_Manager] = Component_LLM_Manager()
@@ -90,29 +90,35 @@ class Component(JsonModel):
 
     def _get_subitems(self):
         self._sub_items.clear()
-        resolved_members = []
+        resolved_listed_companies = []
         changed = False
-        for m in self.members:
-            item = Profile.get_item(m.key)
-            member_key = item.key
-            member_name = getattr(item, "name", m.name)
-            resolved_member = Member(key=member_key, name=member_name)
+        for listed_company in self.listed_companies:
+            item = Profile.get_item(listed_company.key)
+            listed_company_key = item.key
+            listed_company_name = getattr(item, "name", listed_company.name)
+            resolved_listed_company = ListedCompany(
+                key=listed_company_key,
+                name=listed_company_name,
+            )
 
-            if resolved_member.key != m.key or resolved_member.name != m.name:
+            if (
+                resolved_listed_company.key != listed_company.key
+                or resolved_listed_company.name != listed_company.name
+            ):
                 changed = True
-            if member_key in self._sub_items:
+            if listed_company_key in self._sub_items:
                 print(
-                    f"Component {self.key}: skipping duplicate resolved member "
-                    f"{member_name} ({member_key})"
+                    f"Component {self.key}: skipping duplicate resolved listed company "
+                    f"{listed_company_name} ({listed_company_key})"
                 )
                 changed = True
                 continue
 
-            resolved_members.append(resolved_member)
-            self._sub_items[member_key] = item
+            resolved_listed_companies.append(resolved_listed_company)
+            self._sub_items[listed_company_key] = item
 
         if changed:
-            self.members = resolved_members
+            self.listed_companies = resolved_listed_companies
         return changed
 
     def _get_financials(self, **kwargs):
@@ -137,13 +143,14 @@ class Component(JsonModel):
 
     def _update(self, **kwargs) -> bool:
         changed = False
-        members = Component._build_member_list(self.key, **kwargs)
+        listed_companies = Component._build_listed_company_list(self.key, **kwargs)
 
-        # case when members are given
-        if members:
+        if listed_companies:
             # set() operation does not work here due to basemodel instances characteristics
-            if len(self.members) != len (members) or not all(x in members for x in self.members):
-                self.members = members
+            if len(self.listed_companies) != len(listed_companies) or not all(
+                x in listed_companies for x in self.listed_companies
+            ):
+                self.listed_companies = listed_companies
                 changed = True
 
         _info_section = kwargs.get('info_section')
@@ -168,14 +175,14 @@ class Component(JsonModel):
 
     @classmethod
     def _create_new_item(cls, key, isection: InfoSection | None, **kwargs):
-        members = cls._build_member_list(key, **kwargs)
-        if not members:
-            raise ValueError(f"Component {key} cannot be initiated without members")
+        listed_companies = cls._build_listed_company_list(key, **kwargs)
+        if not listed_companies:
+            raise ValueError(f"Component {key} cannot be initiated without listed companies")
 
         component = Component(
             key = key,
             filename = key,
-            members = members,
+            listed_companies = listed_companies,
             info_section = isection if isection else Traits(),
         )
         # news is filled after instance creation
@@ -188,21 +195,21 @@ class Component(JsonModel):
         return component
 
     @classmethod
-    def _build_member_list(cls, key, **kwargs):
+    def _build_listed_company_list(cls, key, **kwargs):
         keylist = kwargs.get("keylist") or []
         namelist = kwargs.get("namelist") or []
 
         if keylist and namelist:
             raise ValueError(f'Both keylist and namelist is given: use only one')
 
-        members = [Member.from_key(k) for k in keylist]
-        members += [Member.from_name(n) for n in namelist]
+        listed_companies = [ListedCompany.from_key(k) for k in keylist]
+        listed_companies += [ListedCompany.from_name(n) for n in namelist]
 
         # checking duplications
         codelist = []
-        for m in members:
-            codelist.append(get_id(m.key)[0])
+        for listed_company in listed_companies:
+            codelist.append(get_id(listed_company.key)[0])
         if len(codelist) != len(set(codelist)):
-            raise ValueError(f'Duplication found in component {key} members')
+            raise ValueError(f'Duplication found in component {key} listed companies')
 
-        return members
+        return listed_companies

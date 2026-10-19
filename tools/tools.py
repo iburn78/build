@@ -28,8 +28,8 @@ def get_id(s: str) -> tuple[str, str | None]:
 
     return s[:m.start()], m.group(1)
 
-class Member(BaseModel):
-    # simple vehicle that carries only key and company name: works both for profile and segment
+class ListedCompany(BaseModel):
+    # Holds a company or segment key and display name.
     key: str
     name: str
 
@@ -87,10 +87,10 @@ class Member(BaseModel):
             name=name
         )
 
-# member from company name (for segments: append (id))
+# Resolve a listed company by name; segment IDs may be appended to the name.
 def cn(name):
-    return Member.from_name(name)
+    return ListedCompany.from_name(name)
 
-# member from key
+# Resolve a listed company by key.
 def ck(key):
-    return Member.from_key(key)
+    return ListedCompany.from_key(key)

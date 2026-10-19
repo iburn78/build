@@ -14,7 +14,7 @@ from build.models.settings import (
 '''
 Deletion follows the following scope: 
 - profiles remove their own files and associated segment files/news while keeping profile news;
-- segments, components, and value chains remove their own JSON/PNG/HTML and news directory, leaving their members untouched.
+- segments, components, and value chains remove their own JSON/PNG/HTML and news directory, leaving their listed companies untouched.
 - The server delegates deletion to a script that matches the exact model key.
 '''
 

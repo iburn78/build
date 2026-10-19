@@ -2,19 +2,19 @@ import json
 import re
 import sys
 
-from build.tools.tools import Member
+from build.tools.tools import ListedCompany
 from build.models.profile import Profile
 
 
-def resolve_member(query: str) -> Member:
+def resolve_listed_company(query: str) -> ListedCompany:
     if re.fullmatch(r"\d+", query):
         try:
-            return Member.from_key(query)
+            return ListedCompany.from_key(query)
         except ValueError:
             raise LookupError(f"No public company matches code ‘{query}’.") from None
 
     try:
-        member = Member.from_name(query)
+        listed_company = ListedCompany.from_name(query)
     except ValueError as error:
         if str(error).startswith("Ambiguous company name"):
             raise LookupError(
@@ -24,11 +24,11 @@ def resolve_member(query: str) -> Member:
             f"No search result or public company found for ‘{query}’."
         ) from None
 
-    if member.name.casefold() != query.casefold():
+    if listed_company.name.casefold() != query.casefold():
         raise LookupError(
             f"No exact public company name matched ‘{query}’. Try the official name or code."
         )
-    return member
+    return listed_company
 
 
 def get_profile(query: str) -> dict:
@@ -37,19 +37,19 @@ def get_profile(query: str) -> dict:
         return {"ok": False, "error": "Enter a company name or code."}
 
     try:
-        member = resolve_member(query)
+        listed_company = resolve_listed_company(query)
     except LookupError as error:
         return {"ok": False, "error": str(error)}
 
     try:
-        profile = Profile.get_item(member.key)
+        profile = Profile.get_item(listed_company.key)
     except Exception:
         import traceback
 
         traceback.print_exc(file=sys.stdout)
         return {
             "ok": False,
-            "error": f"‘{member.name}’ matched, but its profile could not be created. Try again later.",
+            "error": f"‘{listed_company.name}’ matched, but its profile could not be created. Try again later.",
         }
 
     return {

@@ -13,7 +13,7 @@ from build.models.json_model import (
     LLM_Manager,
 )
 from build.models.segment import Segment
-from build.tools.tools import Member, get_id, get_name, get_FN_GUIDE_url
+from build.tools.tools import ListedCompany, get_id, get_name, get_FN_GUIDE_url
 from build.models.settings import (
     PROFILES_DIR,
     PROFILE_NEWS_DIR,
@@ -467,15 +467,15 @@ class Profile(JsonModel):
     @classmethod
     def get_item(cls, key, **kwargs):
         try:
-            member = Member.from_key(key)
+            listed_company = ListedCompany.from_key(key)
         except ValueError:
-            member = Member.from_name(key)
+            listed_company = ListedCompany.from_name(key)
 
-        code, id = get_id(member.key)
+        code, id = get_id(listed_company.key)
         profile = super().get_item(code, **kwargs)
         if id:
             try:
-                return profile.get_subitems()[member.key]
+                return profile.get_subitems()[listed_company.key]
             except:
                 print(f"Segment {key} of {profile.name} is not available. Profile is used instead - re-run after review segments.")
         return profile

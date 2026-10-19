@@ -15,10 +15,10 @@ Python model JSON, charts, and HTML reports are written into these directories. 
 
 - **Profile** (`key`/`code`): company identity, generated or reviewed `Business` info, source `Overview`, and `News` summary. A profile's financial-analysis end key is its own company key.
 - **Segment** (`key` like `005930(A)`): a virtual part of a company. It points to the parent company's profile data and applies a `FinancialsAdjuster` to that company's financial series.
-- **Component** (`key`): a group of `Member` records. A member has a company or segment key and display name. Component end keys are the member keys.
-- **ValueChain** (`key`): an ordered list of component keys. Its end keys are the union of the component members' keys.
+- **Component** (`key`): a group of `ListedCompany` records. A listed company has a company or segment key and display name. Component end keys are the listed-company keys.
+- **ValueChain** (`key`): an ordered list of component keys. Its end keys are the union of the component listed companies' keys.
 
-Each persisted model has one JSON file, an `info_section`, and optional generated `financials`. Components serialize their members under `members`; value chains serialize their component references under `component_keys`.
+Each persisted model has one JSON file, an `info_section`, and optional generated `financials`. Components serialize listed companies under `listed_companies`; value chains serialize their component references under `component_keys`.
 
 ## `JsonModel.get_item(key, **kwargs)` lifecycle
 
@@ -28,7 +28,7 @@ Each persisted model has one JSON file, an `info_section`, and optional generate
 4. If the existing file cannot be validated, try to recover its `info_section` only when that section has `reviewed: true`. Build a replacement from the supplied arguments and recovered section, then save it. The current recovery path does not preserve the old `financials` object.
 5. If no file exists, build and save a new model.
 
-`_sub_items` is an in-memory relationship map, not a serialized field. Loading a value chain loads its components; loading a component resolves its member profiles and segments. Profile segment reconciliation runs only when the business info is reviewed and `create_segments` is true; it removes profile-prefixed files that are not part of the currently declared segment set.
+`_sub_items` is an in-memory relationship map, not a serialized field. Loading a value chain loads its components; loading a component resolves its listed-company profiles and segments. Profile segment reconciliation runs only when the business info is reviewed and `create_segments` is true; it removes profile-prefixed files that are not part of the currently declared segment set.
 
 ## Profile refresh
 
@@ -46,7 +46,7 @@ Assessment metrics are computed only when at least five quarterly points are ava
 ## Node app and qualitative editing
 
 - `data/node/server.js` serves static files from `data` and lists report HTML files from `data/build`.
-- Relationship endpoints read component and value-chain JSON from disk and use the current Python fields (`key`, `members[].key`, `component_keys`). `lookup.js` also accepts the older `name`/`companies`/`component_names` fields while old JSON is being renewed.
+- Relationship endpoints read component and value-chain JSON from disk and use the current Python fields (`key`, `listed_companies[].key`, `component_keys`). `lookup.js` uses the current `listed_companies` and `component_keys` fields.
 - Relationship JSON is reloaded for each relationship request, so file updates do not require a Node restart.
 - Qualitative editing uses a password check to issue a short-lived, single-use token. The browser posts edited info-section values to Node; Node starts `build/tools/update_info.py`; Python validates and saves the section, then reruns `SectorAnalysis.process()` to refresh the report artifacts.
 
