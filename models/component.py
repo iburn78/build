@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from build.tools.tools import df_krx, get_id
+from pydantic import Field
+from build.tools.tools import get_id, Member
 from build.models.settings import COMPONENTS_DIR, COMPONENT_NEWS_DIR, COMPONENT_SEARCH_THEME
 from build.models.json_model import JsonModel, InfoSection, NewsModel, LLM_Manager
 from build.models.profile import Profile
@@ -7,67 +7,6 @@ from build.models.segment import Segment
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 from typing import Any, ClassVar
 from pathlib import Path
-
-class Member(BaseModel):
-    # simple vehicle that carries only key and company name: works both for profile and segment
-    key: str
-    name: str
-
-    @classmethod
-    def from_name(cls, name, df_krx=df_krx):
-        def _get_code_name(name, df_krx=df_krx):
-            # 1. exact match first
-            matched = df_krx[df_krx["Name"] == name]
-            if len(matched) == 1:
-                return str(matched.index[0]), matched.iloc[0]["Name"]
-
-            # 2. fallback to contains
-            matched = df_krx[df_krx["Name"].str.contains(
-                name,
-                case=False,
-                na=False
-            )]
-
-            if len(matched) == 1:
-                return str(matched.index[0]), matched.iloc[0]["Name"]
-
-            if len(matched) == 0:
-                raise ValueError(
-                    f"No company found matching name: '{name}'"
-                )
-
-            raise ValueError(
-                f"Ambiguous company name '{name}': "
-                f"{matched['Name'].tolist()}"
-            )
-
-        _name, id = get_id(name)
-        code, company_name = _get_code_name(_name)
-        key = f"{code}({id})" if id else code
-        return cls(
-            key = key,
-            name = company_name
-        )
-
-    @classmethod
-    def from_key(cls, key, df_krx=df_krx):
-        code, id = get_id(key)
-
-        if code not in df_krx.index:
-            raise ValueError(f"Invalid code: {code}")
-
-        return cls(
-            key = f"{code}({id})" if id else code,
-            name=str(df_krx.loc[code, "Name"])
-        )
-
-# member from company name (for segments: append (id))
-def cn(name):
-    return Member.from_name(name)
-
-# member from key
-def ck(key):
-    return Member.from_key(key)
 
 class Traits(InfoSection):
     competition: str = "" # m/s, leader, competitive advatages

@@ -2,7 +2,7 @@ import json
 import re
 import sys
 
-from build.models.component import Member
+from build.tools.tools import Member
 from build.models.profile import Profile
 
 

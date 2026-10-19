@@ -1,5 +1,8 @@
+from build.models.profile import Profile
 from build.models.component import Component
 from build.models.valuechain import ValueChain
+import sys
+# sys.exit()
 
 # '''
 # ==================================================
