@@ -2,29 +2,13 @@ import requests
 import hashlib
 from html import escape
 from datetime import datetime
-from build.tools.settings import THIS_PROJECT, QUARTERLY_PERFORMANCES_URL, INDEX_HTML, BASE_DATA_DIR, get_FN_GUIDE_url, get_NAVER_url
+from build.tools.tools import get_FN_GUIDE_url, get_NAVER_url
+from build.models.settings import QUARTERLY_PERFORMANCES_URL, INDEX_HTML, BASE_DATA_DIR
+from build.models.settings import TEMPLATE_HTML, COLLAPSED_PATHS, NO_CHART_KEYS 
 from pydantic import BaseModel
 from pathlib import Path
 from markdown_it import MarkdownIt
 
-# -----------------------------------------------------------------------------------
-# Display dict in html
-# -----------------------------------------------------------------------------------
-TEMPLATE_HTML = Path(THIS_PROJECT) / "tools" / "templates"  / "dict_template.html"
-
-COLLAPSED_PATHS = {
-    'meta', 
-    'assess_data.alpha_beta.from_start_date', 
-    'shape.financials'
-}
-NO_CHART_KEYS = {
-    'key',
-    'unit',
-    'code',
-    '-m_rank', 
-    '-r_rank',
-    '-o_rank',
-}
 year = str(datetime.today().year)
 
 def _fmt_value(key, value):

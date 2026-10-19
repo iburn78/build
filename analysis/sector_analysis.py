@@ -10,7 +10,7 @@ import matplotlib.dates as mdates
 from matplotlib.ticker import FuncFormatter
 from data.tools import load
 from data.tools.tools import set_KoreanFonts, dprint
-from build.tools.settings import df_krx, get_id
+from build.tools.tools import df_krx, get_id
 from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta
 
 '''

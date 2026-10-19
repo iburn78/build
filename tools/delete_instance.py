@@ -2,7 +2,7 @@ import json
 import sys
 import shutil
 from pathlib import Path
-from build.tools.settings import (
+from build.models.settings import (
     COMPONENTS_DIR,
     COMPONENT_NEWS_DIR,
     PROFILE_NEWS_DIR,
@@ -25,6 +25,7 @@ MODEL_DIRS = {
     "ValueChain": VALUECHAIN_DIR,
 }
 
+# Profile news are kept intentionally
 NEWS_DIRS = {
     "Segment": PROFILE_NEWS_DIR,
     "Component": COMPONENT_NEWS_DIR,

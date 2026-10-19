@@ -1,7 +1,3 @@
-# define env first
-import os
-os.environ["BUILD_COLLECT_NEWS"] = "false"
-
 from build.models.component import Component
 from build.models.valuechain import ValueChain
 

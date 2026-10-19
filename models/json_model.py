@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from pathlib import Path
 from pydantic import BaseModel, PrivateAttr, Field
@@ -7,7 +6,7 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai import Agent, WebSearchTool
 from pydantic_ai.capabilities import NativeTool
 from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
-from pydantic_ai.usage import UsageLimits
+from pydantic_ai.settings import ModelSettings
 from openai import AsyncOpenAI
 from datetime import datetime, timedelta
 from typing import Any, ClassVar
@@ -15,27 +14,22 @@ import json
 import sys
 import re
 from concurrent.futures import ThreadPoolExecutor
-from build.tools.settings import (
-    sanitized_filename,
+from build.tools.tools import sanitized_filename
+from build.models.settings import (
     BUILD_DIR,
     COLLECT_NEWS,
     DEFAULT_NEWS_LLM,
     llm_selector,
+    FINANCIALS_UPDATE_PERIOD_HR,
+    NUM_THREAD_TO_RUN,
+    NEWS_REFRESH_THRES, 
+    NUM_TO_CRAWL, 
+    NUM_TO_FEED_LLM,
+    AGENT_RETRIES,
+    SEARCH_CONTEXT_SIZE,
 )
 from build.tools.render_html import render_html
 from build.tools.crawl_news import crawl_news
-
-FINANCIALS_UPDATE_PERIOD_HR = 1 # Hours
-NUM_THREAD_TO_RUN = 8
-
-NEWS_REFRESH_THRES = 3 # days
-LLM_RESEARCH_REFRESH_THRES = 90 # days
-NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
-NUM_TO_FEED_LLM = 10 # number of articles to provide to LLM
-AGENT_RETRIES = 5
-
-SEARCH_CONTEXT_SIZE = "medium"
-USAGE_REQUEST_LIMIT = 8
 
 class InfoSection(BaseModel):
     # to provide human-review-needed information to JsonModels
@@ -72,7 +66,7 @@ class LLM_Manager(ABC):
         client = AsyncOpenAI(base_url=u, api_key=k)
         provider = OpenAIProvider(openai_client=client)
         capabilities = None
-        model_settings = None
+        model_settings: ModelSettings | None = None
 
         if web_search and llm_mode == "openai":
             # OpenAI's hosted web search is available through its Responses API.
@@ -274,15 +268,23 @@ class JsonModel(BaseModel, ABC):
     @classmethod
     def _get_json_path_from_prefix(cls, prefix: str) -> Path | None: 
         prefix = sanitized_filename(prefix).lower()
-        paths = [p for p in Path(cls.DIR).glob("*.json") if p.name.lower().startswith(prefix)]
-        if len(paths) == 0:
-            return None
-        if len(paths) > 1:
-            paths = [p for p in paths if p.name.lower().startswith(f"{prefix}_")]
-            if len(paths) != 1:
-                print(f"Cannot load json file with prefix {prefix}...")
-                return None 
-        return paths[0]
+        paths = list(Path(cls.DIR).glob("*.json"))
+
+        # Prefer an exact key match before considering longer keys with this
+        # prefix (for example, "메모리" must resolve before "메모리_기판").
+        exact_matches = [p for p in paths if p.stem.lower() == prefix]
+        if len(exact_matches) == 1:
+            return exact_matches[0]
+
+        prefix_matches = [
+            p for p in paths
+            if p.stem.lower().startswith(f"{prefix}_")
+        ]
+        if len(prefix_matches) == 1:
+            return prefix_matches[0]
+        if len(prefix_matches) > 1 or len(exact_matches) > 1:
+            print(f"Cannot load json file with prefix {prefix}...")
+        return None
 
     # should not be used as standalone as sub_items are not populated
     @classmethod

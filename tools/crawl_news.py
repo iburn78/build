@@ -6,7 +6,7 @@ from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
 from crawl4ai.content_filter_strategy import PruningContentFilter
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
 from build.tools.ggl_news_feed import get_google_news_feed, add_banned_domain
-from build.tools.settings import GENERAL_DIR
+from build.models.settings import GENERAL_DIR
 
 CUTOFF_MONTHS=3 
 MAX_RESULT=10 

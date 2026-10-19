@@ -1,25 +1,30 @@
 import json
 import sys
 from pathlib import Path, PurePosixPath
-
 from bs4 import BeautifulSoup
+from build.models.settings import (
+    BASE_DATA_DIR,
+    COMPONENT_NEWS_DIR,
+    COMPONENTS_DIR,
+    PROFILE_NEWS_DIR,
+    PROFILES_DIR,
+    VALUECHAIN_DIR,
+    VALUECHAIN_NEWS_DIR,
+)
 
-
-DATA_DIR = Path(__file__).resolve().parents[2] / "data"
-BUILD_DIR = DATA_DIR / "build"
 HTML_DIRS = {
-    "Profile": "profiles",
-    "Segment": "profiles",
-    "Component": "components",
-    "ValueChain": "valuechains",
+    "Profile": PROFILES_DIR,
+    "Segment": PROFILES_DIR,
+    "Component": COMPONENTS_DIR,
+    "ValueChain": VALUECHAIN_DIR,
 }
 NEWS_DIRS = {
-    "Profile": "news/profiles",
-    "Segment": "news/profiles",
-    "Component": "news/components",
-    "ValueChain": "news/valuechains",
+    "Profile": PROFILE_NEWS_DIR,
+    "Segment": PROFILE_NEWS_DIR,
+    "Component": COMPONENT_NEWS_DIR,
+    "ValueChain": VALUECHAIN_NEWS_DIR,
 }
-
+DATA_DIR = Path(BASE_DATA_DIR)
 
 def _safe_project_path(root: Path, relative_path: str) -> Path:
     relative = PurePosixPath(relative_path)
@@ -43,7 +48,7 @@ def _html_path(data: dict, object_type: str) -> Path:
     path = _safe_project_path(DATA_DIR, relative_path)
     if path.suffix.lower() != ".html":
         raise ValueError("Invalid current HTML path")
-    expected_dir = (BUILD_DIR / HTML_DIRS[object_type]).resolve()
+    expected_dir = Path(HTML_DIRS[object_type]).resolve()
     if path.parent != expected_dir:
         raise ValueError("HTML path does not match the model type")
     if not path.is_file():
@@ -93,9 +98,9 @@ def delete_markdown(data: dict) -> dict:
             missing["class"] = "llm-research-missing"
             missing.string = "LLM research md file is missing..."
             markdown.append(missing)
-        dialog.select_one(".llm-research-delete-button") and dialog.select_one(
-            ".llm-research-delete-button"
-        ).decompose()
+        delete_button = dialog.select_one(".llm-research-delete-button")
+        if delete_button is not None:
+            delete_button.decompose()
         dialog.attrs.pop("data-research-hash", None)
         html_path.write_text(str(soup), encoding="utf-8")
         return {"ok": True, "deleted": existed, "fileName": markdown_path.name}
@@ -107,7 +112,7 @@ def delete_markdown(data: dict) -> dict:
     if not isinstance(relative_path, str):
         raise ValueError("Missing Markdown file path")
     article_path = _safe_project_path(DATA_DIR, relative_path)
-    expected_news_dir = (BUILD_DIR / NEWS_DIRS[object_type]).resolve()
+    expected_news_dir = Path(NEWS_DIRS[object_type]).resolve()
     if (
         article_path.name != filename
         or article_path.parent.parent != expected_news_dir

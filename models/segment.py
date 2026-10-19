@@ -1,11 +1,10 @@
 from pydantic import Field
-from build.tools.settings import PROFILES_DIR, PROFILE_NEWS_DIR, get_id, sanitized_filename
+from build.tools.tools import sanitized_filename, get_id
+from build.models.settings import PROFILES_DIR, PROFILE_NEWS_DIR, SEGMENT_SEARCH_THEME
 from build.models.json_model import JsonModel, InfoSection, NewsModel, LLM_Manager
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 from pathlib import Path
 from typing import Any, ClassVar
-
-SEGMENT_SEARCH_THEME = ['사업부 실적', '전망']
 
 class FinancialsAdjuster(InfoSection):
     revenue_share: float | None = None

@@ -1,13 +1,12 @@
 from pydantic import BaseModel, Field
-from build.tools.settings import df_krx, COMPONENTS_DIR, COMPONENT_NEWS_DIR, get_id
+from build.tools.tools import df_krx, get_id
+from build.models.settings import COMPONENTS_DIR, COMPONENT_NEWS_DIR, COMPONENT_SEARCH_THEME
 from build.models.json_model import JsonModel, InfoSection, NewsModel, LLM_Manager
 from build.models.profile import Profile
 from build.models.segment import Segment
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 from typing import Any, ClassVar
 from pathlib import Path
-
-COMPONENT_SEARCH_THEME = ['섹터 전망']
 
 class Member(BaseModel):
     # simple vehicle that carries only key and company name: works both for profile and segment

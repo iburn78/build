@@ -4,11 +4,9 @@ import json
 import re
 from pathlib import Path
 
-
 PROJECTS_DIR = Path(__file__).resolve().parents[2]
 COMPONENTS_DIR = PROJECTS_DIR / "data" / "build" / "components"
 VALUECHAINS_DIR = PROJECTS_DIR / "data" / "build" / "valuechains"
-
 
 def print_section(title: str) -> None:
     print("#------------------------------------------")
