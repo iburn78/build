@@ -42,6 +42,15 @@ VOLATILITY_THRESHOLD = 0.33 # 0.33 for 33% volality up/down
 AMOUNT_DAILY_THRESHOLD = 0.33 # 0.33 for 33% amount up/down
 ALPHA_DAILY_THRESHOLD = 0.0004 # to convert yearly: x 250 (busines days), 0.0004 if 10% +/- compared to index
 
+
+def _per_ratio(marcap, opincome):
+    """Return PER values, treating negative or undefined ratios as NaN."""
+    with np.errstate(divide="ignore", invalid="ignore"):
+        per = np.divide(marcap, opincome)
+    if isinstance(per, pd.Series):
+        return per.where(np.isfinite(per) & (per >= 0), np.nan)
+    return per if np.isfinite(per) and per >= 0 else np.nan
+
 @dataclass
 class FinancialsData:
     #  contains raw data for max period for a single key
@@ -388,11 +397,17 @@ class SectorAnalysis:
         # ------------------------------------------------------------------
         # PER
         # ------------------------------------------------------------------
-        PER_ltm = self.ma_data['marcap'].iloc[-1]/self.fr_data['opincome_qtr'].iloc[-4:].sum()
-        PER_qx4 = self.ma_data['marcap'].iloc[-1]/(self.fr_data['opincome_qtr'].iloc[-1]*4)
+        PER_ltm = _per_ratio(
+            self.ma_data['marcap'].iloc[-1],
+            self.fr_data['opincome_qtr'].iloc[-4:].sum(),
+        )
+        PER_qx4 = _per_ratio(
+            self.ma_data['marcap'].iloc[-1],
+            self.fr_data['opincome_qtr'].iloc[-1] * 4,
+        )
 
         fwd_annual_opincome = sum([opic_slope*i + opic.iloc[-1] for i in [1, 2, 3, 4]]) # this excludes the current quarter by choice
-        PER_fwd = self.ma_data['marcap'].iloc[-1]/fwd_annual_opincome
+        PER_fwd = _per_ratio(self.ma_data['marcap'].iloc[-1], fwd_annual_opincome)
 
         res['PER'] = {
             'PER_ltm': round_sig(PER_ltm), 
@@ -662,8 +677,12 @@ class SectorAnalysis:
         self._aggr_dataset[_fr_data.columns]=_fr_data.reindex(self._aggr_dataset.index, method='ffill')
 
         # PER: assumes the same 4 quarters 
-        self._aggr_dataset['PER_qx4'] = self._aggr_dataset['marcap']/self._aggr_dataset['opincome_qx4']
-        self._aggr_dataset['PER_ltm'] = self._aggr_dataset['marcap']/self._aggr_dataset['opincome_ltm']
+        self._aggr_dataset['PER_qx4'] = _per_ratio(
+            self._aggr_dataset['marcap'], self._aggr_dataset['opincome_qx4']
+        )
+        self._aggr_dataset['PER_ltm'] = _per_ratio(
+            self._aggr_dataset['marcap'], self._aggr_dataset['opincome_ltm']
+        )
 
         # ffill and return
         return self._aggr_dataset.replace([np.inf, -np.inf], np.nan).ffill().astype('float64')

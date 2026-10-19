@@ -1,5 +1,6 @@
 import requests
 import hashlib
+import math
 from html import escape
 from datetime import datetime
 from build.tools.tools import get_FN_GUIDE_url, get_NAVER_url
@@ -14,6 +15,18 @@ year = str(datetime.today().year)
 def _fmt_value(key, value):
     if value is None:
         return "-"
+
+    if isinstance(value, str) and value.strip().lower() in {
+        "nan", "inf", "-inf", "infinity", "-infinity"
+    }:
+        return "-"
+
+    if not isinstance(value, (bool, str)):
+        try:
+            if not math.isfinite(float(value)):
+                return "-"
+        except (TypeError, ValueError, OverflowError):
+            pass
 
     if isinstance(value, bool):
         return (
@@ -98,8 +111,9 @@ def _value_row(key, values=None, level=0, chart=True):
             nums.append(None)
         else:
             try:
-                nums.append(float(v))
-            except (TypeError, ValueError):
+                numeric_value = float(v)
+                nums.append(numeric_value if math.isfinite(numeric_value) else None)
+            except (TypeError, ValueError, OverflowError):
                 nums.append(None)
 
     valid = [v for v in nums if v is not None]
@@ -560,7 +574,7 @@ def _render_llm_research(
     <div class="llm-research-trigger-row" data-object-type="{escape(target_type, quote=True)}"
         data-object-id="{escape(str(target_key), quote=True)}">
         <button class="{research_button_class}" type="button" aria-haspopup="dialog"
-            aria-controls="{escape(dialog_id, quote=True)}">LLM Research</button>
+            aria-controls="{escape(dialog_id, quote=True)}">LLM Research (l)</button>
     </div>
     <dialog class="llm-research-dialog" id="{escape(dialog_id, quote=True)}"
         data-object-type="{escape(target_type, quote=True)}" data-object-id="{escape(str(target_key), quote=True)}"{research_hash_attr}
