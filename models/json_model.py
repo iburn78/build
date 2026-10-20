@@ -77,16 +77,18 @@ class LLM_Manager(ABC):
         u, k, m = llm_selector(llm_mode)
         client = AsyncOpenAI(base_url=u, api_key=k)
         provider = OpenAIProvider(openai_client=client)
+
+        if web_search and llm_mode not in {"openai", "ollama"}:
+            raise ValueError(f"Web search is not configured for the LLM mode: {llm_mode}")
+
+        model = OpenAIChatModel(model_name=m, provider=provider)
         capabilities = None
         model_settings: ModelSettings | None = None
 
         if web_search and llm_mode == "openai":
-            # OpenAI's hosted web search is available through its Responses API.
             model = OpenAIResponsesModel(model_name=m, provider=provider)
             capabilities = [NativeTool(WebSearchTool(search_context_size=SEARCH_CONTEXT_SIZE))]
             model_settings = {"tool_choice": "auto"}
-        else:
-            model = OpenAIChatModel(model_name=m, provider=provider)
 
         agent = Agent(
             model=model,
@@ -97,65 +99,59 @@ class LLM_Manager(ABC):
         )
 
         if web_search and llm_mode == "ollama":
-            @agent.tool_plain(name="web_search")
-            def web_search_tool(query: str, max_results: int = 5) -> str:
-                """Search the web for current information relevant to the query."""
-                if not k or k == "-":
-                    raise RuntimeError("An Ollama API key is required for web search")
-
-                import requests
-
-                for attempt in range(OLLAMA_WEB_SEARCH_MAX_ATTEMPTS):
-                    response = requests.post(
-                        "https://ollama.com/api/web_search",
-                        headers={"Authorization": f"Bearer {k}"},
-                        json={
-                            "query": query,
-                            "max_results": max(1, min(max_results, 10)),
-                        },
-                        timeout=30,
-                    )
-                    if response.status_code != 429:
-                        break
-                    if attempt == OLLAMA_WEB_SEARCH_MAX_ATTEMPTS - 1:
-                        response.raise_for_status()
-
-                    retry_after = response.headers.get("Retry-After")
-                    try:
-                        delay = (
-                            float(retry_after)
-                            if retry_after
-                            else 2 ** (attempt + 1)
-                        )
-                    except ValueError:
-                        delay = 2 ** (attempt + 1)
-                    time.sleep(
-                        min(delay, 60) + random.uniform(0, 0.5)
-                    )
-
-                response.raise_for_status()
-                results = response.json().get("results", [])
-                if not results:
-                    return "No web search results found."
-
-                formatted_results = [
-                    f"{item.get('title', 'Untitled')}\n{item.get('url', '')}\n"
-                    f"{str(item.get('content', ''))[:OLLAMA_WEB_SEARCH_RESULT_CONTENT_CHARS]}"
-                    for item in results
-                ]
-                result_text = "\n\n".join(formatted_results)
-                return result_text
-
-        elif web_search and llm_mode != "openai":
-            raise ValueError(f"Web search is not configured for LLM mode: {llm_mode}")
+            self._register_ollama_web_search(agent, k)
 
         return agent
+
+    @staticmethod
+    def _register_ollama_web_search(agent, api_key):
+        """Register Ollama's hosted web-search API as an agent tool."""
+        @agent.tool_plain(name="web_search")
+        def web_search_tool(query: str, max_results: int = 5) -> str:
+            """Search the web for current information relevant to the query."""
+            if not api_key or api_key == "-":
+                raise RuntimeError("An Ollama API key is required for web search")
+
+            import requests
+
+            for attempt in range(OLLAMA_WEB_SEARCH_MAX_ATTEMPTS):
+                response = requests.post(
+                    "https://ollama.com/api/web_search",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={
+                        "query": query,
+                        "max_results": max(1, min(max_results, 10)),
+                    },
+                    timeout=30,
+                )
+                if response.status_code != 429:
+                    break
+                if attempt == OLLAMA_WEB_SEARCH_MAX_ATTEMPTS - 1:
+                    response.raise_for_status()
+
+                retry_after = response.headers.get("Retry-After")
+                try:
+                    delay = float(retry_after) if retry_after else 2 ** (attempt + 1)
+                except ValueError:
+                    delay = 2 ** (attempt + 1)
+                time.sleep(min(delay, 60) + random.uniform(0, 0.5))
+
+            response.raise_for_status()
+            results = response.json().get("results", [])
+            if not results:
+                return "No web search results found."
+
+            return "\n\n".join(
+                f"{item.get('title', 'Untitled')}\n{item.get('url', '')}\n"
+                f"{str(item.get('content', ''))[:OLLAMA_WEB_SEARCH_RESULT_CONTENT_CHARS]}"
+                for item in results
+            )
 
     def gen_news(self, target: "JsonModel"):
         if not COLLECT_NEWS:
             return target.news
 
-        print(f"News collection initiating for {target.key}")
+        print(f"Initiating news collection on {target.key}")
         news_collection = target.scrape_news()
         if not news_collection.strip():
             return None
@@ -255,7 +251,7 @@ class JsonModel(BaseModel, ABC):
         needs_html = bool(research.strip()) and self.llm_research_html_needs_refresh(research)
         if not self.llm_research_needs_refresh():
             return needs_html or timestamp_missing
-        print(f"LLM Research initiating for {type(self).__name__} {self.key}")
+        print(f"Initiating LLM Research on {type(self).__name__} {self.key}")
         generated = self.llm_manager.get_llm_research(self)
         if not generated.strip():
             return needs_html

@@ -190,10 +190,10 @@ Rules:
         request_text = f"""
 한국 상장사 {target.name} 에 대한 아래 질문에 인터넷 검색해서 답변:
 
-- 회사의 가장 중요한 사업부는 어떻게 나눌수 있것? (3-5개)
+- 회사의 가장 중요한 사업부는 어떻게 나눌수 있는가? (3-5개)
 - 각 사업부의 최근 매출과 영업이익, 영업이익률 조사
 - 각 사업부 매출 및 영업이익이 분기별로 증가세였는지, 하락세였는지?
-- 각 사업부별 경쟁사는 어디이고, 경쟁사 중에서서 상장사가 있다면 평균 PER는
+- 각 사업부별 경쟁사는 어디이고, 경쟁사 중에서서 상장사가 있다면 평균 PER는?
 
 한국어 Markdown 으로 답변할것
 """
@@ -285,7 +285,7 @@ class Profile(JsonModel):
     def _get_subitems(self):
         self._sub_items.clear()
         if self.info_section.reviewed and self.info_section.create_segments:
-            print(f"Segment creating/updating initiating for profile {self.name}")
+            print(f"Initiating segment creating/updating on profile {self.name}")
             for i, segment_name in enumerate(self.info_section.segments):
                 id = chr(ord('A')+i) # 0 to A, 1 to B, etc
                 key = self.code + f'({id})'
@@ -366,7 +366,7 @@ class Profile(JsonModel):
         research_timestamp_missing = research_file_exists and not self.llm_research_updated
         research_due = COLLECT_LLM_RESEARCH and self.llm_research_needs_refresh()
         if research_due:
-            print(f"LLM Research initiating for {self.name}")
+            print(f"Initiating LLM Research on {self.name}")
             generated_research = self.llm_manager.get_llm_research(self)
             if generated_research.strip():
                 self.save_llm_research(generated_research)
