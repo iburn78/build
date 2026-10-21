@@ -105,10 +105,8 @@ OLLAMA_API_KEY = config['ollama_api_key']
 
 _PLATFORM_COLLECTION_DEFAULT = "1" if sys.platform == "darwin" else "0"
 
-
 def _env_enabled(name: str, default: str) -> bool:
     return os.getenv(name, default).strip().lower() not in {"0", "false", "no", "off"}
-
 
 COLLECT_NEWS = _env_enabled("BUILD_COLLECT_NEWS", _PLATFORM_COLLECTION_DEFAULT)
 COLLECT_LLM_RESEARCH = _env_enabled("BUILD_LLM_RESEARCH", _PLATFORM_COLLECTION_DEFAULT)
