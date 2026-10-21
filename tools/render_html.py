@@ -65,7 +65,7 @@ def _same_signature(*dicts):
     signature = _dict_signature(dicts[0])
     passed = all(_dict_signature(d) == signature for d in dicts[1:])
     if not passed:
-        print(f"Signature mismatching: ")
+        print("Signatures do not match.")
         # for d in dicts:
         #     print(_dict_signature(d))
     return passed
@@ -249,7 +249,7 @@ def _render_images(output_file, meta_dict):
         if _url_exists(url):
             images.append(url)
         else: 
-            print(f'url {url} not reached')
+            print(f"Could not reach URL: {url}")
 
     # ------------------------------
     # may add additional images here
@@ -661,7 +661,7 @@ def render_html(target_class,
         raise ValueError("column_names and dict_list must have the same length")
 
     if not _same_signature(*financials_dicts):
-        print('align financials_dicts ...')
+        print("Aligning financial data...")
         financials_dicts = _align_dicts(*financials_dicts)
 
     page_name = f"[{escape(str(target_class).lower())}] {escape(str(financials_names[0]['name']))}"
@@ -684,4 +684,4 @@ def render_html(target_class,
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text(html, encoding="utf-8")
-    print(f"File {output_file} is written...")
+    print(f"Wrote file: {output_file}")

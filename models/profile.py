@@ -172,7 +172,7 @@ Rules:
         try:
             bs = self.business_agent.run_sync(request_text).output
         except Exception as e:
-            print(f"Business generation failed for an overview {overview.title[:30]}: {e}")
+            print(f"Could not generate business overview {overview.title[:30]}: {e}")
             return None
 
         # ensure defaults again
@@ -285,7 +285,7 @@ class Profile(JsonModel):
     def _get_subitems(self):
         self._sub_items.clear()
         if self.info_section.reviewed and self.info_section.create_segments:
-            print(f"Initiating segment creating/updating on profile {self.name}")
+            print(f"Creating or updating segments for profile {self.name}")
             for i, segment_name in enumerate(self.info_section.segments):
                 id = chr(ord('A')+i) # 0 to A, 1 to B, etc
                 key = self.code + f'({id})'
@@ -315,11 +315,11 @@ class Profile(JsonModel):
         self._reconcile_sub_items()
 
     def _reconcile_sub_items(self):
-        # removing unnecessary stall sub-item files
+        # Remove files for obsolete sub-items.
         paths = [p for p in self.DIR.glob("*.json") if p.name.startswith(self.key)]
         base = [self.get_json_path()] + [v.get_json_path() for v in self._sub_items.values()]
         to_remove = [p for p in paths if p not in base]
-        # removing not only json, but also html, png, etc
+        # Remove JSON, HTML, PNG, and other generated files.
         for p in to_remove:
             for _p in p.parent.glob(f"{p.stem}.*"):
                 _p.unlink(missing_ok=True)
@@ -353,7 +353,7 @@ class Profile(JsonModel):
         self._subitems_financials_processed = _sa._subitems_financials_processed
 
     def _update(self, **kwargs):
-        print(f"Profile updating: {self.name}")
+        print(f"Updating profile: {self.name}")
         overview_changed = False
         info_section_changed = False
         research_changed = False
@@ -366,7 +366,7 @@ class Profile(JsonModel):
         research_timestamp_missing = research_file_exists and not self.llm_research_updated
         research_due = COLLECT_LLM_RESEARCH and self.llm_research_needs_refresh()
         if research_due:
-            print(f"Initiating LLM Research on {self.name}")
+            print(f"Starting LLM research for {self.name}")
             generated_research = self.llm_manager.get_llm_research(self)
             if generated_research.strip():
                 self.save_llm_research(generated_research)
@@ -383,7 +383,7 @@ class Profile(JsonModel):
             self.overview = Overview.fetch(self.key)
             overview_changed = True
 
-        # e.g., when info_section is modifed in the html (then replace with it even not reviewed)
+        # Also accept HTML edits, even when the section is not reviewed.
         if _info_section:
             old_values = self.info_section.model_dump(exclude={"updated"})
             new_values = _info_section.model_dump(exclude={"updated"})
@@ -454,16 +454,16 @@ class Profile(JsonModel):
         if research.strip():
             profile.save_llm_research(research)
             profile.llm_research_updated = datetime.now().strftime("%Y-%m-%d %H:%M")
-        # news is filled after instance creation
+        # Populate news after creating the instance.
         profile.news = cls.llm_manager.gen_news(profile)
 
         profile._get_subitems()
-        # financials is filled after profile creation
+        # Populate financials after creating the profile.
         profile._get_financials(**kwargs)
 
         return profile
 
-    # below overrided
+    # Overridden below.
     @classmethod
     def get_item(cls, key, **kwargs):
         try:
@@ -477,5 +477,5 @@ class Profile(JsonModel):
             try:
                 return profile.get_subitems()[listed_company.key]
             except:
-                print(f"Segment {key} of {profile.name} is not available. Profile is used instead - re-run after review segments.")
+                print(f"Segment {key} for {profile.name} is unavailable. Using the profile; rerun after reviewing the segments.")
         return profile

@@ -1,6 +1,8 @@
 # Analysis and reporting plan
 
-This is a proposed extension to the current profile, news, and financial-analysis pipeline. The report-generation workflow described here is not yet implemented.
+Last edited: 2026-10-21
+
+This is a proposed extension to the current `Profile`, `Segment`, `Component`, `ValueChain`, news, and financial-analysis pipeline. The evidence-driven company-report workflow below is not yet implemented.
 
 ## Goal
 
@@ -8,9 +10,9 @@ Produce a company report that explains its business, recent performance, competi
 
 ## Evidence workflow
 
-1. Gather current profile, financial, segment, and news information.
+1. Gather current profile, financial, segment, component, value-chain, and news information.
 2. Extract article-level insights with topic, factual points, financial signal, business segment, sentiment, publication date, and source reference.
-3. Identify questions that remain unanswered, such as performance drivers or competitor differences.
+3. Identify unanswered questions, such as performance drivers or competitor differences.
 4. Run targeted follow-up searches using company, segment, competitor, and issue terms. Example queries:
    - `{company} 실적`
    - `{company} 전망`

@@ -138,7 +138,7 @@ def calc_alpha_beta(
 # LLM 
 # -----------------------------------------------------------------------------------
 # local gemma4 (installed via ollama)
-# standard way to call an local model (using openai template)
+# Standard way to call a local model using the OpenAI-compatible API.
 from openai import OpenAI
 import base64, mimetypes
 

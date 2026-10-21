@@ -91,7 +91,7 @@ async def _crawl_url_and_save(crawler, url, title=None, published=None, dest_dir
         f.write(f"scrapped: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n")
         f.write(result.markdown.fit_markdown)
         f.write("\n")
-        print(f'{filename} is written')
+        print(f"Wrote file: {filename}")
 
 async def _crawl_news(query, kr, cutoff_months, max_result, show_res, dest_dir=None):
     items = await get_google_news_feed(

@@ -160,8 +160,8 @@ class FinancialsData:
         return result
 
     # This is just a rough linear adjustment for simple and straightforward split of segments
-    # note: slope and growth_per_qtr of a segment is the same as "revenue" slope and growth_per_qtr of the corresponding profile 
-    #       under the following logic
+    # A segment's slope and quarterly growth match the corresponding profile's
+    # revenue slope and quarterly growth under the following logic.
     def adjust_data(self):
         if self.id is None: return 
 
@@ -331,7 +331,7 @@ class SectorAnalysis:
 
     def _build_assess_data(self):  
         if self.is_index: 
-            print('No assess available for index data')
+            print('Assessment is unavailable for index data.')
             return False
 
         fr = self.fr_data # drop_duplicates() not applied here
@@ -341,12 +341,12 @@ class SectorAnalysis:
 
         fr = fr.iloc[start_idx:]
 
-        # checker of usefulness of fr_data
+        # Check whether financial data is useful.
         for col in ['revenue_qtr', 'opincome_qtr']:
             s = fr[col].tail(5)
 
             if len(s) < 5 or s.isna().any():
-                print(f'{col} needs the last 5 quarterly data points to be non-NA')
+                print(f'{col} requires 5 non-missing quarterly data points.')
                 print(fr)
                 return False
 
@@ -384,7 +384,7 @@ class SectorAnalysis:
         # opmargin 
         # ------------------------------------------------------------------
         # last 4 quarter opmargin: date is quarter starting date
-        # refer to note: the same situation applies here
+        # The same forward-fill applies here.
         opms = (opic / rev).iloc[-4:].apply(round_sig).to_dict()
         res['opmargin'] = {
             f'{k:%y}_{k.quarter}Q': (None if pd.isna(v) else v)
@@ -419,7 +419,7 @@ class SectorAnalysis:
         # volatility and amount increment
         # ------------------------------------------------------------------
         # Volatility:
-        # volality is measured as std(percent change of marcap for last MEASURE_DURATION days)
+        # Volatility is the standard deviation of market-cap changes over MEASURE_DURATION days.
         res['volatility'] = calc_increment(self.ma_data['marcap'].pct_change().rolling(MEASURE_DURATION).std().dropna(), MEASURE_DURATION, BASE_DURATION)
         # Amount:
         res['amount'] = calc_increment(self.ma_data['amount_daily'], MEASURE_DURATION, BASE_DURATION)
@@ -665,7 +665,7 @@ class SectorAnalysis:
         return pd.DataFrame(rows).set_index('last_day')
 
     def _combine_fr_data(self):
-        # fr_data pre-process before combine
+        # Preprocess financial data before combining it.
         _fr_data = self.fr_data.copy() 
         _fr_data['revenue_ltm'] = _fr_data['revenue_qtr'].rolling(4).sum()
         _fr_data['opincome_ltm'] = _fr_data['opincome_qtr'].rolling(4).sum()

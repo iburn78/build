@@ -166,7 +166,7 @@ class Segment(JsonModel):
             self.news = self.llm_manager.gen_news(self)
             changed = True
 
-        # check financials after checking FinancialsAdjuster
+        # Check financials after validating FinancialsAdjuster.
         if changed or self._update_financials(**kwargs):
             self._get_financials(**kwargs)
             changed = True
@@ -186,7 +186,7 @@ class Segment(JsonModel):
         opmargin = kwargs.get("opmargin")
         trend = kwargs.get("trend") or ""
 
-        # sanitization happenes in model_post_init()
+        # Sanitization happens in model_post_init().
         filename = f"{key}_{segment_name}"
         if isection:
             info_section = isection.model_copy(
@@ -213,10 +213,10 @@ class Segment(JsonModel):
             segment_name = segment_name,
         )
 
-        # news is filled after instance creation
+        # Populate news after creating the instance.
         segment.news = cls.llm_manager.gen_news(segment)
 
-        # financials is filled after segment creation
+        # Populate financials after creating the segment.
         segment._get_financials(**kwargs)
 
         return segment

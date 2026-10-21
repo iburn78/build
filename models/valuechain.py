@@ -6,8 +6,8 @@ from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 from typing import Any, ClassVar
 
 class Landscape(InfoSection):
-    dynamics: str = "" # leading component, margin concentration, buyer-seller power dynamics
-    key_drivers: str = "" # what drives the growth and determines who wins, technology innovation, demand growth, etc
+    dynamics: str = "" # Leading components, margin concentration, and buyer-seller power
+    key_drivers: str = "" # Factors that drive growth and determine which companies succeed
 
     def model_post_init(self, context: Any) -> None:
         if not self.search_theme:
@@ -84,10 +84,36 @@ class ValueChain(JsonModel):
         sk= self.key
         return super().get_search_key(sk)
 
-    def _get_subitems(self):
+    def _get_subitems(self, components: list[Component] | None = None):
         self._sub_items.clear()
+        provided_components = {component.key: component for component in components or []}
+        unknown_components = set(provided_components) - set(self.component_keys)
+        if unknown_components:
+            raise ValueError(
+                f"ValueChain {self.key} received components not listed in component_keys: "
+                f"{', '.join(sorted(unknown_components))}"
+            )
+
+        invalid_components = []
         for k in self.component_keys:
-            self._sub_items[k] = Component.get_item(k)
+            if k in provided_components:
+                continue
+            component_path = Component._get_json_path_from_prefix(k)
+            if component_path is None:
+                invalid_components.append(f"{k} (component JSON not found)")
+                continue
+            if Component._load_from_path(component_path) is None:
+                invalid_components.append(f"{k} (invalid component JSON: {component_path.name})")
+
+        if invalid_components:
+            details = ", ".join(invalid_components)
+            raise ValueError(
+                f"ValueChain {self.key} references missing or invalid components: {details}. "
+                "Create or repair the component JSON before loading this value chain."
+            )
+
+        for k in self.component_keys:
+            self._sub_items[k] = provided_components.get(k) or Component.get_item(k)
 
     def _get_financials(self, **kwargs):
         _sa = SectorAnalysis()
@@ -105,9 +131,9 @@ class ValueChain(JsonModel):
 
     def _update(self, **kwargs) -> bool:
         changed = False
-        component_keys = kwargs.get("component_keys", [])
+        component_keys = self._get_component_keys(kwargs)
 
-        # case when component_keys are given
+        # Update component keys when provided.
         if component_keys:
             if set(self.component_keys) != set(component_keys):
                 self.component_keys = component_keys
@@ -125,7 +151,7 @@ class ValueChain(JsonModel):
             self.news = self.llm_manager.gen_news(self)
             changed = True
 
-        self._get_subitems()
+        self._get_subitems(components=kwargs.get("components"))
 
         if changed or self._update_financials(**kwargs):
             self._get_financials(**kwargs)
@@ -135,8 +161,8 @@ class ValueChain(JsonModel):
 
     @classmethod
     def _create_new_item(cls, key, isection: InfoSection | None, **kwargs):
-        # give component namelist to create new one
-        component_keys = kwargs.get("component_keys", [])
+        # Pass component names when creating a new value chain.
+        component_keys = cls._get_component_keys(kwargs)
         if not component_keys:
             raise ValueError(f"ValueChain {key} cannot be initiated without component keys")
 
@@ -146,11 +172,23 @@ class ValueChain(JsonModel):
             component_keys = component_keys,
             info_section = isection if isection else Landscape(),
         )
-        # news is filled after instance creation
+        # Populate news after creating the instance.
         vc.news = cls.llm_manager.gen_news(vc)
 
-        vc._get_subitems()
-        # financials is filled after valuechain creation
+        vc._get_subitems(components=kwargs.get("components"))
+        # Populate financials after creating the value chain.
         vc._get_financials(**kwargs)
 
         return vc
+
+    @staticmethod
+    def _get_component_keys(kwargs) -> list[str]:
+        component_keys = kwargs.get("component_keys")
+        components = kwargs.get("components")
+        if component_keys is not None and components is not None:
+            raise ValueError("Pass either components or component_keys, not both")
+        if components is not None:
+            if not all(isinstance(component, Component) for component in components):
+                raise TypeError("components must be a list of Component instances")
+            return [component.key for component in components]
+        return component_keys or []

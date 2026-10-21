@@ -41,14 +41,14 @@ from build.tools.render_html import render_html
 from build.tools.crawl_news import crawl_news
 
 class InfoSection(BaseModel):
-    # to provide human-review-needed information to JsonModels
-    # - if reviewed is True, information survives through updates or (automatic) creations if json path matches
-    # - if needed, AI agent can be used
+    # Stores information for human review.
+    # Reviewed information is preserved when the JSON path matches.
+    # An AI agent can generate this information when needed.
     reviewed: bool = False
     updated: str | None = None
     search_theme: list[str] = Field(default_factory=list)
 
-    # common attrs to be used as classification and notes
+    # Shared classification and notes fields.
     tags: str = ""
     notes: str = ""
 
@@ -151,7 +151,7 @@ class LLM_Manager(ABC):
         if not COLLECT_NEWS:
             return target.news
 
-        print(f"Initiating news collection on {target.key}")
+        print(f"Collecting news for {target.key}")
         news_collection = target.scrape_news()
         if not news_collection.strip():
             return None
@@ -185,9 +185,8 @@ class LLM_Manager(ABC):
             return ""
 
 class JsonModel(BaseModel, ABC):
-    # to provide a basic pydantic structure to subclasses
-    # - a json file is maintained per a model instance
-    # - data format is validated when loaded
+    # Base Pydantic model for subclasses.
+    # Each instance has a JSON file that is validated when loaded.
 
     # Directory where json files are stored
     DIR: ClassVar[Path] # ClassVars is not included in json file, not validated when loading
@@ -197,7 +196,7 @@ class JsonModel(BaseModel, ABC):
     updated: str = ""
     llm_research_updated: str = ""
 
-    # below to be defined in each sub-class 
+    # Define these fields in each subclass.
     # info_section: InfoSection 
     # news: NewsModel
 
@@ -206,7 +205,7 @@ class JsonModel(BaseModel, ABC):
     _sub_items: dict = PrivateAttr(default_factory=dict)
     _subitems_financials_processed: list = PrivateAttr(default_factory=list)
 
-    # this is called when both loaded and created
+    # Called after loading or creating an instance.
     def model_post_init(self, context: Any) -> None:
         self.filename = sanitized_filename(self.filename)
         return super().model_post_init(context)
@@ -251,7 +250,7 @@ class JsonModel(BaseModel, ABC):
         needs_html = bool(research.strip()) and self.llm_research_html_needs_refresh(research)
         if not self.llm_research_needs_refresh():
             return needs_html or timestamp_missing
-        print(f"Initiating LLM Research on {type(self).__name__} {self.key}")
+        print(f"Starting LLM research for {type(self).__name__} {self.key}")
         generated = self.llm_manager.get_llm_research(self)
         if not generated.strip():
             return needs_html
@@ -274,11 +273,10 @@ class JsonModel(BaseModel, ABC):
             self.model_dump_json(indent=4, exclude_none=True),
             encoding="utf-8",
         )
-        print(f"{type(self).__name__} is saved: {jp}")
+        print(f"Saved {type(self).__name__}: {jp}")
 
     def get_qualitative_dict(self) -> dict:
-        # return a dict, which contain BaseModels to be shown in html
-        # single InfoSection is included in the dict
+        # Return a dictionary for HTML rendering, including the InfoSection.
         s = type(self.info_section).__name__
         formatted = re.sub(r'(?<!^)([A-Z])', r'_\1', s).lower()
         return {
@@ -320,7 +318,7 @@ class JsonModel(BaseModel, ABC):
     def get_subitems(self): 
         return self._sub_items
 
-    # creation and update of sub_items
+    # Create or update child items.
     @abstractmethod
     def _get_subitems(self):
         # recursively refresh sub_items and perform cleanup if necessary
@@ -354,15 +352,14 @@ class JsonModel(BaseModel, ABC):
     @abstractmethod
     def _update(self, **kwargs) -> bool:
         # perform update in self if content needs refresh
-        # and return True if item content changed
-        # save is handled in get_item
+        # Return True if the item changed; get_item handles saving.
         ...
 
     @classmethod
     @abstractmethod
     def _create_new_item(cls, key, isection: InfoSection | None, **kwargs) -> JsonModel:
-        # create a valid MODEL with info from existing json if any
-        # save is handled in get_item
+        # Create a valid model, reusing existing JSON data when available.
+        # get_item handles saving.
         ...
 
     @classmethod
@@ -383,10 +380,10 @@ class JsonModel(BaseModel, ABC):
         if len(prefix_matches) == 1:
             return prefix_matches[0]
         if len(prefix_matches) > 1 or len(exact_matches) > 1:
-            print(f"Cannot load json file with prefix {prefix}...")
+            print(f"Could not resolve JSON file for prefix: {prefix}")
         return None
 
-    # should not be used as standalone as sub_items are not populated
+    # Do not call directly; child items are not populated.
     @classmethod
     def _load_from_path(cls, path: str | Path) -> JsonModel | None:
         path = Path(path)
@@ -396,11 +393,11 @@ class JsonModel(BaseModel, ABC):
                 path.read_text(encoding="utf-8")
             )
         except Exception as e:
-            print(f"[Load from file] jsonmodel validation failed: {path} | {e}")
+            print(f"JSON model validation failed for {path}: {e}")
             obj = None
         return obj
 
-    # this assumes only one info_section and one financials_section
+    # Assumes there is one info section and one financials section.
     @classmethod
     def _extract_from_json(cls, existing_json = None):
         info_section_instance = None
@@ -415,10 +412,8 @@ class JsonModel(BaseModel, ABC):
 
         return info_section_instance
 
-    # main function to get an item 
-    # - if update needed, this will triger update 
-    # - if reviewed info_section exists, this will load it
-    # - if financials_section exists, this will load it
+    # Get an item, updating it when needed and loading reviewed information
+    # and financials when available.
     @classmethod
     def get_item(cls, key, **kwargs):
         json_path = cls._get_json_path_from_prefix(key)
@@ -431,10 +426,10 @@ class JsonModel(BaseModel, ABC):
                 print(f"{cls.__name__} JSON loaded: {json_path}")
                 changed = item._update(**kwargs)
                 if changed:
-                    print(f"Existing json updated for {key}")
+                    print(f"Updated existing JSON for {key}")
             else: 
-                # below handles when a valid json_path exists but failed to validate, retrieving partial info therein
-                print(f"Overwriting existing json for {key}")
+                # Recover reusable data from JSON that failed validation.
+                print(f"Replacing invalid JSON for {key}")
                 try: 
                     existing_json = json.loads(json_path.read_text(encoding="utf-8"))
                     isection = cls._extract_from_json(existing_json)
@@ -466,13 +461,13 @@ class JsonModel(BaseModel, ABC):
     def batch_process(cls, keylist, max_workers=NUM_THREAD_TO_RUN):
         if sys.platform == "win32":
             print("--------------------------------------------------")
-            print("Generating items - sequential on Windows")
+            print("Generating items sequentially on Windows")
             print("--------------------------------------------------")
             for key in keylist:
                 cls.get_item(key)
             return
         print("--------------------------------------------------")
-        print(f"Generating items - max {max_workers} threads")
+        print(f"Generating items with up to {max_workers} threads")
         print("--------------------------------------------------")
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             list(executor.map(cls.get_item, keylist))

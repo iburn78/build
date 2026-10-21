@@ -135,7 +135,7 @@ def llm_selector(mode='local'):
         model = "gemma4"
 
     else: 
-        print('mode is not available')
+        print('Mode is unavailable.')
         return ["", "", ""]
     
     return [base_url, api_key, model]

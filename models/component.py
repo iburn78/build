@@ -9,8 +9,8 @@ from typing import Any, ClassVar
 from pathlib import Path
 
 class Traits(InfoSection):
-    competition: str = "" # m/s, leader, competitive advatages
-    key_drivers: str = "" # what drives the growth and determines who wins, technology innovation, demand growth, etc
+    competition: str = "" # Market share, leaders, and competitive advantages
+    key_drivers: str = "" # Factors that drive growth and determine which companies succeed
 
     def model_post_init(self, context: Any) -> None:
         if not self.search_theme:
@@ -146,7 +146,7 @@ class Component(JsonModel):
         listed_companies = Component._build_listed_company_list(self.key, **kwargs)
 
         if listed_companies:
-            # set() operation does not work here due to basemodel instances characteristics
+            # Pydantic model instances do not support set-based comparison.
             if len(self.listed_companies) != len(listed_companies) or not all(
                 x in listed_companies for x in self.listed_companies
             ):
@@ -185,11 +185,11 @@ class Component(JsonModel):
             listed_companies = listed_companies,
             info_section = isection if isection else Traits(),
         )
-        # news is filled after instance creation
+        # Populate news after creating the instance.
         component.news = cls.llm_manager.gen_news(component)
 
         component._get_subitems()
-        # financials is filled after component creation
+        # Populate financials after creating the component.
         component._get_financials(**kwargs)
 
         return component
@@ -205,7 +205,7 @@ class Component(JsonModel):
         listed_companies = [ListedCompany.from_key(k) for k in keylist]
         listed_companies += [ListedCompany.from_name(n) for n in namelist]
 
-        # checking duplications
+        # Check for duplicates.
         codelist = []
         for listed_company in listed_companies:
             codelist.append(get_id(listed_company.key)[0])
