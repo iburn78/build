@@ -43,13 +43,13 @@ MAX_SEGMENTS = 5
 PROFILE_SEARCH_THEME = ['실적', '전망']
 
 # segment
-SEGMENT_SEARCH_THEME = ['사업부 실적', '전망']
+SEGMENT_SEARCH_THEME = ['사업부', '실적']
 
 # component
-COMPONENT_SEARCH_THEME = ['섹터 전망']
+COMPONENT_SEARCH_THEME = ['산업', '업종']
 
 # valuechian
-VALUECHAIN_SEARCH_THEME = ['산업 전망', '밸류체인']
+VALUECHAIN_SEARCH_THEME = ['산업', '밸류체인', '업계']
 
 #------------------------------------------------------------------
 # Display dict in html
