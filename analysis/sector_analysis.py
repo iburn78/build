@@ -35,9 +35,10 @@ DEFAULT_START_DATE = '2024-01-01'
 
 # ASSESS parameters
 OPINCOME_GROWTH_RATE = 0.05 # per quarter 
-OPMARGIN_THRESHOLD = 0.25 
-PER_LOW = 7
-PER_MED = 12
+ALLOWED_FLUCTUATION = 0.1 # opincome to be stable if within this range from prev quarter 
+OPMARGIN_THRESHOLD = 0.15 
+PER_LOW = 8
+PER_MED = 13.5
 VOLATILITY_THRESHOLD = 0.33 # 0.33 for 33% volality up/down
 AMOUNT_DAILY_THRESHOLD = 0.33 # 0.33 for 33% amount up/down
 ALPHA_DAILY_THRESHOLD = 0.0004 # to convert yearly: x 250 (busines days), 0.0004 if 10% +/- compared to index
@@ -255,7 +256,7 @@ class SectorAnalysis:
     [basics]
         - OP Income (시점, 상황에 따라 마지막 분기 data가 duplicated (ffill) 되었을 수 있음):
             * 최근 4개 분기 모두 Positive 인가?
-            * 최근 분기가 전년동기, 직전분기보다 좋아졌는가?
+            * 최근 분기가 전년동기, 직전분기의 1-ALLOWED_FLUCTUATION 보다 좋아졌는가? 
             * (START_DATE 부터) 성장중인가? (positive slope)
 
         > 모두 충족하면 True
@@ -347,7 +348,7 @@ class SectorAnalysis:
 
             if len(s) < 5 or s.isna().any():
                 print(f'{col} requires 5 non-missing quarterly data points.')
-                print(fr)
+                # print(fr)
                 return False
 
         opic = fr['opincome_qtr'] 
@@ -367,7 +368,7 @@ class SectorAnalysis:
         #       this is necessary, since some companies' financials may not be updated yet within a sector
         vals = opic.iloc[[-1, -2, -5]]
 
-        c2 = bool(vals.notna().all() and vals.iloc[0] >= vals.iloc[[1, 2]].max())
+        c2 = bool(vals.notna().all() and vals.iloc[0] >= vals.iloc[[1, 2]].max()*(1-ALLOWED_FLUCTUATION))
 
         # opincome slope over the average of last 4 quarters
         # will be inf or na if mean is 0
@@ -445,9 +446,9 @@ class SectorAnalysis:
         if oh['positive_last_4qtrs'] and oh['higher_than_comp'] and oh['slope'] > 0:
             basics = True
 
-        finantially_sound = False
+        financially_sound = False
         if oh['growth_per_qtr'] >= OPINCOME_GROWTH_RATE: 
-            finantially_sound = True
+            financially_sound = True
 
         om = list(self.assess_data['opmargin'].values())[-5:]
         if len(om) == 5 and all(np.isfinite(x) and x >= OPMARGIN_THRESHOLD for x in om):
@@ -455,9 +456,9 @@ class SectorAnalysis:
 
         # PER_level
         per = self.assess_data['PER']
-        if per['PER_ltm'] <= PER_LOW: PER_level = 'Low'
-        elif per['PER_ltm'] <= PER_MED: PER_level = 'Mid'
-        elif per['PER_ltm'] > PER_MED: PER_level = 'High'
+        if per['PER_ltm'] < PER_LOW: PER_level = 'Low'
+        elif per['PER_ltm'] < PER_MED: PER_level = 'Mid'
+        elif per['PER_ltm'] >= PER_MED: PER_level = 'High'
         else: PER_level = '(na)'
 
         # volatility movement in measure period
@@ -477,12 +478,12 @@ class SectorAnalysis:
         # alpha_level
         alp = self.assess_data['alpha_beta']['measure_duration']
         if alp['alpha'] < -ALPHA_DAILY_THRESHOLD: alpha_level = 'udr_pfm' # strong negative
-        elif alp['alpha'] <=  ALPHA_DAILY_THRESHOLD: alpha_level = 'at_mkt'
+        elif alp['alpha'] <=  ALPHA_DAILY_THRESHOLD: alpha_level = '-'
         elif alp['alpha'] >  ALPHA_DAILY_THRESHOLD: alpha_level = 'out_pfm' # strong positive
         else: alpha_level = '(na)' 
 
         # Choose Representative Categories
-        market_sentiment = 'unchanged'
+        market_sentiment = '-'
         if amount == 'Up' and volatility == 'Dn': market_sentiment = 'confidence' # confidence created
         elif amount == 'Up' and volatility == 'Up': market_sentiment = 'unstable' 
         elif amount == 'Dn' and volatility == 'Dn': market_sentiment = 'consumed' # events consumed
@@ -491,7 +492,7 @@ class SectorAnalysis:
         # --------------------------------------------
         # categorization
         # --------------------------------------------
-        if basics and finantially_sound:
+        if basics and financially_sound:
             if PER_level == 'Low':
                 category = 'A'
             elif PER_level == 'Mid': 
@@ -503,7 +504,7 @@ class SectorAnalysis:
 
         self.assess_result = {
             'basics': basics,
-            'financially_sound': finantially_sound,
+            'financially_sound': financially_sound,
             'PER_level': PER_level,
             'volatility_movement': volatility,
             'amount_movement': amount,

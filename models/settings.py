@@ -7,6 +7,8 @@ from pathlib import Path
 # Project parameters:
 #------------------------------------------------------------------
 
+OLLAMA_ACCOUNT = 'ak' # 'it', 'cp', 'ak'
+
 # LLMs: local, ollama, openai
 DEFAULT_BIZ_LLM = 'ollama' 
 DEFAULT_RESEARCH_LLM = 'ollama'
@@ -14,13 +16,13 @@ DEFAULT_NEWS_LLM = 'ollama'
 AGENT_RETRIES = 5
 
 # financials
-FINANCIALS_UPDATE_PERIOD_HR = 1 # Hours
+FINANCIALS_UPDATE_PERIOD_HR = 3 # Hours
 
 # news
 NEWS_REFRESH_THRES = 3 # days
 NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
 NUM_TO_FEED_LLM = 10 # number of articles to provide to LLM
-# os.environ["BUILD_COLLECT_NEWS"] = "1" # to override defaults - True: 1 (mac), False: 0 (other)
+# os.environ["BUILD_COLLECT_NEWS"] = "0" # to override defaults - True: 1 (mac), False: 0 (other)
 
 # research
 LLM_RESEARCH_REFRESH_THRES = 20 # days
@@ -28,7 +30,7 @@ SEARCH_CONTEXT_SIZE = "medium"
 USAGE_REQUEST_LIMIT = 3
 OLLAMA_WEB_SEARCH_MAX_ATTEMPTS = 2
 OLLAMA_WEB_SEARCH_RESULT_CONTENT_CHARS = 3000
-# os.environ["BUILD_LLM_RESEARCH"] = "1" # to override defaults - True: 1 (mac), False: 0 (other)
+# os.environ["BUILD_LLM_RESEARCH"] = "0" # to override defaults - True: 1 (mac), False: 0 (other)
 
 # parallel running
 NUM_THREAD_TO_RUN = 8
@@ -100,8 +102,12 @@ for directory in (
 OPENAI_CONF = PROJECTS_DIR / "config" / "openai_api.json"
 with open(OPENAI_CONF, 'r') as json_file:
     config = json.load(json_file)
+
 OPENAI_API_KEY = config['openai_api_key']
-OLLAMA_API_KEY = config['ollama_api_key']
+if OLLAMA_ACCOUNT == 'is': _olk = 'ollama_api_key_i'
+if OLLAMA_ACCOUNT == 'cp': _olk = 'ollama_api_key_c'
+else: _olk = 'ollama_api_key_a' # 'ak'
+OLLAMA_API_KEY = config[_olk]
 
 _PLATFORM_COLLECTION_DEFAULT = "1" if sys.platform == "darwin" else "0"
 
