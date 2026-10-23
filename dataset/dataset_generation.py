@@ -33,7 +33,7 @@ Component.get_item('광증폭기', namelist = ['라이콤']),
 Component.get_item('광케이블', namelist = ['대한광통신']),
 Component.get_item('ESS 냉각시스템', namelist = ['한중엔시에스']),
 Component.get_item('가스터빈', namelist = ['덕산네오룩스(B)']),
-# Component.get_item('산업용 열교환기', namelist = ['디티에스']), # 상장예정
+# Component.get_item('산업용 열교환기', namelist = ['디티에스']), 
 ])
 
 # --------------------------------------------------

@@ -9,9 +9,9 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import FuncFormatter
 from data.tools import load
-from data.tools.tools import set_KoreanFonts, dprint
+from data.tools.tools import set_KoreanFonts, dprint 
 from build.tools.tools import df_krx, get_id
-from build.tools.analysis_tools import KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta
+from build.tools.analysis_tools import DEFAULT_KRW_UNIT, KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta
 
 '''
 ma: MarCap (until last day if is_KRX_open == True; if strict False then include today if it is after 12:00), Amount
@@ -28,7 +28,6 @@ volumes = load.get_volumes()
 fr_main_db = load.get_fr_main_db()
 kospi, kosdaq, kospi200 = load.get_market_index()
 
-DEFAULT_KRW_UNIT: float = 1e9 # 10 억원
 MEASURE_DURATION = 20 # days 
 BASE_DURATION = 120 # days
 DEFAULT_START_DATE = '2024-01-01'

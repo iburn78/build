@@ -4,12 +4,19 @@ import pandas as pd
 import numpy as np
 import holidays
 
+DEFAULT_KRW_UNIT: float = 1e9 # 10 억원
 KRW_UNIT_KR = {
+    1e6: '100 man',
+    1e7: '1k man',
+    1e8: 'uk',
+    1e9: '10 uk',
+    1e10: '100 uk',
+    1e11: '1k uk',
     1e12: 'jo',
-    1e9: '10-uk',
-    1e8: 'uk', 
+    1e13: '10 jo',
+    1e14: '100 jo',
+    1e15: '1k jo',
 }
-
 
 def is_KRX_open(now=None, strict=False):
     """
