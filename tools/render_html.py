@@ -546,9 +546,10 @@ def _render_llm_research(
     updated: str = "",
     *,
     target_type: str,
+    extra_action: str = "",
 ):
     research = (research or "").strip()
-    if not research and not show_delete:
+    if not research and not show_delete and not extra_action:
         return ""
 
     dialog_id = "llm-research-dialog-" + "".join(
@@ -575,6 +576,7 @@ def _render_llm_research(
         data-object-id="{escape(str(target_key), quote=True)}">
         <button class="{research_button_class}" type="button" aria-haspopup="dialog"
             aria-controls="{escape(dialog_id, quote=True)}">LLM Research (l)</button>
+        {extra_action}
     </div>
     <dialog class="llm-research-dialog" id="{escape(dialog_id, quote=True)}"
         data-object-type="{escape(target_type, quote=True)}" data-object-id="{escape(str(target_key), quote=True)}"{research_hash_attr}
@@ -595,6 +597,34 @@ def _render_llm_research(
         </div>
     </dialog>
     """
+
+
+def _render_roma_plot(codes, target_key: str):
+    """Render a ROMA plot button and its serialized Plotly figure."""
+    plot_items = list(codes or [])
+    if not plot_items:
+        return ""
+
+    plot_id = "roma-plot-" + "".join(
+        char if char.isalnum() or char in "-_" else "-"
+        for char in str(target_key)
+    )
+    try:
+        from build.analysis.roma_plot import draw_roma
+        figure_html = draw_roma(plot_items).to_html(
+            full_html=False,
+            include_plotlyjs="cdn",
+            config={"responsive": True},
+        )
+    except Exception as exc:
+        figure_html = f'<p class="roma-plot-error">Could not create ROMA plot: {escape(str(exc))}</p>'
+
+    return f'''
+        <button class="roma-plot-link" type="button" aria-haspopup="dialog"
+            aria-controls="{escape(plot_id, quote=True)}" title="ROMA plot (r)">ROMA plot (r)</button>
+        <template class="roma-plot-template" id="{escape(plot_id, quote=True)}"
+            data-title="ROMA plot — {escape(str(target_key), quote=True)}">{figure_html}</template>
+    '''
 
 # list all news articles in the given folder newest first
 def _render_news(news_dir: Path, target_type: str, target_key: str):
@@ -650,7 +680,8 @@ def render_html(target_class,
                 info_section_validator=None,
                 llm_research: str = "",
                 llm_research_updated: str = "",
-                show_research_delete: bool = False):
+                show_research_delete: bool = False,
+                roma_codes=None):
 
     if not financials_dicts:
         raise ValueError("dict_list cannot be empty")
@@ -667,12 +698,14 @@ def render_html(target_class,
     page_name = f"[{escape(str(target_class).lower())}] {escape(str(financials_names[0]['name']))}"
     financials_section = _render_financials(target_class, target_key, financials_names, financials_dicts, output_file, collapsed_paths, no_chart_keys)
     qual_section = _render_qualitative(qual_dict, target_class, target_key, info_section_validator)
+    roma_markup = _render_roma_plot(roma_codes, target_key)
     news_section = _render_llm_research(
         llm_research,
         target_key,
         show_delete=show_research_delete,
         updated=llm_research_updated,
         target_type=target_class,
+        extra_action=roma_markup,
     ) + _render_news(news_dir, target_class, target_key)
 
     html = template_html.read_text(encoding="utf-8")

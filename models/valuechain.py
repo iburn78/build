@@ -84,6 +84,18 @@ class ValueChain(JsonModel):
         sk= self.key
         return super().get_search_key(sk)
 
+    def get_roma_plot_items(self):
+        """Create one aggregated FinancialsData series for each component."""
+        plot_items = []
+        for component in self.get_subitems().values():
+            component_data = FinancialsData.aggregate(
+                component.key,
+                component._get_fd_list(),
+            )
+            if component_data is not None:
+                plot_items.append((component.key, component_data))
+        return plot_items
+
     def _get_subitems(self, components: list[Component] | None = None):
         self._sub_items.clear()
         provided_components = {component.key: component for component in components or []}

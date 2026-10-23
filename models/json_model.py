@@ -284,6 +284,23 @@ class JsonModel(BaseModel, ABC):
             "news": self.news,
         }
 
+    def get_roma_codes(self) -> list[str]:
+        """Return company keys used by ROMA; specialized models may override."""
+        if hasattr(self, "profile_code"):
+            return [self.profile_code]
+        if hasattr(self, "code"):
+            return [self.code]
+        if hasattr(self, "listed_companies"):
+            return [
+                re.sub(r"\([A-Za-z]\)$", "", company.key)
+                for company in self.listed_companies
+            ]
+        return []
+
+    def get_roma_plot_items(self):
+        """Return keys or prepared ROMA data entries for this model."""
+        return self.get_roma_codes()
+
     @abstractmethod
     def get_news_dir(self) -> Path:
         ...
@@ -494,6 +511,7 @@ class JsonModel(BaseModel, ABC):
         qual_dict = self.get_qualitative_dict()
         research_getter = getattr(self, "get_llm_research", None)
         llm_research = research_getter() if callable(research_getter) else ""
+        roma_plot_items = self.get_roma_plot_items()
         news_dir = self.get_news_dir() 
         output_file = self.get_json_path().with_suffix('.html')
 
@@ -507,4 +525,5 @@ class JsonModel(BaseModel, ABC):
                     info_section_validator=type(self.info_section),
                     llm_research=llm_research,
                     llm_research_updated=getattr(self, "llm_research_updated", ""),
-                    show_research_delete=callable(research_getter))
+                    show_research_delete=callable(research_getter),
+                    roma_codes=roma_plot_items)

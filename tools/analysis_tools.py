@@ -1,5 +1,6 @@
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
+from functools import reduce
 import pandas as pd
 import numpy as np
 import holidays
@@ -140,6 +141,15 @@ def calc_alpha_beta(
         'alpha': round_sig(alpha),
         'beta': round_sig(beta),
     }
+
+# function that sums multiple serises
+def add_dfs(df_list, fill=False):
+    return reduce(
+        lambda a, b: a.fillna(0).add(b.fillna(0), fill_value=0)
+        if fill else a.add(b),
+        df_list
+    )
+
 
 # -----------------------------------------------------------------------------------
 # LLM 

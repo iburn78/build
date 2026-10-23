@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import Literal
 import numpy as np
 import pandas as pd
-from functools import reduce
 from datetime import datetime
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -11,7 +10,7 @@ from matplotlib.ticker import FuncFormatter
 from data.tools import load
 from data.tools.tools import set_KoreanFonts, dprint 
 from build.tools.tools import df_krx, get_id
-from build.tools.analysis_tools import DEFAULT_KRW_UNIT, KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta
+from build.tools.analysis_tools import DEFAULT_KRW_UNIT, KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, add_dfs
 
 '''
 ma: MarCap (until last day if is_KRX_open == True; if strict False then include today if it is after 12:00), Amount
@@ -65,6 +64,21 @@ class FinancialsData:
 
     unit: float = DEFAULT_KRW_UNIT
     adjuster: object | None = None
+
+    @classmethod
+    def aggregate(cls, key, fd_list):
+        """Build component-level time series by summing its member companies."""
+        if not fd_list:
+            return None
+        result = object.__new__(cls)
+        result.key = key
+        result.time = pd.Timestamp.now()
+        result.ma_data = add_dfs([fd.ma_data for fd in fd_list], fill=True)
+        result.fr_data = add_dfs([fd.fr_data for fd in fd_list], fill=True)
+        result.unit = fd_list[0].unit
+        result.adjuster = None
+        result.code, result.id = get_id(key)
+        return result
 
     def __post_init__(self):
         self.code, self.id = get_id(self.key)
@@ -198,8 +212,8 @@ class SectorAnalysis:
             'start_date': start_date, # start date in "yyyy-mm-dd" format
         }
 
-        self.ma_data = self._add_dfs([cd.ma_data for cd in fd_list], fill) # daily basis
-        self.fr_data = self._add_dfs([cd.fr_data for cd in fd_list], fill) # quarterly basis
+        self.ma_data = add_dfs([cd.ma_data for cd in fd_list], fill) # daily basis
+        self.fr_data = add_dfs([cd.fr_data for cd in fd_list], fill) # quarterly basis
         _endkeys = [fd.key for fd in fd_list]
         self.endkey_list_str = "[" + ", ".join(_endkeys[:4] + (["..."] if len(_endkeys) > 4 else [])) + "]"
 
@@ -235,14 +249,6 @@ class SectorAnalysis:
     def post_process(self, **kwargs):
         self._sub_sector_analyses(subitems_financials=kwargs.get("subitems_financials"))
         self._create_plot(save_path=kwargs.get("plot_path"))
-
-    # function that sums multiple serises
-    def _add_dfs(self, df_list, fill=False):
-        return reduce(
-            lambda a, b: a.fillna(0).add(b.fillna(0), fill_value=0)
-            if fill else a.add(b),
-            df_list
-        )
 
     # =======================================================================================================================
     # Assessment  

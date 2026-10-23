@@ -1,16 +1,18 @@
-#%%
-
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from build.analysis.sector_analysis import FinancialsData, DEFAULT_KRW_UNIT, KRW_UNIT_KR
 from build.tools.tools import get_name
+from build.analysis.sector_analysis import FinancialsData, DEFAULT_KRW_UNIT, KRW_UNIT_KR
 
-
-def draw_roma(codes, names = None, scales=[10, 1, 100, 1]):
-    if not names or len(names) != len(codes):
-        names = [get_name(code) for code in codes]
+def draw_roma(codes, names = None, scales=[10, 1, 100, 1], *, show=False):
+    if names is None or len(names) != len(codes):
+        names = [
+            item[0]
+            if isinstance(item, tuple)
+            else get_name(item.key if isinstance(item, FinancialsData) else item)
+            for item in codes
+        ]
 
     REVENUE_SCALE = scales[0]
     OPINCOME_SCALE = scales[1]
@@ -36,9 +38,23 @@ def draw_roma(codes, names = None, scales=[10, 1, 100, 1]):
 
     # Load data
     res = []
+    plot_names = []
+    plot_colors = []
 
-    for code in codes:
-        fd = FinancialsData(key=code)
+    for index, item in enumerate(codes):
+        if isinstance(item, tuple):
+            _, component_data = item
+            fd = (
+                component_data
+                if isinstance(component_data, FinancialsData)
+                else FinancialsData.aggregate("component", component_data)
+            )
+            if fd is None:
+                continue
+        elif isinstance(item, FinancialsData):
+            fd = item
+        else:
+            fd = FinancialsData(key=item)
 
         fr = fd.fr_data.copy()
         fr.index = pd.to_datetime(fr.index)
@@ -89,7 +105,12 @@ def draw_roma(codes, names = None, scales=[10, 1, 100, 1]):
         result['amount'] /= AMOUNT_SCALE
 
         res.append(result)
+        plot_names.append(names[index])
+        plot_colors.append(colors[index])
 
+
+    if not res:
+        raise ValueError("No ROMA plot data is available for these entries")
 
     # Align companies to common dates
     dates = sorted(set().union(*(df.index for df in res)))
@@ -146,7 +167,7 @@ def draw_roma(codes, names = None, scales=[10, 1, 100, 1]):
     # Build company trajectories
     traces = []
 
-    for df, name, color in zip(dfs, names, colors):
+    for df, name, color in zip(dfs, plot_names, plot_colors):
         d = df.dropna(
             subset=['revenue', 'opincome', 'marcap']
         )
@@ -230,6 +251,13 @@ def draw_roma(codes, names = None, scales=[10, 1, 100, 1]):
         layout=go.Layout(
             legend=dict(
                 title='Company / Quarterly amount',
+                x=0.99,
+                y=0.99,
+                xanchor='right',
+                yanchor='top',
+                bgcolor='rgba(255, 255, 255, 0.75)',
+                bordercolor='#cbd5e1',
+                borderwidth=1,
             ),
             scene=dict(
                 xaxis=dict(
@@ -269,8 +297,6 @@ def draw_roma(codes, names = None, scales=[10, 1, 100, 1]):
         ),
     )
 
-    fig.show(renderer='browser')
-
-
-codes = ['005930', '000660', '009150']
-draw_roma(codes)
+    if show:
+        fig.show(renderer='browser')
+    return fig
