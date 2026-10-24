@@ -7,7 +7,7 @@ from pathlib import Path
 # Project parameters:
 #------------------------------------------------------------------
 
-OLLAMA_ACCOUNT = 'ak' # 'it', 'cp', 'ak'
+OLLAMA_ACCOUNT = 'hm' # 'it', 'cp', 'ak', 'hm' (hotmail)
 
 # LLMs: local, ollama, openai
 DEFAULT_BIZ_LLM = 'ollama' 
@@ -106,7 +106,8 @@ with open(OPENAI_CONF, 'r') as json_file:
 OPENAI_API_KEY = config['openai_api_key']
 if OLLAMA_ACCOUNT == 'is': _olk = 'ollama_api_key_i'
 if OLLAMA_ACCOUNT == 'cp': _olk = 'ollama_api_key_c'
-else: _olk = 'ollama_api_key_a' # 'ak'
+if OLLAMA_ACCOUNT == 'ak': _olk = 'ollama_api_key_a'
+else: _olk = 'ollama_api_key_h' # 'hm'
 OLLAMA_API_KEY = config[_olk]
 
 _PLATFORM_COLLECTION_DEFAULT = "1" if sys.platform == "darwin" else "0"
@@ -124,7 +125,7 @@ INDEX_HTML = "http://localhost:3000"
 
 def llm_selector(mode='local'):
     if mode == 'ollama':
-        base_url='http://localhost:11434/v1'
+        base_url='https://ollama.com/v1'
         api_key = OLLAMA_API_KEY
         model = "gemma4:31b-cloud"
 

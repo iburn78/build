@@ -16,6 +16,7 @@ import sys
 import re
 import time
 import random
+from contextvars import ContextVar
 from concurrent.futures import ThreadPoolExecutor
 from build.tools.tools import sanitized_filename
 from build.models.settings import (
@@ -68,6 +69,8 @@ class NewsModel(BaseModel):
 
 class LLM_Manager(ABC):
     def __init__(self, news_type, news_mode=DEFAULT_NEWS_LLM, research_mode=DEFAULT_RESEARCH_LLM):
+        self.research_mode = research_mode
+        self._search_results = ContextVar(f"{type(self).__name__}_search_results", default=None)
         self.news_agent = self._make_agent(llm_mode=news_mode, output_type=news_type)
         self.research_agent = self._make_agent(
             llm_mode=research_mode, output_type=str, web_search=True
@@ -88,7 +91,10 @@ class LLM_Manager(ABC):
         if web_search and llm_mode == "openai":
             model = OpenAIResponsesModel(model_name=m, provider=provider)
             capabilities = [NativeTool(WebSearchTool(search_context_size=SEARCH_CONTEXT_SIZE))]
-            model_settings = {"tool_choice": "auto"}
+            model_settings = {
+                "tool_choice": "auto",
+                "openai_include_web_search_sources": True,
+            }
 
         agent = Agent(
             model=model,
@@ -99,12 +105,12 @@ class LLM_Manager(ABC):
         )
 
         if web_search and llm_mode == "ollama":
-            self._register_ollama_web_search(agent, k)
+            self._register_ollama_web_search(agent, k, self._search_results)
 
         return agent
 
     @staticmethod
-    def _register_ollama_web_search(agent, api_key):
+    def _register_ollama_web_search(agent, api_key, search_results_context):
         """Register Ollama's hosted web-search API as an agent tool."""
         @agent.tool_plain(name="web_search")
         def web_search_tool(query: str, max_results: int = 5) -> str:
@@ -139,13 +145,20 @@ class LLM_Manager(ABC):
             response.raise_for_status()
             results = response.json().get("results", [])
             if not results:
+                search_results = search_results_context.get()
+                if search_results is not None:
+                    search_results.append((query, "No web search results found."))
                 return "No web search results found."
 
-            return "\n\n".join(
+            result_text = "\n\n".join(
                 f"{item.get('title', 'Untitled')}\n{item.get('url', '')}\n"
                 f"{str(item.get('content', ''))[:OLLAMA_WEB_SEARCH_RESULT_CONTENT_CHARS]}"
                 for item in results
             )
+            search_results = search_results_context.get()
+            if search_results is not None:
+                search_results.append((query, result_text))
+            return result_text
 
     def gen_news(self, target: "JsonModel"):
         if not COLLECT_NEWS:
@@ -176,13 +189,50 @@ class LLM_Manager(ABC):
     def get_llm_research(self, target: "JsonModel") -> str:
         request_text = self._get_llm_research_request_text(target)
         try:
-            return self.research_agent.run_sync(
+            search_results = []
+            token = self._search_results.set(search_results)
+            run_result = self.research_agent.run_sync(
                 request_text,
                 usage_limits=UsageLimits(request_limit=USAGE_REQUEST_LIMIT),
-            ).output
+            )
+            report = run_result.output
+            if self.research_mode == "openai":
+                search_results.extend(self._get_openai_web_search_results(run_result))
+            return self._append_search_results(report, search_results)
         except Exception as e:
             print(f"LLM research failed for {type(target).__name__} {target.key}: {e}")
             return ""
+        finally:
+            self._search_results.reset(token)
+
+    @staticmethod
+    def _append_search_results(report: str, search_results: list) -> str:
+        if not search_results:
+            return report
+        section = ["## Web search results"]
+        for index, search in enumerate(search_results, start=1):
+            if isinstance(search, tuple):
+                query, content = search
+                section.append(f"### Search {index}: {query}\n\n{content}")
+            else:
+                section.append(f"### Search {index}\n\n{search}")
+        return report.rstrip() + "\n\n\n---\n\n" + "\n\n".join(section)
+
+    @staticmethod
+    def _get_openai_web_search_results(run_result) -> list[str]:
+        """Extract native OpenAI web-search sources returned by Pydantic AI."""
+        searches = []
+        for message in run_result.all_messages():
+            for _, tool_return in getattr(message, "native_tool_calls", []):
+                if getattr(tool_return, "tool_name", "") != "web_search":
+                    continue
+                content = getattr(tool_return, "content", None)
+                if content:
+                    if isinstance(content, str):
+                        searches.append(content)
+                    else:
+                        searches.append(json.dumps(content, ensure_ascii=False, indent=2, default=str))
+        return searches
 
 class JsonModel(BaseModel, ABC):
     # Base Pydantic model for subclasses.

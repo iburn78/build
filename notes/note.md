@@ -20,7 +20,7 @@ Last edited: 2026-10-21
 ## Running local services
 
 - Start the Node report server from `data/node` with `node server.js`; it serves the shared data directory on port 3000.
-- Profile generation and news summarization use the LLM modes configured in `build/tools/settings.py`. The default is Ollama, which must be running locally. OpenAI mode reads credentials from the project-level config file; keep that file private.
+- Profile generation and news summarization use the LLM modes configured in `build/models/settings.py`. The default Ollama mode calls Ollama Cloud directly; the separate `local` mode uses the local Ollama server. OpenAI mode reads credentials from the project-level config file; keep that file private.
 
 ## Data and text handling
 
@@ -32,4 +32,4 @@ Last edited: 2026-10-21
 
 Use Pydantic models as structured output schemas with `pydantic_ai`. A schema validates and may coerce generated values; it does not establish that the content is factually correct. Review and source checks remain necessary.
 
-Current configured Ollama model names are in `tools/settings.py`; avoid relying on cached model details or machine-specific download paths in project documentation.
+Current configured Ollama model names are in `models/settings.py`; avoid relying on cached model details or machine-specific download paths in project documentation.
