@@ -351,6 +351,7 @@ class JsonModel(BaseModel, ABC):
         """Return keys or prepared ROMA data entries for this model."""
         return self.get_roma_codes()
 
+
     @abstractmethod
     def get_news_dir(self) -> Path:
         ...

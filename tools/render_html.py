@@ -626,6 +626,7 @@ def _render_roma_plot(codes, target_key: str):
             data-title="ROMA plot — {escape(str(target_key), quote=True)}">{figure_html}</template>
     '''
 
+
 # list all news articles in the given folder newest first
 def _render_news(news_dir: Path, target_type: str, target_key: str):
     if not news_dir.exists():
@@ -699,13 +700,21 @@ def render_html(target_class,
     financials_section = _render_financials(target_class, target_key, financials_names, financials_dicts, output_file, collapsed_paths, no_chart_keys)
     qual_section = _render_qualitative(qual_dict, target_class, target_key, info_section_validator)
     roma_markup = _render_roma_plot(roma_codes, target_key)
+    mp_markup = ""
+    if target_class in {"Component", "ValueChain"}:
+        mp_markup = f'''
+        <button class="mp-plot-link" type="button" aria-haspopup="dialog"
+            data-object-type="{escape(str(target_class), quote=True)}"
+            data-object-id="{escape(str(target_key), quote=True)}"
+            title="Margin vs PER plot (m)">MP plot (m)</button>
+        '''
     news_section = _render_llm_research(
         llm_research,
         target_key,
         show_delete=show_research_delete,
         updated=llm_research_updated,
         target_type=target_class,
-        extra_action=roma_markup,
+        extra_action=roma_markup + mp_markup,
     ) + _render_news(news_dir, target_class, target_key)
 
     html = template_html.read_text(encoding="utf-8")
