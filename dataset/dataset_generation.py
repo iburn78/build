@@ -11,15 +11,19 @@ import sys
 # AI
 # --------------------------------------------------
 ValueChain.get_item(
-key="AI", 
+key="반도체", 
 components=[
 Component.get_item('메모리', namelist = ['하이닉스', '삼성전자(A)']),
-Component.get_item('후공정 검사장비', namelist=['쎄크']),
+Component.get_item('후공정', namelist = ['이수페타시스','한미반도체','대덕전자','이오테크닉스','리노공업','하나마이크론','피에스케이홀딩스','티에스이','테크윙','해성디에스', '쎄크']), # SOL + alpha
+Component.get_item('전공정', namelist = ['주성엔지니어링','원익IPS','HPSP','피에스케이','유진테크','한솔케미칼','테스','솔브레인','티씨케이','브이엠']), # SOL
+Component.get_item('소부장', namelist = ['한미반도체','주성엔지니어링','이수페타시스','원익IPS','HPSP','리노공업','대덕전자','심텍','피에스케이','SKC']), # SOL
 Component.get_item('전력 제품', namelist = ['비엠티']),
 Component.get_item('메모리 기판', namelist=['LG이노텍(B)', '삼성전기', '티엘비', '심텍', '해성디에스', '대덕전자']),
 Component.get_item('PCB 기판', namelist=['이수페타시스']),
 Component.get_item('MLCC', namelist=['삼성전기', '삼화콘덴서']),
 ])
+
+Component.get_item('반도체TOP', namelist = ['삼성전자','SK하이닉스','삼성전기','SK스퀘어','이수페타시스','원익IPS','대덕전자','피에스케이','테스','브이엠']) # SOL AI반도체TOP2플러스
 
 # --------------------------------------------------
 # AIDC
@@ -93,7 +97,7 @@ components=[
 Component.get_item('메디컬 에스테틱', namelist = ['휴젤', '파마리서치', '메디톡스', '휴메딕스', '제테마', '녹십자웰빙']), # 미용 의료 시술 소재
 Component.get_item('에스테틱 의료기기', namelist = ['클래시스', '원텍']),
 Component.get_item('바이오시밀러', namelist=['셀트리온', '삼성에피스홀딩스']),
-Component.get_item('바이오의약품 위탁생산', namelist=['삼성바이오로직스(A)']), # CDMO
+Component.get_item('바이오의약품 위탁생산', namelist=['삼성바이오로직스']), # CDMO
 Component.get_item('화장품 ODM', namelist=['코스맥스', '한국콜마']),
 ])
 

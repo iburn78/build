@@ -16,6 +16,7 @@ import sys
 import re
 import time
 import random
+from threading import Event
 from contextvars import ContextVar
 from concurrent.futures import ThreadPoolExecutor
 from build.tools.tools import sanitized_filename
@@ -40,6 +41,10 @@ from build.models.settings import (
 )
 from build.tools.render_html import render_html
 from build.tools.crawl_news import crawl_news
+
+# A hosted Ollama web-search rate limit should disable research for the rest of
+# the current batch build, rather than making every worker retry the same API.
+_OLLAMA_RESEARCH_DISABLED = Event()
 
 class InfoSection(BaseModel):
     # Stores information for human review.
@@ -187,6 +192,8 @@ class LLM_Manager(ABC):
         ...
 
     def get_llm_research(self, target: "JsonModel") -> str:
+        if self.research_mode == "ollama" and _OLLAMA_RESEARCH_DISABLED.is_set():
+            return ""
         request_text = self._get_llm_research_request_text(target)
         try:
             search_results = []
@@ -201,6 +208,14 @@ class LLM_Manager(ABC):
             return self._append_search_results(report, search_results)
         except Exception as e:
             print(f"LLM research failed for {type(target).__name__} {target.key}: {e}")
+            error_text = str(e)
+            if (
+                self.research_mode == "ollama"
+                and "429" in error_text
+                and "https://ollama.com/api/web_search" in error_text
+            ):
+                _OLLAMA_RESEARCH_DISABLED.set()
+                print( "============= Skipping further Ollama LLM research for this build run after web-search rate limit ============= ")
             return ""
         finally:
             self._search_results.reset(token)
@@ -527,6 +542,8 @@ class JsonModel(BaseModel, ABC):
     # python 3.14 + pydantic_ai on windows yield: asyncio ProactorEventLoop / overlapped I/O cleanup errors, etc. 
     @classmethod
     def batch_process(cls, keylist, max_workers=NUM_THREAD_TO_RUN):
+        # Clear the run-scoped circuit breaker at the start of each build batch.
+        _OLLAMA_RESEARCH_DISABLED.clear()
         if sys.platform == "win32":
             print("--------------------------------------------------")
             print("Generating items sequentially on Windows")

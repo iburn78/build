@@ -10,6 +10,7 @@ DATA_DIR = PROFILES_DIR.parents[1]
 COMPONENTS_DIR = DATA_DIR / "build" / "components"
 VALUECHAINS_DIR = DATA_DIR / "build" / "valuechains"
 PER_BOUND = 40
+OPMARGIN_BOUND = 1.0
 CATEGORY_COLORS = {
     "A": "#003B73",  # dark blue
     "B": "#1976D2",  # blue
@@ -67,7 +68,7 @@ def make_mp_point(label: str, code: str, financials: dict | None, page_path: Pat
         x, y = float(margin), float(per)
     except (TypeError, ValueError):
         return None
-    if category not in CATEGORY_COLORS or y > PER_BOUND:
+    if category not in CATEGORY_COLORS or y > PER_BOUND or x > OPMARGIN_BOUND:
         return None
 
     relative_page = page_path.with_suffix(".html").relative_to(DATA_DIR).as_posix()

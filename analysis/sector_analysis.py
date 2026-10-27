@@ -9,7 +9,7 @@ import matplotlib.dates as mdates
 from matplotlib.ticker import FuncFormatter
 from data.tools import load
 from data.tools.tools import set_KoreanFonts, dprint 
-from build.tools.tools import df_krx, get_id
+from build.tools.tools import df_krx, get_id, get_name
 from build.tools.analysis_tools import DEFAULT_KRW_UNIT, KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, add_dfs
 
 '''
@@ -27,6 +27,9 @@ volumes = load.get_volumes()
 fr_main_db = load.get_fr_main_db()
 kospi, kosdaq, kospi200 = load.get_market_index()
 
+INDIVIDUAL_PLOT_DAYS = 30
+
+DEFAULT_AGGREGATION = 'd'
 MEASURE_DURATION = 20 # days 
 BASE_DURATION = 120 # days
 DEFAULT_START_DATE = '2024-01-01'
@@ -54,6 +57,7 @@ def _per_ratio(marcap, opincome):
 class FinancialsData:
     #  contains raw data for max period for a single key
     key: str
+    name: str = ""
     time: pd.Timestamp | None = None # creation time
 
     # daily marcap and amount data
@@ -82,6 +86,7 @@ class FinancialsData:
 
     def __post_init__(self):
         self.code, self.id = get_id(self.key)
+        self.name = get_name(self.code) + f"(self.id)" if self.id else get_name(self.code)
         self.time = pd.Timestamp.now()
         self.ma_data = self.get_ma_data()
         self.fr_data = self.get_fr_data()
@@ -206,11 +211,12 @@ class SectorAnalysis:
     # Creation
     # =======================================================================================================================
     def process(self, fd_list, unit=DEFAULT_KRW_UNIT, fill=True, start_date=DEFAULT_START_DATE, **kwargs):
-
         self.meta = self.meta | {
             'unit': unit,
             'start_date': start_date, # start date in "yyyy-mm-dd" format
         }
+        if len(fd_list) > 1:
+            self.individual_plots(fd_list, period=INDIVIDUAL_PLOT_DAYS)
 
         self.ma_data = add_dfs([cd.ma_data for cd in fd_list], fill) # daily basis
         self.fr_data = add_dfs([cd.fr_data for cd in fd_list], fill) # quarterly basis
@@ -249,6 +255,12 @@ class SectorAnalysis:
     def post_process(self, **kwargs):
         self._sub_sector_analyses(subitems_financials=kwargs.get("subitems_financials"))
         self._create_plot(save_path=kwargs.get("plot_path"))
+
+    # =======================================================================================================================
+    # Individual process
+    # =======================================================================================================================
+    def individual_plots(self, fd_list, period=INDIVIDUAL_PLOT_DAYS):
+        pass 
 
     # =======================================================================================================================
     # Assessment  
@@ -618,7 +630,7 @@ class SectorAnalysis:
     # Aggregation and plotting
     # =======================================================================================================================
     # cut data from start_date and define aggregation length
-    def _create_plot(self, save_path: Path | None = None, aggregation: Literal['d', 'w', 'm', 'q'] = 'w'): 
+    def _create_plot(self, save_path: Path | None = None, aggregation: Literal['d', 'w', 'm', 'q'] = DEFAULT_AGGREGATION): 
         # business days in each aggregation
         BLOCK_MAP = {
             'd': 1,
