@@ -131,12 +131,21 @@ class ValueChain(JsonModel):
         _sa = SectorAnalysis()
         _sa.meta['name'] = self.key
 
-        fd_list = []
-        for cp in self.get_subitems().values():
-            fd_list += cp._get_fd_list()
+        fd_cache = {}
+        component_fd_lists = [
+            (cp.key, cp._get_fd_list(fd_cache=fd_cache))
+            for cp in self.get_subitems().values()
+        ]
+        fd_list = [fd for _, component_fds in component_fd_lists for fd in component_fds]
+        component_plot_fds = [
+            aggregate
+            for key, component_fds in component_fd_lists
+            if (aggregate := FinancialsData.aggregate(key, component_fds)) is not None
+        ]
         fd_list = FinancialsData.dedupe_fds(fd_list)
         _sa.process(fd_list,
                     subitems_financials=self._get_subitems_financials(),
+                    individual_plot_fds=component_plot_fds,
                     plot_path=self.get_json_path().with_suffix('.png'))
         self.financials = _sa.financials
         self._subitems_financials_processed = _sa._subitems_financials_processed

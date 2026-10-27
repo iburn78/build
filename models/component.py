@@ -132,13 +132,20 @@ class Component(JsonModel):
         self.financials = _sa.financials
         self._subitems_financials_processed = _sa._subitems_financials_processed
 
-    def _get_fd_list(self):
+    def _get_fd_list(self, fd_cache=None):
         fd_list = []
         for item in self.get_subitems().values():
-            fd_list.append(FinancialsData(
-                key = item.key,
-                adjuster = item.info_section if type(item) is Segment else None
-            ))
+            cache_key = (type(item), item.key)
+            if fd_cache is not None and cache_key in fd_cache:
+                fd = fd_cache[cache_key]
+            else:
+                fd = FinancialsData(
+                    key=item.key,
+                    adjuster=item.info_section if type(item) is Segment else None,
+                )
+                if fd_cache is not None:
+                    fd_cache[cache_key] = fd
+            fd_list.append(fd)
         return fd_list
 
     def _update(self, **kwargs) -> bool:

@@ -76,6 +76,7 @@ class FinancialsData:
             return None
         result = object.__new__(cls)
         result.key = key
+        result.name = key
         result.time = pd.Timestamp.now()
         result.ma_data = add_dfs([fd.ma_data for fd in fd_list], fill=True)
         result.fr_data = add_dfs([fd.fr_data for fd in fd_list], fill=True)
@@ -86,7 +87,7 @@ class FinancialsData:
 
     def __post_init__(self):
         self.code, self.id = get_id(self.key)
-        self.name = get_name(self.code) + f"(self.id)" if self.id else get_name(self.code)
+        self.name = get_name(self.code) + f"({self.id})" if self.id else get_name(self.code)
         self.time = pd.Timestamp.now()
         self.ma_data = self.get_ma_data()
         self.fr_data = self.get_fr_data()
@@ -215,7 +216,10 @@ class SectorAnalysis:
             'unit': unit,
             'start_date': start_date, # start date in "yyyy-mm-dd" format
         }
-        if len(fd_list) > 1:
+        individual_plot_fds = kwargs.get("individual_plot_fds")
+        if individual_plot_fds is not None:
+            self.individual_plots(individual_plot_fds, period=INDIVIDUAL_PLOT_DAYS)
+        elif len(fd_list) > 1:
             self.individual_plots(fd_list, period=INDIVIDUAL_PLOT_DAYS)
 
         self.ma_data = add_dfs([cd.ma_data for cd in fd_list], fill) # daily basis
@@ -260,7 +264,12 @@ class SectorAnalysis:
     # Individual process
     # =======================================================================================================================
     def individual_plots(self, fd_list, period=INDIVIDUAL_PLOT_DAYS):
-        pass 
+        """Prepare individual market-cap series for the lower plot panel."""
+        self._individual_plot_data = []
+        for fd in fd_list:
+            marcap = fd.ma_data["marcap"].dropna().tail(period)
+            if not marcap.empty:
+                self._individual_plot_data.append((fd.name or fd.key, marcap))
 
     # =======================================================================================================================
     # Assessment  
@@ -736,18 +745,26 @@ class SectorAnalysis:
 
         else:
             if figsize is None: figsize = (12, 6)
+            individual_plot_data = getattr(self, "_individual_plot_data", [])
+            panel_count = 3 if individual_plot_data else 2
+            panel_heights = (3, 2, 1.5) if individual_plot_data else (3, 2)
             fig, axes = plt.subplots(
-                2,
+                panel_count,
                 1,
-                figsize=(figsize[0], figsize[1]),
-                sharex=True,
+                figsize=(figsize[0], figsize[1] + (2 if individual_plot_data else 0)),
+                sharex=False,
+                gridspec_kw={"height_ratios": panel_heights},
             )
 
-            ax1, ax2 = axes
+            ax1, ax2 = axes[:2]
+            ax2.sharex(ax1)
 
             self._plot_ma_panel(ax1)
 
             self._plot_financials_panel(ax2, use_ltm=True)
+
+            if individual_plot_data:
+                self._plot_individual_panel(axes[2], individual_plot_data)
 
             # self._plot_financials_panel(ax3, use_ltm=False)
 
@@ -757,6 +774,76 @@ class SectorAnalysis:
         else: 
             plt.show()
         plt.close(fig)   
+
+    def _plot_individual_panel(self, ax, plot_data):
+        """Draw recent individual market caps with Matplotlib's color cycle."""
+        annotations = []
+        for name, series in plot_data:
+            (line,) = ax.plot(
+                series.index,
+                series.values,
+                marker="o",
+                markersize=3,
+                linewidth=1.2,
+            )
+            annotation = ax.annotate(
+                str(name),
+                xy=(series.index[-1], series.iloc[-1]),
+                xytext=(4, 0),
+                textcoords="offset points",
+                color=line.get_color(),
+                va="center",
+                fontsize=8,
+            )
+            annotations.append((annotation, series.index[-1], series.iloc[-1]))
+        ax.set_ylabel(f"MarCap ({KRW_UNIT_KR[self.meta['unit']]} KRW)")
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:,.0f}"))
+        ax.grid(True, linestyle="--", alpha=0.3)
+        self._separate_individual_end_labels(ax, annotations)
+
+    @staticmethod
+    def _separate_individual_end_labels(ax, annotations):
+        """Space end labels vertically in display coordinates where possible."""
+        if len(annotations) < 2:
+            return
+
+        figure = ax.figure
+        figure.canvas.draw()
+        renderer = figure.canvas.get_renderer()
+        dpi = figure.dpi
+        axes_bottom, axes_top = ax.bbox.y0, ax.bbox.y1
+        labels = []
+        for annotation, x_value, y_value in annotations:
+            point_y = ax.transData.transform((mdates.date2num(x_value), y_value))[1]
+            bbox = annotation.get_window_extent(renderer=renderer)
+            labels.append({
+                "annotation": annotation,
+                "point_y": point_y,
+                "height": bbox.height + 2,
+                "target_y": bbox.y0 + bbox.height / 2,
+                "placed_y": bbox.y0 + bbox.height / 2,
+            })
+        labels.sort(key=lambda item: item["target_y"])
+
+        # Push labels apart from bottom to top. If the panel is too crowded,
+        # clamp to its bounds and allow the remaining overlap.
+        for index in range(1, len(labels)):
+            previous = labels[index - 1]
+            current = labels[index]
+            minimum_y = previous["placed_y"] + (previous["height"] + current["height"]) / 2
+            current["placed_y"] = max(current["target_y"], minimum_y)
+        overflow = labels[-1]["placed_y"] + labels[-1]["height"] / 2 - axes_top
+        if overflow > 0:
+            for label in labels:
+                label["placed_y"] -= overflow
+        underflow = axes_bottom - (labels[0]["placed_y"] - labels[0]["height"] / 2)
+        if underflow > 0:
+            for label in labels:
+                label["placed_y"] += underflow
+
+        for label in labels:
+            offset_points = (label["placed_y"] - label["point_y"]) * 72 / dpi
+            label["annotation"].set_position((4, offset_points))
 
     # =======================================================================================================================
     # (1) TOP PANEL: MARCAP + AMOUNT
