@@ -217,6 +217,13 @@ class SectorAnalysis:
             'start_date': start_date, # start date in "yyyy-mm-dd" format
         }
         individual_plot_fds = kwargs.get("individual_plot_fds")
+        # The value-chain passes aggregate component lines explicitly. Regular
+        # component lines are profiles/segments, which do not get this metric.
+        individual_analysis_fds = individual_plot_fds or []
+        self._individual_period_stats = (
+            self._calculate_individual_period_stats(individual_analysis_fds)
+            if len(individual_analysis_fds) >= 3 else []
+        )
         if individual_plot_fds is not None:
             self.individual_plots(individual_plot_fds, period=INDIVIDUAL_PLOT_DAYS)
         elif len(fd_list) > 1:
@@ -257,7 +264,9 @@ class SectorAnalysis:
         self.post_process(**kwargs)
 
     def post_process(self, **kwargs):
-        self._sub_sector_analyses(subitems_financials=kwargs.get("subitems_financials"))
+        subitems_financials = kwargs.get("subitems_financials")
+        self._sub_sector_analyses(subitems_financials=subitems_financials)
+        self._add_individual_period_stats(subitems_financials)
         self._create_plot(save_path=kwargs.get("plot_path"))
 
     # =======================================================================================================================
@@ -270,6 +279,29 @@ class SectorAnalysis:
             marcap = fd.ma_data["marcap"].dropna().tail(period)
             if not marcap.empty:
                 self._individual_plot_data.append((fd.name or fd.key, marcap))
+
+    @staticmethod
+    def _calculate_individual_period_stats(fd_list, period=INDIVIDUAL_PLOT_DAYS):
+        """Calculate each line's alpha and beta against the sum of all lines."""
+        mother = add_dfs([fd.ma_data["marcap"] for fd in fd_list], fill=True)
+        mother = mother.tail(period)
+        return [
+            calc_alpha_beta(fd.ma_data["marcap"].tail(period), mother)
+            for fd in fd_list
+        ]
+
+    def _add_individual_period_stats(self, subitems_financials):
+        """Attach group-relative statistics to the matching member records."""
+        if not subitems_financials or len(self._individual_period_stats) != len(subitems_financials):
+            return
+        for stats, financials in zip(self._individual_period_stats, subitems_financials):
+            meta = financials.get("meta", {})
+            alpha_beta = financials.get("assess_data", {}).get("alpha_beta", {})
+            if meta.get("code"):
+                alpha_beta.pop("ind_plot_period", None)
+                continue
+            if alpha_beta:
+                alpha_beta["ind_plot_period"] = stats
 
     # =======================================================================================================================
     # Assessment  
@@ -318,12 +350,14 @@ class SectorAnalysis:
         > ratio > 1 - THRESHOLD: Dn
 
     [Alpha]
+        - Alpha는 beta를 반영한 일별 초과수익률(intercept, float)
         - Measure_Duration (or Base_Duration, from START_DATE) 동안, Index (KOSPI default) 대비 Alpha, Beta 분석
 
         > alpha > THRESHOLD: outperform 
         > alpha < -THRESHOLD: underperform 
 
-        * THRESHOLD: 일별 수익률, in float (기간 수익률은 convert 필요하며, x days로 estimate)
+        * THRESHOLD: 일별 수익률 기준, in float (기간 수익률은 convert 필요하며, x days로 estimate)
+        * ind_plot_period: 최근 INDIVIDUAL_PLOT_DAYS 동안 각 individual item의 일별 MarCap 수익률을 MarCap 합계(profile/segment level dedupe 수행하지 않은 단순 sum)의 수익률에 대비하여 계산  
     
     [Result]
         - Categorization: 
@@ -457,11 +491,14 @@ class SectorAnalysis:
         _from_start_date = calc_alpha_beta(self.ma_data['marcap'], kospi['Close'])
         _base_duration = calc_alpha_beta(self.ma_data['marcap'][-BASE_DURATION:], kospi['Close'])
         _measure_duration = calc_alpha_beta(self.ma_data['marcap'][-MEASURE_DURATION:], kospi['Close'])
-        res['alpha_beta'] = {
+        alpha_beta = {
             'from_start_date': _from_start_date,
             'base_duration': _base_duration,
             'measure_duration': _measure_duration,
         }
+        if not self.meta.get('code'):
+            alpha_beta['ind_plot_period'] = {'alpha': None, 'beta': None}
+        res['alpha_beta'] = alpha_beta
         self.assess_data = res
 
         return True
@@ -744,14 +781,14 @@ class SectorAnalysis:
             self._plot_ma_panel(ax)
 
         else:
-            if figsize is None: figsize = (12, 6)
+            if figsize is None: figsize = (12, 7)
             individual_plot_data = getattr(self, "_individual_plot_data", [])
             panel_count = 3 if individual_plot_data else 2
-            panel_heights = (3, 2, 1.5) if individual_plot_data else (3, 2)
+            panel_heights = (4, 3, 3) if individual_plot_data else (4, 3) # ratio
             fig, axes = plt.subplots(
                 panel_count,
                 1,
-                figsize=(figsize[0], figsize[1] + (2 if individual_plot_data else 0)),
+                figsize=(figsize[0], figsize[1] + (3 if individual_plot_data else 0)),
                 sharex=False,
                 gridspec_kw={"height_ratios": panel_heights},
             )
