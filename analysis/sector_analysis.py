@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Literal
+from typing import ClassVar, Literal
+from threading import RLock
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -33,6 +34,20 @@ DEFAULT_AGGREGATION = 'd'
 MEASURE_DURATION = 20 # days 
 BASE_DURATION = 120 # days
 DEFAULT_START_DATE = '2024-01-01'
+
+# These columns and labels are shared by every company-level financial series.
+# Compute them once instead of rebuilding them for every FinancialsData object.
+_FR_QCOLS = sorted(c for c in fr_main_db.columns if 'Q' in c)
+_FR_QUARTER_MAP = {
+    '1Q': '01-01',
+    '2Q': '04-01',
+    '3Q': '07-01',
+    '4Q': '10-01',
+}
+_FR_DATECOLS = [
+    pd.Timestamp(f'{year}-{_FR_QUARTER_MAP[q]}')
+    for year, q in (col.split('_') for col in _FR_QCOLS)
+]
 
 # ASSESS parameters
 OPINCOME_GROWTH_RATE = 0.05 # per quarter 
@@ -69,6 +84,12 @@ class FinancialsData:
     unit: float = DEFAULT_KRW_UNIT
     adjuster: object | None = None
 
+    # Per-process cache of raw, unadjusted data frames. Segment adjustments are
+    # applied only to copies so they cannot contaminate other uses of the same
+    # company's underlying financial data.
+    _raw_data_cache: ClassVar[dict[tuple[str, float, object], tuple[pd.DataFrame, pd.DataFrame]]] = {}
+    _raw_data_lock: ClassVar[RLock] = RLock()
+
     @classmethod
     def aggregate(cls, key, fd_list):
         """Build component-level time series by summing its member companies."""
@@ -89,12 +110,37 @@ class FinancialsData:
         self.code, self.id = get_id(self.key)
         self.name = get_name(self.code) + f"({self.id})" if self.id else get_name(self.code)
         self.time = pd.Timestamp.now()
-        self.ma_data = self.get_ma_data()
-        self.fr_data = self.get_fr_data()
+        # Only adjusted series are mutated by adjust_data(). Unadjusted profile
+        # data can safely share the cached frames throughout this analysis run.
+        self.ma_data, self.fr_data = self._get_raw_data(copy=self.id is not None)
         self.adjust_data()
+
+    def _get_raw_data(self, copy: bool = True) -> tuple[pd.DataFrame, pd.DataFrame]:
+        now = datetime.now()
+        # Market-open handling excludes today's partial data. Include that
+        # decision in the key so a long-running process doesn't reuse a frame
+        # prepared under a different date/session state.
+        cache_key = (self.code, self.unit, (now.date(), is_KRX_open(now=now)))
+        with self._raw_data_lock:
+            frames = self._raw_data_cache.get(cache_key)
+            if frames is None:
+                # The cached market frame is date/session-specific. Discard
+                # prior-day entries so long-lived processes retain only the
+                # current build's snapshot.
+                for old_key in list(self._raw_data_cache):
+                    if old_key[2][0] != now.date():
+                        del self._raw_data_cache[old_key]
+                frames = (self._build_ma_data(now), self._build_fr_data())
+                self._raw_data_cache[cache_key] = frames
+            if copy:
+                return frames[0].copy(), frames[1].copy()
+            return frames
 
     # ma: MarCap, Amount in daily basis
     def get_ma_data(self):
+        return self._get_raw_data()[0]
+
+    def _build_ma_data(self, now=None):
         if self.code not in df_krx.index: 
             raise Exception(f'check code in key {self.key}')
 
@@ -116,7 +162,7 @@ class FinancialsData:
         # if market is open (or at least in early hours), then today record is removed
         # as volume is not a full day data
         # ----------------------------------------------------------------------------
-        now = datetime.now()
+        now = now or datetime.now()
         if is_KRX_open(now=now):
             ma_data = ma_data[ma_data.index.date != now.date()]
 
@@ -124,37 +170,28 @@ class FinancialsData:
 
     # fr: financial records in quarterly basis
     def get_fr_data(self):
-        QCOLS = sorted(c for c in fr_main_db.columns if 'Q' in c)
-        _quarter_map = {
-            '1Q': '01-01',
-            '2Q': '04-01',
-            '3Q': '07-01',
-            '4Q': '10-01',
-        }
-        DATECOLS = [
-            pd.Timestamp(f'{year}-{_quarter_map[q]}')
-            for year, q in (col.split('_') for col in QCOLS)
-        ]
+        return self._get_raw_data()[1]
 
+    def _build_fr_data(self):
         fr_target = fr_main_db.loc[fr_main_db['code'] == self.code]
 
         cfs = fr_target.loc[fr_target['fs_div'] == 'CFS']
         ofs = fr_target.loc[fr_target['fs_div'] == 'OFS']
 
         # Use CFS where available, fill missing values with OFS
-        row_r = cfs.loc[cfs['account'] == 'revenue', QCOLS].iloc[0].copy()
-        ofs_r = ofs.loc[ofs['account'] == 'revenue', QCOLS].iloc[0]
+        row_r = cfs.loc[cfs['account'] == 'revenue', _FR_QCOLS].iloc[0].copy()
+        ofs_r = ofs.loc[ofs['account'] == 'revenue', _FR_QCOLS].iloc[0]
         row_r = row_r.fillna(ofs_r)
 
-        row_o = cfs.loc[cfs['account'] == 'operating_income', QCOLS].iloc[0].copy()
-        ofs_o = ofs.loc[ofs['account'] == 'operating_income', QCOLS].iloc[0]
+        row_o = cfs.loc[cfs['account'] == 'operating_income', _FR_QCOLS].iloc[0].copy()
+        ofs_o = ofs.loc[ofs['account'] == 'operating_income', _FR_QCOLS].iloc[0]
         row_o = row_o.fillna(ofs_o)
 
         row_r = row_r / self.unit
         row_o = row_o / self.unit
 
-        row_r.index = DATECOLS
-        row_o.index = DATECOLS
+        row_r.index = _FR_DATECOLS
+        row_o.index = _FR_DATECOLS
 
         fr_data = pd.DataFrame({
             'revenue_qtr': row_r,
@@ -267,7 +304,10 @@ class SectorAnalysis:
         subitems_financials = kwargs.get("subitems_financials")
         self._sub_sector_analyses(subitems_financials=subitems_financials)
         self._add_individual_period_stats(subitems_financials)
-        self._create_plot(save_path=kwargs.get("plot_path"))
+        self._create_plot(
+            save_path=kwargs.get("plot_path"),
+            render=not kwargs.get("defer_plot", False),
+        )
 
     # =======================================================================================================================
     # Individual process
@@ -676,7 +716,12 @@ class SectorAnalysis:
     # Aggregation and plotting
     # =======================================================================================================================
     # cut data from start_date and define aggregation length
-    def _create_plot(self, save_path: Path | None = None, aggregation: Literal['d', 'w', 'm', 'q'] = DEFAULT_AGGREGATION): 
+    def _create_plot(
+        self,
+        save_path: Path | None = None,
+        aggregation: Literal['d', 'w', 'm', 'q'] = DEFAULT_AGGREGATION,
+        render: bool = True,
+    ):
         # business days in each aggregation
         BLOCK_MAP = {
             'd': 1,
@@ -696,6 +741,11 @@ class SectorAnalysis:
         if not self.is_index:
             self._aggr_dataset = self._combine_fr_data()
 
+        if render:
+            self._plot(save_path=save_path)
+
+    def save_plot(self, save_path: Path) -> None:
+        """Render a plot after financial content has been compared."""
         self._plot(save_path=save_path)
 
     # aggregate into backward-aligned discrete blocks

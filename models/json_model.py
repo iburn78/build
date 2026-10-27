@@ -16,7 +16,8 @@ import sys
 import re
 import time
 import random
-from threading import Event
+import copy
+from threading import Event, Lock
 from contextvars import ContextVar
 from concurrent.futures import ThreadPoolExecutor
 from build.tools.tools import sanitized_filename
@@ -27,6 +28,7 @@ from build.models.settings import (
     DEFAULT_RESEARCH_LLM,
     llm_selector,
     FINANCIALS_UPDATE_PERIOD_HR,
+    FORCE_FINANCIALS_REGENERATE,
     NUM_THREAD_TO_RUN,
     NEWS_REFRESH_THRES, 
     NUM_TO_CRAWL, 
@@ -45,6 +47,7 @@ from build.tools.crawl_news import crawl_news
 # A hosted Ollama web-search rate limit should disable research for the rest of
 # the current batch build, rather than making every worker retry the same API.
 _OLLAMA_RESEARCH_DISABLED = Event()
+_OLLAMA_RESEARCH_STATE_LOCK = Lock()
 
 class InfoSection(BaseModel):
     # Stores information for human review.
@@ -80,6 +83,18 @@ class LLM_Manager(ABC):
         self.research_agent = self._make_agent(
             llm_mode=research_mode, output_type=str, web_search=True
         )
+
+    def research_disabled(self) -> bool:
+        """Whether this build has disabled Ollama research after a rate limit."""
+        return self.research_mode == "ollama" and _OLLAMA_RESEARCH_DISABLED.is_set()
+
+    def announce_research_start(self, target_label: str) -> bool:
+        """Print a start message only while research remains enabled."""
+        with _OLLAMA_RESEARCH_STATE_LOCK:
+            if self.research_disabled():
+                return False
+            print(f"Starting LLM research for {target_label}")
+            return True
 
     def _make_agent(self, llm_mode, output_type, web_search=False):
         u, k, m = llm_selector(llm_mode)
@@ -192,7 +207,7 @@ class LLM_Manager(ABC):
         ...
 
     def get_llm_research(self, target: "JsonModel") -> str:
-        if self.research_mode == "ollama" and _OLLAMA_RESEARCH_DISABLED.is_set():
+        if self.research_disabled():
             return ""
         request_text = self._get_llm_research_request_text(target)
         try:
@@ -214,8 +229,11 @@ class LLM_Manager(ABC):
                 and "429" in error_text
                 and "https://ollama.com/api/web_search" in error_text
             ):
-                _OLLAMA_RESEARCH_DISABLED.set()
-                print( "============= Skipping further Ollama LLM research for this build run after web-search rate limit ============= ")
+                with _OLLAMA_RESEARCH_STATE_LOCK:
+                    first_rate_limit = not _OLLAMA_RESEARCH_DISABLED.is_set()
+                    _OLLAMA_RESEARCH_DISABLED.set()
+                    if first_rate_limit:
+                        print("============= Skipping further Ollama LLM research for this build run after web-search rate limit =============")
             return ""
         finally:
             self._search_results.reset(token)
@@ -269,6 +287,8 @@ class JsonModel(BaseModel, ABC):
     # PrivateAttr is not included in the json file, not validated when loading
     _sub_items: dict = PrivateAttr(default_factory=dict)
     _subitems_financials_processed: list = PrivateAttr(default_factory=list)
+    _pending_financials_analysis: Any = PrivateAttr(default=None)
+    _financials_unchanged: bool = PrivateAttr(default=False)
 
     # Called after loading or creating an instance.
     def model_post_init(self, context: Any) -> None:
@@ -310,12 +330,17 @@ class JsonModel(BaseModel, ABC):
     def _refresh_llm_research(self) -> bool:
         if not COLLECT_LLM_RESEARCH:
             return False
+        if self.llm_manager.research_disabled():
+            return False
         research = self.get_llm_research()
         timestamp_missing = not self.llm_research_updated
         needs_html = bool(research.strip()) and self.llm_research_html_needs_refresh(research)
         if not self.llm_research_needs_refresh():
             return needs_html or timestamp_missing
-        print(f"Starting LLM research for {type(self).__name__} {self.key}")
+        if not self.llm_manager.announce_research_start(
+            f"{type(self).__name__} {self.key}"
+        ):
+            return False
         generated = self.llm_manager.get_llm_research(self)
         if not generated.strip():
             return needs_html
@@ -408,6 +433,8 @@ class JsonModel(BaseModel, ABC):
         ...
 
     def _update_financials(self, **kwargs) -> bool:
+        if FORCE_FINANCIALS_REGENERATE:
+            return True
         if self.financials is None:
             return True
 
@@ -421,6 +448,60 @@ class JsonModel(BaseModel, ABC):
             and datetime.fromisoformat(item.financials["meta"]["updated"]) > updated_at
             for item in self.get_subitems().values()
         )
+
+    @staticmethod
+    def _financials_content_signature(financials: dict | None) -> str:
+        """Serialize financials while ignoring the refresh-only timestamp."""
+        def without_timestamps(value):
+            if isinstance(value, dict):
+                return {
+                    key: without_timestamps(item)
+                    for key, item in value.items()
+                    if key != "updated"
+                }
+            if isinstance(value, list):
+                return [without_timestamps(item) for item in value]
+            return value
+
+        content = without_timestamps(copy.deepcopy(financials))
+        return json.dumps(content, sort_keys=True, ensure_ascii=False, default=str)
+
+    def _refresh_financials_if_changed(self, **kwargs) -> bool:
+        """Rebuild financials, but publish artifacts only when data changed."""
+        force = FORCE_FINANCIALS_REGENERATE
+        previous = self.financials
+        self._financials_unchanged = False
+        self._pending_financials_analysis = None
+
+        # Defer only plot rendering. The analysis still computes its normal
+        # financial output so it can be compared with the saved data.
+        defer_plot = previous is not None and not force
+        self._get_financials(_defer_plot=defer_plot, **kwargs)
+        current = self.financials
+
+        unchanged = (
+            not force
+            and previous is not None
+            and self._financials_content_signature(previous)
+            == self._financials_content_signature(current)
+        )
+        if unchanged:
+            self.financials = previous
+            self._financials_unchanged = True
+            png_path = self.get_json_path().with_suffix(".png")
+            if not png_path.is_file():
+                # Repair a missing plot without changing the JSON timestamp.
+                analysis = self._pending_financials_analysis
+                if analysis is not None:
+                    analysis.save_plot(png_path)
+            self._pending_financials_analysis = None
+            return False
+
+        analysis = self._pending_financials_analysis
+        if analysis is not None:
+            analysis.save_plot(self.get_json_path().with_suffix(".png"))
+        self._pending_financials_analysis = None
+        return True
 
     def _get_subitems_financials(self):
         res = []
@@ -506,7 +587,7 @@ class JsonModel(BaseModel, ABC):
             item = cls._load_from_path(json_path)
 
             if item:
-                print(f"{cls.__name__} JSON loaded: {json_path}")
+                # print(f"{cls.__name__} JSON loaded: {json_path}")
                 changed = item._update(**kwargs)
                 if changed:
                     print(f"Updated existing JSON for {key}")
@@ -532,9 +613,13 @@ class JsonModel(BaseModel, ABC):
         if created:
             item._refresh_llm_research()
             
-        if changed: 
+        if changed:
             item.save_to_file()
             item.create_html()
+        elif item._financials_unchanged:
+            html_path = item.get_json_path().with_suffix(".html")
+            if not html_path.is_file():
+                item.create_html()
 
         return item
 
@@ -543,7 +628,8 @@ class JsonModel(BaseModel, ABC):
     @classmethod
     def batch_process(cls, keylist, max_workers=NUM_THREAD_TO_RUN):
         # Clear the run-scoped circuit breaker at the start of each build batch.
-        _OLLAMA_RESEARCH_DISABLED.clear()
+        with _OLLAMA_RESEARCH_STATE_LOCK:
+            _OLLAMA_RESEARCH_DISABLED.clear()
         if sys.platform == "win32":
             print("--------------------------------------------------")
             print("Generating items sequentially on Windows")

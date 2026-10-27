@@ -286,7 +286,7 @@ class Profile(JsonModel):
     def _get_subitems(self):
         self._sub_items.clear()
         if self.info_section.reviewed and self.info_section.create_segments:
-            print(f"Creating or updating segments for profile {self.name}")
+            # print(f"Creating or updating segments for profile {self.name}")
             for i, segment_name in enumerate(self.info_section.segments):
                 id = chr(ord('A')+i) # 0 to A, 1 to B, etc
                 key = self.code + f'({id})'
@@ -349,12 +349,13 @@ class Profile(JsonModel):
         fd_list = [FinancialsData(key=self.key)]
         _sa.process(fd_list, 
                     subitems_financials=self._get_subitems_financials(),
-                    plot_path=self.get_json_path().with_suffix('.png'))
+                    plot_path=False if kwargs.get("_defer_plot") else self.get_json_path().with_suffix('.png'),
+                    defer_plot=kwargs.get("_defer_plot", False))
         self.financials = _sa.financials
         self._subitems_financials_processed = _sa._subitems_financials_processed
+        self._pending_financials_analysis = _sa if kwargs.get("_defer_plot") else None
 
     def _update(self, **kwargs):
-        print(f"Updating profile: {self.name}")
         overview_changed = False
         info_section_changed = False
         research_changed = False
@@ -365,9 +366,15 @@ class Profile(JsonModel):
         research = self.get_llm_research()
         research_file_exists = self.get_llm_research_path().is_file()
         research_timestamp_missing = research_file_exists and not self.llm_research_updated
-        research_due = COLLECT_LLM_RESEARCH and self.llm_research_needs_refresh()
+        research_due = (
+            COLLECT_LLM_RESEARCH
+            and not self.llm_manager.research_disabled()
+            and self.llm_research_needs_refresh()
+        )
         if research_due:
-            print(f"Starting LLM research for {self.name}")
+            if not self.llm_manager.announce_research_start(self.name):
+                research_due = False
+        if research_due:
             generated_research = self.llm_manager.get_llm_research(self)
             if generated_research.strip():
                 self.save_llm_research(generated_research)
@@ -425,8 +432,7 @@ class Profile(JsonModel):
         changed = overview_changed or info_section_changed or research_changed or news_changed
 
         if changed or self._update_financials(**kwargs):
-            self._get_financials(**kwargs)
-            changed = True
+            changed = self._refresh_financials_if_changed(**kwargs) or changed
 
         return changed
 

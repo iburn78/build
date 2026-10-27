@@ -128,9 +128,11 @@ class Component(JsonModel):
         fd_list = self._get_fd_list()
         _sa.process(fd_list,
                     subitems_financials=self._get_subitems_financials(),
-                    plot_path=self.get_json_path().with_suffix('.png'))
+                    plot_path=False if kwargs.get("_defer_plot") else self.get_json_path().with_suffix('.png'),
+                    defer_plot=kwargs.get("_defer_plot", False))
         self.financials = _sa.financials
         self._subitems_financials_processed = _sa._subitems_financials_processed
+        self._pending_financials_analysis = _sa if kwargs.get("_defer_plot") else None
 
     def _get_fd_list(self, fd_cache=None):
         fd_list = []
@@ -175,8 +177,7 @@ class Component(JsonModel):
         changed = self._get_subitems() or changed
 
         if changed or self._update_financials(**kwargs):
-            self._get_financials(**kwargs)
-            changed = True
+            changed = self._refresh_financials_if_changed(**kwargs) or changed
 
         return changed
 
