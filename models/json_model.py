@@ -289,6 +289,7 @@ class JsonModel(BaseModel, ABC):
     _subitems_financials_processed: list = PrivateAttr(default_factory=list)
     _pending_financials_analysis: Any = PrivateAttr(default=None)
     _financials_unchanged: bool = PrivateAttr(default=False)
+    _derived_html_changed: bool = PrivateAttr(default=False)
 
     # Called after loading or creating an instance.
     def model_post_init(self, context: Any) -> None:
@@ -471,13 +472,21 @@ class JsonModel(BaseModel, ABC):
         force = FORCE_FINANCIALS_REGENERATE
         previous = self.financials
         self._financials_unchanged = False
+        self._derived_html_changed = False
         self._pending_financials_analysis = None
+        previous_subitems = self._financials_content_signature(
+            self._get_subitems_financials()
+        )
 
         # Defer only plot rendering. The analysis still computes its normal
         # financial output so it can be compared with the saved data.
         defer_plot = previous is not None and not force
         self._get_financials(_defer_plot=defer_plot, **kwargs)
         current = self.financials
+        current_subitems = self._financials_content_signature(
+            self._get_subitems_financials()
+        )
+        self._derived_html_changed = previous_subitems != current_subitems
 
         unchanged = (
             not force
@@ -618,7 +627,7 @@ class JsonModel(BaseModel, ABC):
             item.create_html()
         elif item._financials_unchanged:
             html_path = item.get_json_path().with_suffix(".html")
-            if not html_path.is_file():
+            if item._derived_html_changed or not html_path.is_file():
                 item.create_html()
 
         return item

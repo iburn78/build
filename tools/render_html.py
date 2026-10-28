@@ -10,6 +10,14 @@ from pydantic import BaseModel
 from pathlib import Path
 from markdown_it import MarkdownIt
 
+
+# ROW_DISPLAY_NAMES = {
+#     'assess_data.'
+# }
+
+
+
+
 year = str(datetime.today().year)
 
 def _fmt_value(key, value):
@@ -179,8 +187,8 @@ def _render_rows(dict_list, level=0, path="", collapsed_paths=None, no_chart_key
         if isinstance(value, dict):
             collapsed = current_path in collapsed_paths
             display_key = (
-                "ind_plot_period (w.r.t. the sum)"
-                if key == "ind_plot_period" else key
+                "indplot_period (w.r.t. the sum)"
+                if key == "indplot_period" else key
             )
             rows.append(_section_row(display_key, level=level, colspan=len(dict_list)+1, collapsed=collapsed))
             rows.extend(_render_rows(values, level=level + 1, path=current_path, collapsed_paths=collapsed_paths, no_chart_keys=no_chart_keys))

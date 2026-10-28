@@ -60,7 +60,7 @@ def make_mp_point(label: str, code: str, financials: dict | None, page_path: Pat
     """Convert a model's saved financial assessment into a chart point."""
     financials = financials or {}
     assess_data = financials.get("assess_data") or {}
-    margin = (assess_data.get("opmargin") or {}).get("4qtrs")
+    margin = (assess_data.get("opmargin") or {}).get("ltm")
     per = (assess_data.get("PER") or {}).get("PER_ltm")
     category = (financials.get("assess_result") or {}).get("category")
 
@@ -75,7 +75,7 @@ def make_mp_point(label: str, code: str, financials: dict | None, page_path: Pat
     return {
         "label": label,
         "category": category,
-        "opmargin_4qtrs": x,
+        "opmargin_ltm": x,
         "PER_ltm": y,
         "code": code,
         "page_url": "/" + quote(relative_page, safe="/"),
@@ -176,7 +176,7 @@ def draw_mp_plot(points: list[dict], title: str):
     points_by_coordinates = {}
     for point in points:
         points_by_coordinates.setdefault(
-            (point["opmargin_4qtrs"], point["PER_ltm"]), []
+            (point["opmargin_ltm"], point["PER_ltm"]), []
         ).append(point)
 
     text_offsets = {}
@@ -201,7 +201,7 @@ def draw_mp_plot(points: list[dict], title: str):
     for point in points:
         xshift, yshift, xanchor = text_offsets[id(point)]
         annotations.append({
-            "x": point["opmargin_4qtrs"],
+            "x": point["opmargin_ltm"],
             "y": point["PER_ltm"],
             "xref": "x",
             "yref": "y",
@@ -222,7 +222,7 @@ def draw_mp_plot(points: list[dict], title: str):
         category_points = [point for point in points if point["category"] == category]
         if category_points:
             traces.append(go.Scatter(
-                x=[point["opmargin_4qtrs"] for point in category_points],
+                x=[point["opmargin_ltm"] for point in category_points],
                 y=[point["PER_ltm"] for point in category_points],
                 text=[point["label"] for point in category_points],
                 customdata=[[point["page_url"], point["code"]] for point in category_points],

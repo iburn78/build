@@ -128,6 +128,7 @@ class Component(JsonModel):
         fd_list = self._get_fd_list()
         _sa.process(fd_list,
                     subitems_financials=self._get_subitems_financials(),
+                    individual_plot_fds=fd_list,
                     plot_path=False if kwargs.get("_defer_plot") else self.get_json_path().with_suffix('.png'),
                     defer_plot=kwargs.get("_defer_plot", False))
         self.financials = _sa.financials
