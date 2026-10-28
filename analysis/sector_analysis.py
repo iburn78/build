@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import FuncFormatter
 from data.tools import load
-from data.tools.tools import set_KoreanFonts, dprint 
+from data.tools.tools import set_KoreanFonts
 from build.tools.tools import df_krx, get_id, get_name
 from build.tools.analysis_tools import DEFAULT_KRW_UNIT, KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, add_dfs
 
@@ -23,6 +23,7 @@ recent_inc: comparing last 2 priods (e.g., last period movement)
 ltm: last twelve months (last 4 qurarters)
 aggregation: d, w, m, q (refer to the BLOCK_MAP)
 '''
+
 prices = load.get_prices()
 volumes = load.get_volumes()
 fr_main_db = load.get_fr_main_db()
@@ -587,11 +588,11 @@ class SectorAnalysis:
             'basics': basics,
             'financially_sound': financially_sound,
             'PER_level': PER_level,
-            'volatility(measure)': volatility,
-            'amount(measure)': amount,
-            'alpha(measure)': alpha_level,
-            'market_sentiment': market_sentiment,
+            'volatility_level': volatility,
+            'amount_level': amount,
+            'alpha_level': alpha_level,
             'category': category,
+            'market_sentiment': market_sentiment,
         }
     
     # =======================================================================================================================

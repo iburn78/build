@@ -10,13 +10,19 @@ from pydantic import BaseModel
 from pathlib import Path
 from markdown_it import MarkdownIt
 
-
-# ROW_DISPLAY_NAMES = {
-#     'assess_data.'
-# }
-
-
-
+# can use full path or key_only
+DISPLAY_KEY_DICT = {
+    "shape.financials": "financials (in unit)",
+    "-m_rank": "(rank)",
+    "-r_rank": "(rank)",
+    "-o_rank": "(rank)",
+    "assess_data.opincome.slope": "slope (qtr, in unit)",
+    "indplot_period": "indplot_period (within the group)",
+    "alpha(%)": "alpha (%, daily)",
+    "assess_result.volatility_level": 'volatility (measure)',
+    "assess_result.amount_level": 'amount (measure)',
+    "assess_result.alpha_level": 'alpha (measure)',
+}
 
 year = str(datetime.today().year)
 
@@ -181,18 +187,18 @@ def _render_rows(dict_list, level=0, path="", collapsed_paths=None, no_chart_key
     for key, value in dict_list[0].items():
         current_path = f"{path}.{key}" if path else str(key)
         values = [d[key] for d in dict_list]
+        display_key = DISPLAY_KEY_DICT.get(
+            current_path,
+            DISPLAY_KEY_DICT.get(key, key),
+        )
 
         if isinstance(value, dict):
             collapsed = current_path in collapsed_paths
-            display_key = (
-                "indplot_period (within the group)"
-                if key == "indplot_period" else key
-            )
             rows.append(_section_row(display_key, level=level, colspan=len(dict_list)+1, collapsed=collapsed))
             rows.extend(_render_rows(values, level=level + 1, path=current_path, collapsed_paths=collapsed_paths, no_chart_keys=no_chart_keys))
 
         else:
-            rows.append(_value_row(key, values, level=level, chart=key not in no_chart_keys))
+            rows.append(_value_row(display_key, values, level=level, chart=key not in no_chart_keys))
 
     return rows
 
