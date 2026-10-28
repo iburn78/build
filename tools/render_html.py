@@ -44,8 +44,6 @@ def _fmt_value(key, value):
         )
 
     if isinstance(value, float):
-        if "(pct)" in key.lower() or "(%)" in key.lower():
-            return f"{value:.2%}"
         return f"{value:,.6g}"
 
     if isinstance(value, int):
@@ -187,7 +185,7 @@ def _render_rows(dict_list, level=0, path="", collapsed_paths=None, no_chart_key
         if isinstance(value, dict):
             collapsed = current_path in collapsed_paths
             display_key = (
-                "indplot_period (w.r.t. the sum)"
+                "indplot_period (within the group)"
                 if key == "indplot_period" else key
             )
             rows.append(_section_row(display_key, level=level, colspan=len(dict_list)+1, collapsed=collapsed))

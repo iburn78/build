@@ -17,7 +17,7 @@ from build.tools.analysis_tools import DEFAULT_KRW_UNIT, KRW_UNIT_KR, is_KRX_ope
 ma: MarCap (until last day if is_KRX_open == True; if strict False then include today if it is after 12:00), Amount
 outshares: # shares outstanding
 volume: # shares traded 
-amount: money amount traded (a period)
+amount: money amount traded (in a period)
 slope: liear regression over all periods since start_date
 recent_inc: comparing last 2 priods (e.g., last period movement)
 ltm: last twelve months (last 4 qurarters)
@@ -35,19 +35,16 @@ BASE_DURATION = 120 # days
 MEASURE_DURATION = 20 # days 
 INDIVIDUAL_PLOT_DAYS = 30 # days
 
-
 # ASSESS parameters
 OPINCOME_GROWTH_PERCENT = 5
-ALLOWED_FLUCTUATION_PERCENT = 10 # opincome to be stable if within this range from prev quarter 
+ALLOWED_FLUCTUATION_PERCENT = 10 
 OPMARGIN_THRESHOLD_PERCENT = 15 
 PER_LOW = 8
 PER_MED = 13.5
-VOLATILITY_THRESHOLD = 0.33 # 0.33 for 33% volality up/down
-AMOUNT_DAILY_THRESHOLD = 0.33 # 0.33 for 33% amount up/down
-ALPHA_DAILY_THRESHOLD = 0.0004 # to convert yearly: x 250 (busines days), 0.0004 if 10% +/- compared to index
+VOLATILITY_THRESHOLD_PERCENT = 25
+AMOUNT_DAILY_THRESHOLD_PERCENT = 25 
+ALPHA_DAILY_THRESHOLD_PERCENT = 0.5  # alpha is stored in percentage points
 
-# These columns and labels are shared by every company-level financial series.
-# Compute them once instead of rebuilding them for every FinancialsData object.
 _FR_QCOLS = sorted(c for c in fr_main_db.columns if 'Q' in c)
 _FR_QUARTER_MAP = {
     '1Q': '01-01',
@@ -59,7 +56,6 @@ _FR_DATECOLS = [
     pd.Timestamp(f'{year}-{_FR_QUARTER_MAP[q]}')
     for year, q in (col.split('_') for col in _FR_QCOLS)
 ]
-
 
 def _per_ratio(marcap, opincome):
     """Return PER values, treating negative or undefined ratios as NaN."""
@@ -137,7 +133,6 @@ class FinancialsData:
                 return frames[0].copy(), frames[1].copy()
             return frames
 
-    # ma: MarCap, Amount in daily basis
     def get_ma_data(self):
         return self._get_raw_data()[0]
 
@@ -217,9 +212,6 @@ class FinancialsData:
 
         return result
 
-    # This is just a rough linear adjustment for simple and straightforward split of segments
-    # A segment's slope and quarterly growth match the corresponding profile's
-    # revenue slope and quarterly growth under the following logic.
     def adjust_data(self):
         if self.id is None: return 
 
@@ -254,18 +246,6 @@ class SectorAnalysis:
             'unit': unit,
             'start_date': start_date, # start date in "yyyy-mm-dd" format
         }
-        individual_plot_fds = kwargs.get("individual_plot_fds")
-        # The value-chain passes aggregate component lines explicitly. Regular
-        # component lines are profiles/segments, which do not get this metric.
-        individual_analysis_fds = individual_plot_fds or []
-        self._individual_period_stats = (
-            self._calculate_individual_period_stats(individual_analysis_fds)
-            if len(individual_analysis_fds) >= 3 else []
-        )
-        if individual_plot_fds is not None:
-            self.individual_plots(individual_plot_fds, period=INDIVIDUAL_PLOT_DAYS)
-        elif len(fd_list) > 1:
-            self.individual_plots(fd_list, period=INDIVIDUAL_PLOT_DAYS)
 
         self.ma_data = add_dfs([cd.ma_data for cd in fd_list], fill) # daily basis
         self.fr_data = add_dfs([cd.fr_data for cd in fd_list], fill) # quarterly basis
@@ -283,7 +263,7 @@ class SectorAnalysis:
             'assess_result': self.assess_result,
         }
 
-        self.post_process(**kwargs)
+        self.post_process(fd_list, **kwargs)
 
     def process_index(self, name: str, unit=1e12, start_date=DEFAULT_START_DATE, **kwargs):
         self.meta = self.meta | {
@@ -299,11 +279,23 @@ class SectorAnalysis:
         self.ma_data = _ma_data
         self.is_index = True
 
-        self.post_process(**kwargs)
+        self.post_process([], **kwargs)
 
-    def post_process(self, **kwargs):
+    def post_process(self, fd_list, **kwargs):
         subitems_financials = kwargs.get("subitems_financials")
         self._sub_sector_analyses(subitems_financials=subitems_financials)
+
+        individual_plot_fds = kwargs.get("individual_plot_fds")
+        individual_analysis_fds = individual_plot_fds or []
+        self._individual_period_stats = (
+            self._calculate_individual_period_stats(individual_analysis_fds)
+            if len(individual_analysis_fds) >= 3 else []
+        )
+        if individual_plot_fds is not None:
+            self.individual_plots(individual_plot_fds, period=INDIVIDUAL_PLOT_DAYS)
+        elif len(fd_list) > 1:
+            self.individual_plots(fd_list, period=INDIVIDUAL_PLOT_DAYS)
+
         self._add_individual_period_stats(subitems_financials)
         self._create_plot(
             save_path=kwargs.get("plot_path"),
@@ -324,10 +316,10 @@ class SectorAnalysis:
     @staticmethod
     def _calculate_individual_period_stats(fd_list, period=INDIVIDUAL_PLOT_DAYS):
         """Calculate each line's alpha and beta against the sum of all lines."""
-        mother = add_dfs([fd.ma_data["marcap"] for fd in fd_list], fill=True)
-        mother = mother.tail(period)
+        group_total = add_dfs([fd.ma_data["marcap"] for fd in fd_list], fill=True)
+        group_total = group_total.tail(period)
         return [
-            calc_alpha_beta(fd.ma_data["marcap"].tail(period), mother)
+            calc_alpha_beta(fd.ma_data["marcap"].tail(period), group_total)
             for fd in fd_list
         ]
 
@@ -344,67 +336,71 @@ class SectorAnalysis:
     # Assessment  
     # =======================================================================================================================
     '''
+    * unit: meta['unit'] 
+    * start_date: meta['start_date']
+    * Base_Duration은 Measure_Duration을 포함, Measure_Duration은 Base_Duration의 마지막 기간
+
     [shape]
+        - financials: in meta['unit']
+            - marcap: last day close
         - share: last quarter 기준, %
-        - opincome: negative opincome 제외
+            - opincome_qtr(%): 비중 계산 시 negative opincome 제외
 
-    [basics]
-        - OP Income (시점, 상황에 따라 마지막 분기 data가 duplicated (ffill) 되었을 수 있음):
-            * 최근 4개 분기 모두 Positive 인가?
-            * 최근 분기가 전년동기, 직전분기의 100-ALLOWED_FLUCTUATION 보다 좋아졌는가? 
-            * (START_DATE 부터) 성장중인가? (positive slope)
+    [assess_data]
+        - opincome(시점, 상황에 따라 마지막 분기 data가 duplicated (ffill) 되었을 수 있음): 
+            - positive_ltm: 직전 4개 분기 모두 Positive인가
+            - higher(comp): 최근 분기가 전년동기, 직전분기의 100-ALLOWED_FLUCTUATION(%) 보다 높은가  
+            - slope: start_date 이후 quarterly opincome에 대한 회귀 기울기 (meta['unit'] per quarter)
+            - growth(%): slope / 같은 기간의 평균 quarterly opincome * 100 (percent per quarter)
 
-        > 모두 충족하면 True
+        - volatility:
+            - Daily 절대 MarCap 수익률의 최근 Measure_Duration 평균을 직전 baseline과 비교
+            - measure_to_base(%): 최근 평균 / 직전 baseline 평균 * 100 (100이면 동일)
 
-    [financially sound]
-        - OP Income: (START_DATE 부터) 성장률이 충분히 높은가? (slope > THRESHOLD)
-        - OP Margin: 최근 4개 분기 이익률이 각각 충분히 높은가? (each of opmargin > THRESHOLD, 영업이익률은 트렌드를 보지 않음)
+        - amount:
+            - 일별 거래대금 (unit: meta['unit'])
+            - measure_to_base(%): 최근 평균 / 직전 baseline 평균 * 100 (100이면 동일)
 
-        > 둘중의 하나 충족하면 True
+        - alpha_beta:
+            - alpha(%): 해당 구간의 일별 초과수익률 추정치, percent 단위
+            - beta: 해당 구간의 일별 수익률로 추정한 단위 없는 값
+            - indplot_period: 최근 INDIVIDUAL_PLOT_DAYS 동안 각 member 수익률을 그룹 합계와 비교한 alpha/beta
 
-    [PER]
-        - PER_ltm: 직전 4개 분기 OP Income의 합 대비, 해당시점의 Marcap
-        - PER_qx4: 최근 분기 data로 연간 추정 (x4)
-        - PER_fwd: (START_DATE 부터) OP Income의 Regression으로 Extrapolate한 미래 4개 분기 데이터 추정 (직전분기 데이터는 미포함)
+            
+    [assess_result]
+        - basics: True
+            - positive_ltm (and) 
+            - higher(comp) (and)
+            - slope > 0
         
-        > (PER_ltm default로 사용) Low, Mid, High로 구분: PER_LOW, PER_MID로 구분 (2026-08, KOSPI PER = ~17)
+        - financially_sound: True
+            - opincome.growth(%) >= OPINCOME_GROWTH_PERCENT (or)
+            - 최근 4개 분기 이익률과 LTM 이익률 모두 >= OPMARGIN_THRESHOLD_PERCENT
+        
+        - PER: 
+            - PER_ltm default
+            - PER_ltm: 직전 4개 분기 OP Income의 합 대비, 해당시점의 Marcap
+            - PER_qx4: 최근 분기 data로 연간 추정 (x4)
+            - PER_fwd: (start_date 부터) opincome의 regression으로 extrapolate한 미래 4개 분기 데이터 추정 (직전분기 데이터는 미포함)
+            > Low, Mid, High로 구분 (기준: PER_LOW, PER_MID)
 
-    [Volatility]
-        - Marcap의 변화율(daily pct change)에 대해, Measure_Duration(직전, business days)기간동안 Standard_Dev로 정의함 (Rolling 일별, 양수)
-        - Volatility를 Base_Duration 동안 Regression 하였을 때, Measure_Duration 중간지점(비교위치) 값(Prediction)과 실제 Measure_Duration의 평균값(Real_mean)비교
+        - volatility_movement/amount_movement: 
+            > volatility: measure_to_base(%) > 100 + VOLATILITY_THRESHOLD_PERCENT이면 Up
+            > volatility: measure_to_base(%) < 100 - VOLATILITY_THRESHOLD_PERCENT이면 Dn
+            > amount: measure_to_base(%) > 100 + AMOUNT_DAILY_THRESHOLD_PERCENT이면 Up
+            > amount: measure_to_base(%) < 100 - AMOUNT_DAILY_THRESHOLD_PERCENT이면 Dn
+        
+        - alpha_level:
+            - alpha(%)가 +/- ALPHA_DAILY_THRESHOLD_PERCENT를 넘는지로 outperform/underperform 구분
+            - indplot_period: 최근 INDIVIDUAL_PLOT_DAYS 동안 각 individual item의 일별 MarCap 수익률을 MarCap 합계의 수익률에 대비하여 계산
+                * profile/segment level dedupe 수행하지 않은 단순 sum
 
-        > ratio = Real_mean/Prediction > 1 + THRESHOLD: 최근 Volatility가 증대 (Up)
-        > ratio < 1 - THRESHOLD: 최근 감소 (Dn)
-
-        * Base_Duration은 Measure_Duration을 포함, Measure_Duration은 Base_Duration의 마지막 기간 (recent business days)
-        * Regression 결과가 비교위치에서 near zero or negative 되는 것을 방지하기 위한 floor value 설정 (실제 구현 참조)
-        * THRESHOLD in float
-
-    [Amount]
-        - 일별 거래대금 대상 Volatility와 동일하게 산정
-
-        > ratio > 1 + THRESHOLD: Up
-        > ratio > 1 - THRESHOLD: Dn
-
-    [Alpha]
-        - Alpha는 beta를 반영한 일별 초과수익률(intercept, float)
-        - Measure_Duration (or Base_Duration, from START_DATE) 동안, Index (KOSPI default) 대비 Alpha, Beta 분석
-
-        > alpha > THRESHOLD: outperform 
-        > alpha < -THRESHOLD: underperform 
-
-        * THRESHOLD: 일별 수익률 기준, in float (기간 수익률은 convert 필요하며, x days로 estimate)
-        * indplot_period: 최근 INDIVIDUAL_PLOT_DAYS 동안 각 individual item의 일별 MarCap 수익률을 MarCap 합계(profile/segment level dedupe 수행하지 않은 단순 sum)의 수익률에 대비하여 계산
-    
-    [Result]
-        - Categorization: 
+        - category: 
             if basics and finantially_sound: 
                 PER_level Low: A
                 PER_level Mid: B
                 PER_level High: C
             else: D
-            * Logic: 재무 사항이 갖추어진 회사중에, PER가 아직 낮은 회사가 보다 높은 등급
-            * in D, PER has to be interpreted individually, high per doesn't mean high valuation (negative or high value PER)
     '''
 
     def _build_shape(self):  
@@ -420,14 +416,13 @@ class SectorAnalysis:
             print('Assessment is unavailable for index data.')
             return False
 
-        fr = self.fr_data # drop_duplicates() not applied here
+        fr = self.fr_data 
 
         # side="right" and -1 will give data from the quarter that start_date is in
         start_idx = max(0, fr.index.searchsorted(self.meta['start_date'], side="right") - 1) 
 
         fr = fr.iloc[start_idx:]
 
-        # Check whether financial data is useful.
         for col in ['revenue_qtr', 'opincome_qtr']:
             s = fr[col].tail(5)
 
@@ -449,21 +444,15 @@ class SectorAnalysis:
         c1 = bool((opic.iloc[-4:] > 0).all())
 
         # check point 2: is latest opincome higher than prev year, quarter (전년동기, 직전분기)
-        # note: current quarter may be the same as the prev quarter due to ffill (on assumption that the performance stays)
-        #       this is necessary, since some companies' financials may not be updated yet within a sector
-        vals = opic.iloc[[-1, -2, -5]]
+        c2 = bool(opic.iloc[[-1, -2, -5]].notna().all() and opic.iloc[-1] >= max(opic.iloc[-2], opic.iloc[-5])*(100-ALLOWED_FLUCTUATION_PERCENT)/100)
 
-        c2 = bool(vals.notna().all() and vals.iloc[0] >= vals.iloc[[1, 2]].max()*(100-ALLOWED_FLUCTUATION_PERCENT)/100)
-
-        # opincome slope over the average of last 4 quarters
-        # will be inf or na if mean is 0
-        opic_growth = opic_slope / opic.iloc[-4:].mean() * 100
+        opic_growth = opic_slope / opic.mean() * 100 if opic.mean() > 0 else np.nan
 
         res['opincome'] = {
             'positive_ltm': c1, 
-            'higher(comp)': c2, # higher than comparable quarters (ALLOWED_FLUCTUATIONS_PERCENT considered)
-            'slope': round_sig(opic_slope, n=2), # measured from start_date given, and per quarter
-            'growth(%)': round_sig(opic_growth, n=2), # measured from start_date given, and per quarter
+            'higher(comp)': c2, 
+            'slope': round_sig(opic_slope, n=2), 
+            'growth(%)': round_sig(opic_growth, n=2), 
         }
 
         # ------------------------------------------------------------------
@@ -471,14 +460,17 @@ class SectorAnalysis:
         # ------------------------------------------------------------------
         # last 4 quarter opmargin: date is quarter starting date
         # The same forward-fill applies here.
-        opms = (opic / rev).iloc[-4:].apply(round_sig).to_dict()
+        opms = {
+            quarter: round_sig(value, n=2)
+            for quarter, value in (opic / rev * 100).iloc[-4:].items()
+        }
         res['opmargin'] = {
-            f'{k:%y}_{k.quarter}Q': (None if pd.isna(v) else v)
+            f'{k:%y}_{k.quarter}Q(%)': v
             for k, v in opms.items()
         }
         r = self.fr_data[-4:].sum().iat[0]
         o = self.fr_data[-4:].sum().iat[1]
-        res['opmargin']['ltm'] = round_sig(o/r)
+        res['opmargin']['ltm(%)'] = round_sig(o/r*100, n=2)
 
         # ------------------------------------------------------------------
         # PER
@@ -504,9 +496,10 @@ class SectorAnalysis:
         # ------------------------------------------------------------------
         # volatility and amount increment
         # ------------------------------------------------------------------
-        # Volatility:
-        # Volatility is the standard deviation of market-cap changes over MEASURE_DURATION days.
-        res['volatility'] = calc_increment(self.ma_data['marcap'].pct_change().rolling(MEASURE_DURATION).std().dropna(), MEASURE_DURATION, BASE_DURATION)
+        # Volatility: absolute daily market-cap return
+        absolute_daily_returns = self.ma_data['marcap'].pct_change().abs()
+        res['volatility'] = calc_increment(absolute_daily_returns, MEASURE_DURATION, BASE_DURATION)
+
         # Amount:
         res['amount'] = calc_increment(self.ma_data['amount_daily'], MEASURE_DURATION, BASE_DURATION)
 
@@ -522,7 +515,7 @@ class SectorAnalysis:
             'measure_duration': _measure_duration,
         }
         if not self.meta.get('code'):
-            alpha_beta['indplot_period'] = {'alpha': None, 'beta': None}
+            alpha_beta['indplot_period'] = {'alpha(%)': None, 'beta': None}
         res['alpha_beta'] = alpha_beta
         self.assess_data = res
 
@@ -551,23 +544,23 @@ class SectorAnalysis:
 
         # volatility movement in measure period
         vol = self.assess_data['volatility']
-        if vol['measure_to_base'] < 1-VOLATILITY_THRESHOLD: volatility = 'Dn'
-        elif vol['measure_to_base'] <= 1+VOLATILITY_THRESHOLD: volatility = '-'
-        elif vol['measure_to_base'] > 1+VOLATILITY_THRESHOLD: volatility = 'Up'
+        if vol['measure_to_base(%)'] < 100-VOLATILITY_THRESHOLD_PERCENT: volatility = 'Dn'
+        elif vol['measure_to_base(%)'] <= 100+VOLATILITY_THRESHOLD_PERCENT: volatility = '-'
+        elif vol['measure_to_base(%)'] > 100+VOLATILITY_THRESHOLD_PERCENT: volatility = 'Up'
         else: volatility = '(na)'
 
         # amount movement in measure period
         amt = self.assess_data['amount']
-        if amt['measure_to_base'] < 1-AMOUNT_DAILY_THRESHOLD: amount = 'Dn'
-        elif amt['measure_to_base'] <= 1+AMOUNT_DAILY_THRESHOLD: amount = '-'
-        elif amt['measure_to_base'] > 1+AMOUNT_DAILY_THRESHOLD: amount = 'Up'
+        if amt['measure_to_base(%)'] < 100-AMOUNT_DAILY_THRESHOLD_PERCENT: amount = 'Dn'
+        elif amt['measure_to_base(%)'] <= 100+AMOUNT_DAILY_THRESHOLD_PERCENT: amount = '-'
+        elif amt['measure_to_base(%)'] > 100+AMOUNT_DAILY_THRESHOLD_PERCENT: amount = 'Up'
         else: amount = '(na)'
 
         # alpha_level
         alp = self.assess_data['alpha_beta']['measure_duration']
-        if alp['alpha'] < -ALPHA_DAILY_THRESHOLD: alpha_level = 'udr_pfm' # strong negative
-        elif alp['alpha'] <=  ALPHA_DAILY_THRESHOLD: alpha_level = '-'
-        elif alp['alpha'] >  ALPHA_DAILY_THRESHOLD: alpha_level = 'out_pfm' # strong positive
+        if alp['alpha(%)'] < -ALPHA_DAILY_THRESHOLD_PERCENT: alpha_level = 'udr_pfm' # strong negative
+        elif alp['alpha(%)'] <=  ALPHA_DAILY_THRESHOLD_PERCENT: alpha_level = '-'
+        elif alp['alpha(%)'] >  ALPHA_DAILY_THRESHOLD_PERCENT: alpha_level = 'out_pfm' # strong positive
         else: alpha_level = '(na)' 
 
         # Choose Representative Categories
@@ -594,9 +587,9 @@ class SectorAnalysis:
             'basics': basics,
             'financially_sound': financially_sound,
             'PER_level': PER_level,
-            'volatility_movement': volatility,
-            'amount_movement': amount,
-            'alpha_level': alpha_level,
+            'volatility(measure)': volatility,
+            'amount(measure)': amount,
+            'alpha(measure)': alpha_level,
             'market_sentiment': market_sentiment,
             'category': category,
         }
@@ -612,9 +605,9 @@ class SectorAnalysis:
         self.shape['share'] = {
             'marcap(%)': '-',
             '-m_rank':'-',
-            'revenue(%)': '-',
+            'revenue_qtr(%)': '-',
             '-r_rank': '-',
-            'opincome(%)': '-',
+            'opincome_qtr(%)': '-',
             '-o_rank': '-',
         }
 
@@ -680,14 +673,14 @@ class SectorAnalysis:
                 ), 
                 '-m_rank': m_ranks[i],
 
-                'revenue(%)': (
+                'revenue_qtr(%)': (
                     round_sig(revenue / total_revenue * 100, n=2)
                     if total_revenue > 0 else '-'
                 ),
 
                 '-r_rank': r_ranks[i],
 
-                'opincome(%)': (
+                'opincome_qtr(%)': (
                     round_sig(opincome / total_opincome * 100, n=2)
                     if opincome > 0 and total_opincome > 0
                     else '-'

@@ -71,15 +71,17 @@ def get_slope_intercept(s: pd.Series):
 def round_sig(x, n=3, na_to_zero=False):
     if pd.isna(x) or not np.isfinite(x):
         return 0 if na_to_zero else np.nan
-    return float(f"{x:.{n}g}")
+    rounded = float(f"{x:.{n}g}")
+    return int(rounded) if rounded.is_integer() else rounded
 
 def calc_increment(s: pd.Series, measure_duration, base_duration):
-    # Designed only for non-negative series
-    # args: 
-    # - measure_duration: 20 (1 months)
-    # - base_duration: 120 (6 months, required length)
-    # return: [measure to base, slope]
-    # Returns NaN metrics if insufficient valid data remains.
+    """Compare a recent mean with the preceding baseline mean.
+
+    Zero and non-finite observations are omitted. ``base_duration`` is the
+    maximum sample count including the recent ``measure_duration`` samples.
+    Returns the recent-to-baseline ratio as a percentage, where 100 means
+    unchanged; returns NaN when there is no usable comparison window.
+    """
 
     s = s[np.isfinite(s) & (s != 0)] # dropping zeros too (e.g., suspended days etc)
 
@@ -89,22 +91,16 @@ def calc_increment(s: pd.Series, measure_duration, base_duration):
     bd = min(len(s), base_duration)
     md = min(bd, measure_duration)
 
-    if md == 0:
-        return {'measure_to_base': np.nan, 'slope': np.nan}
+    if md == 0 or bd <= md:
+        return {'measure_to_base(%)': np.nan}
 
-    slope, intercept = get_slope_intercept(s.iloc[-bd:])
+    base_upto_measure = s.iloc[-bd:-md].mean()
+    measure_only = s.iloc[-md:].mean()
 
-    # Floor to avoid meaningless comparisons near zero
-    _min = s.iloc[-bd:].mean() * 0.3
-
-    extrapolated_value = max(intercept + slope * (bd - md / 2), _min)
-    measure_duration_average = s.iloc[-md:].mean()
-
-    measure_to_base_ratio = measure_duration_average / extrapolated_value
+    measure_to_base_pct = measure_only / base_upto_measure * 100
 
     return {
-        'measure_to_base': round_sig(measure_to_base_ratio),
-        'slope': round_sig(slope),
+        'measure_to_base(%)': round_sig(measure_to_base_pct, n=2),
     }
 
 
@@ -128,18 +124,18 @@ def calc_alpha_beta(
     ret = ret.replace([np.inf, -np.inf], np.nan).dropna()
 
     if len(ret) < 2 or ret["market"].var() == 0:
-        return {'alpha': np.nan, 'beta': np.nan}
+        return {'alpha(%)': np.nan, 'beta': np.nan}
 
     beta = ret["stock"].cov(ret["market"]) / ret["market"].var()
     _alpha = ret["stock"].mean() - beta * ret["market"].mean()
     alpha = (1 + _alpha) ** n - 1
 
     if not np.isfinite(alpha) or not np.isfinite(beta):
-        return {'alpha': np.nan, 'beta': np.nan}
+        return {'alpha(%)': np.nan, 'beta': np.nan}
 
     return {
-        'alpha': round_sig(alpha),
-        'beta': round_sig(beta),
+        'alpha(%)': round_sig(alpha*100, n=2),
+        'beta': round_sig(beta, n=2),
     }
 
 # function that sums multiple serises
