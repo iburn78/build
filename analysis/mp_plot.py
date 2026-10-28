@@ -61,7 +61,8 @@ def make_mp_point(label: str, code: str, financials: dict | None, page_path: Pat
     financials = financials or {}
     assess_data = financials.get("assess_data") or {}
     margin = (assess_data.get("opmargin") or {}).get("ltm(%)")
-    if margin: margin = margin/100
+    if margin is not None:
+        margin = margin / 100
     per = (assess_data.get("PER") or {}).get("PER_ltm")
     category = (financials.get("assess_result") or {}).get("category")
 
@@ -255,7 +256,7 @@ def draw_mp_plot(points: list[dict], title: str):
         autosize=True,
         margin={"t": 55, "r": 25, "b": 90, "l": 95},
         xaxis={
-            "title": {"text": "X: Operating margin (4 quarters)", "standoff": 14},
+            "title": {"text": "X: Operating margin (LTM)", "standoff": 14},
             "tickformat": ".0%",
             "automargin": True,
         },

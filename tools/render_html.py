@@ -75,15 +75,10 @@ def _same_signature(*dicts):
         return True
 
     signature = _dict_signature(dicts[0])
-    passed = all(_dict_signature(d) == signature for d in dicts[1:])
-    if not passed:
-        print("Signatures do not match.")
-        # for d in dicts:
-        #     print(_dict_signature(d))
-    return passed
+    return all(_dict_signature(d) == signature for d in dicts[1:])
 
 def _align_dicts(*dicts):
-    keys = set().union(*(d.keys() for d in dicts))
+    keys = list(dict.fromkeys(key for data in dicts for key in data))
 
     result = [dict(d) for d in dicts]
 
@@ -631,6 +626,7 @@ def _render_roma_plot(codes, target_key: str):
             full_html=False,
             include_plotlyjs="cdn",
             config={"responsive": True},
+            div_id=plot_id,
         )
     except Exception as exc:
         figure_html = f'<p class="roma-plot-error">Could not create ROMA plot: {escape(str(exc))}</p>'
@@ -708,8 +704,8 @@ def render_html(target_class,
         print(financials_dicts)
         raise ValueError("column_names and dict_list must have the same length")
 
-    if not _same_signature(*financials_dicts):
-        print("Aligning financial data...")
+    needs_alignment = not _same_signature(*financials_dicts)
+    if needs_alignment:
         financials_dicts = _align_dicts(*financials_dicts)
 
     page_name = f"[{escape(str(target_class).lower())}] {escape(str(financials_names[0]['name']))}"
@@ -739,6 +735,13 @@ def render_html(target_class,
     html = html.replace("{{ financials }}", financials_section)
     html = html.replace("{{ qualitative }}", qual_section)
     html = html.replace("{{ news }}", news_section)
+
+    if output_file.is_file() and output_file.read_text(encoding="utf-8") == html:
+        return
+
+    if needs_alignment:
+        print("Signatures do not match.")
+        print("Aligning financial data...")
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text(html, encoding="utf-8")
