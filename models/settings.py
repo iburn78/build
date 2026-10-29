@@ -16,8 +16,14 @@ DEFAULT_NEWS_LLM = 'ollama'
 AGENT_RETRIES = 5
 
 # financials
-FINANCIALS_UPDATE_PERIOD_HR = 3 # Hours
-FORCE_FINANCIALS_REGENERATE = False
+FINANCIALS_UPDATE_PERIOD_HR = 3 # Hours 
+# if set to 0, then financials eligible for recalculation on each update: if the recalculated financials are unchanged, the JSON and existing PNG are left alone.
+# The HTML can still be regenerated if child financials changed or the HTML is missing.
+# The .md research file follows separate refresh logic, so it isn’t automatically regenerated just because the financial update period is zero.
+
+FORCE_FINANCIALS_REGENERATE = True
+# if set to True, financials and PNG, HTML are regenerated, saves JSON with a new timestamp.
+# The .md research file follows separate refresh logic.
 
 # news
 NEWS_REFRESH_THRES = 3 # days
@@ -67,6 +73,9 @@ NO_CHART_KEYS = {
     'key',
     'unit',
     'code',
+    'base_per',
+    'meaasure_per',
+    'indplot_per',
     '-m_rank', 
     '-r_rank',
     '-o_rank',

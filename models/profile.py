@@ -122,7 +122,7 @@ class Business(InfoSection):
     )
 
     def model_post_init(self, context: Any) -> None:
-        if not self.search_theme:
+        if not self.reviewed:
             self.search_theme = PROFILE_SEARCH_THEME
         return super().model_post_init(context)
 

@@ -32,9 +32,9 @@ kospi, kosdaq, kospi200 = load.get_market_index()
 DEFAULT_AGGREGATION = 'd'
 DEFAULT_START_DATE = '2024-01-01'
 
-BASE_DURATION = 120 # days
-MEASURE_DURATION = 20 # days 
-INDIVIDUAL_PLOT_DAYS = 30 # days
+BASE_PERIOD = 120 # days
+MEASURE_PERIOD = 20 # days 
+INDIVIDUAL_PLOT_PERIOD = 20 # days
 
 # ASSESS parameters
 OPINCOME_GROWTH_PERCENT = 5
@@ -246,6 +246,9 @@ class SectorAnalysis:
         self.meta = self.meta | {
             'unit': unit,
             'start_date': start_date, # start date in "yyyy-mm-dd" format
+            'base_per': BASE_PERIOD, 
+            'measure_per': MEASURE_PERIOD, 
+            'indplot_per': INDIVIDUAL_PLOT_PERIOD,
         }
 
         self.ma_data = add_dfs([cd.ma_data for cd in fd_list], fill) # daily basis
@@ -289,13 +292,13 @@ class SectorAnalysis:
         individual_plot_fds = kwargs.get("individual_plot_fds")
         individual_analysis_fds = individual_plot_fds or []
         self._individual_period_stats = (
-            self._calculate_individual_period_stats(individual_analysis_fds)
+            self._calculate_individual_period_stats(individual_analysis_fds, period=self.meta['indplot_per'])
             if len(individual_analysis_fds) >= 3 else []
         )
         if individual_plot_fds is not None:
-            self.individual_plots(individual_plot_fds, period=INDIVIDUAL_PLOT_DAYS)
+            self.individual_plots(individual_plot_fds)
         elif len(fd_list) > 1:
-            self.individual_plots(fd_list, period=INDIVIDUAL_PLOT_DAYS)
+            self.individual_plots(fd_list)
 
         self._add_individual_period_stats(subitems_financials)
         self._create_plot(
@@ -306,16 +309,18 @@ class SectorAnalysis:
     # =======================================================================================================================
     # Individual process
     # =======================================================================================================================
-    def individual_plots(self, fd_list, period=INDIVIDUAL_PLOT_DAYS):
+    def individual_plots(self, fd_list):
         """Prepare individual market-cap series for the lower plot panel."""
         self._individual_plot_data = []
+        period = self.meta['indplot_per']
         for fd in fd_list:
             marcap = fd.ma_data["marcap"].dropna().tail(period)
             if not marcap.empty:
-                self._individual_plot_data.append((fd.name or fd.key, marcap))
+                normalized = marcap / marcap.iloc[0] * 100
+                self._individual_plot_data.append((fd.name or fd.key, normalized))
 
     @staticmethod
-    def _calculate_individual_period_stats(fd_list, period=INDIVIDUAL_PLOT_DAYS):
+    def _calculate_individual_period_stats(fd_list, period):
         """Calculate each line's alpha and beta against the sum of all lines."""
         group_total = add_dfs([fd.ma_data["marcap"] for fd in fd_list], fill=True)
         group_total = group_total.tail(period)
@@ -339,7 +344,7 @@ class SectorAnalysis:
     '''
     * unit: meta['unit'] 
     * start_date: meta['start_date']
-    * Base_Duration은 Measure_Duration을 포함, Measure_Duration은 Base_Duration의 마지막 기간
+    * Base_Period은 Measure_Period을 포함, Measure_Period은 Base_Period의 마지막 기간
 
     [shape]
         - financials: in meta['unit']
@@ -355,12 +360,12 @@ class SectorAnalysis:
             - growth(%): slope / 같은 기간의 평균 quarterly opincome * 100 (percent per quarter)
 
         - volatility:
-            - Daily 절대 MarCap 수익률의 최근 Measure_Duration 평균을 직전 baseline과 비교
+            - Daily 절대 MarCap 수익률의 최근 Measure_Period 평균을 직전 baseline과 비교
             - measure_to_base(%): 최근 평균 / 직전 baseline 평균 * 100 (100이면 동일)
 
         - amount:
             - 일별 거래대금 (unit: meta['unit'])
-            - measure_to_base(%): 최근 평균 / 직전 baseline 평균 * 100 (100이면 동일)
+            - measure_to_base(%): (최근 평균 / 직전 baseline 평균 -1) * 100 (100이면 동일)
 
         - alpha_beta:
             - alpha(%): 해당 구간의 일별 초과수익률 추정치, percent 단위
@@ -386,10 +391,10 @@ class SectorAnalysis:
             > Low, Mid, High로 구분 (기준: PER_LOW, PER_MID)
 
         - volatility_movement/amount_movement: 
-            > volatility: measure_to_base(%) > 100 + VOLATILITY_THRESHOLD_PERCENT이면 Up
-            > volatility: measure_to_base(%) < 100 - VOLATILITY_THRESHOLD_PERCENT이면 Dn
-            > amount: measure_to_base(%) > 100 + AMOUNT_DAILY_THRESHOLD_PERCENT이면 Up
-            > amount: measure_to_base(%) < 100 - AMOUNT_DAILY_THRESHOLD_PERCENT이면 Dn
+            > volatility: measure_to_base(%) > VOLATILITY_THRESHOLD_PERCENT이면 Up
+            > volatility: measure_to_base(%) < - VOLATILITY_THRESHOLD_PERCENT이면 Dn
+            > amount: measure_to_base(%) > + AMOUNT_DAILY_THRESHOLD_PERCENT이면 Up
+            > amount: measure_to_base(%) < - AMOUNT_DAILY_THRESHOLD_PERCENT이면 Dn
         
         - alpha_level:
             - alpha(%)가 +/- ALPHA_DAILY_THRESHOLD_PERCENT를 넘는지로 outperform/underperform 구분
@@ -465,13 +470,13 @@ class SectorAnalysis:
             quarter: round_sig(value, n=2)
             for quarter, value in (opic / rev * 100).iloc[-4:].items()
         }
-        res['opmargin'] = {
-            f'{k:%y}_{k.quarter}Q(%)': v
+        res['opmargin(%)'] = {
+            f'{k:%y}_{k.quarter}Q': v
             for k, v in opms.items()
         }
         r = self.fr_data[-4:].sum().iat[0]
         o = self.fr_data[-4:].sum().iat[1]
-        res['opmargin']['ltm(%)'] = round_sig(o/r*100, n=2)
+        res['opmargin(%)']['ltm'] = round_sig(o/r*100, n=2)
 
         # ------------------------------------------------------------------
         # PER
@@ -499,21 +504,21 @@ class SectorAnalysis:
         # ------------------------------------------------------------------
         # Volatility: absolute daily market-cap return
         absolute_daily_returns = self.ma_data['marcap'].pct_change().abs()
-        res['volatility'] = calc_increment(absolute_daily_returns, MEASURE_DURATION, BASE_DURATION)
+        res['volatility'] = calc_increment(absolute_daily_returns, self.meta['measure_per'], self.meta['base_per'])
 
         # Amount:
-        res['amount'] = calc_increment(self.ma_data['amount_daily'], MEASURE_DURATION, BASE_DURATION)
+        res['amount'] = calc_increment(self.ma_data['amount_daily'], self.meta['measure_per'], self.meta['base_per'])
 
         # ------------------------------------------------------------------
         # alpha and beta
         # ------------------------------------------------------------------
         _from_start_date = calc_alpha_beta(self.ma_data['marcap'], kospi['Close'])
-        _base_duration = calc_alpha_beta(self.ma_data['marcap'][-BASE_DURATION:], kospi['Close'])
-        _measure_duration = calc_alpha_beta(self.ma_data['marcap'][-MEASURE_DURATION:], kospi['Close'])
+        _base_period = calc_alpha_beta(self.ma_data['marcap'][-self.meta['base_per']:], kospi['Close'])
+        _measure_period = calc_alpha_beta(self.ma_data['marcap'][-self.meta['measure_per']:], kospi['Close'])
         alpha_beta = {
             'from_start_date': _from_start_date,
-            'base_duration': _base_duration,
-            'measure_duration': _measure_duration,
+            'base_period': _base_period,
+            'measure_period': _measure_period,
         }
         if not self.meta.get('code'):
             alpha_beta['indplot_period'] = {'alpha(%)': None, 'beta': None}
@@ -532,7 +537,7 @@ class SectorAnalysis:
         if oh['growth(%)'] >= OPINCOME_GROWTH_PERCENT: 
             financially_sound = True
 
-        om = list(self.assess_data['opmargin'].values())[-5:]
+        om = list(self.assess_data['opmargin(%)'].values())[-5:]
         if len(om) == 5 and all(np.isfinite(x) and x >= OPMARGIN_THRESHOLD_PERCENT for x in om):
             financially_sound = True
 
@@ -545,20 +550,20 @@ class SectorAnalysis:
 
         # volatility movement in measure period
         vol = self.assess_data['volatility']
-        if vol['measure_to_base(%)'] < 100-VOLATILITY_THRESHOLD_PERCENT: volatility = 'Dn'
-        elif vol['measure_to_base(%)'] <= 100+VOLATILITY_THRESHOLD_PERCENT: volatility = '-'
-        elif vol['measure_to_base(%)'] > 100+VOLATILITY_THRESHOLD_PERCENT: volatility = 'Up'
+        if vol['measure_to_base(%)'] < -VOLATILITY_THRESHOLD_PERCENT: volatility = 'Dn'
+        elif vol['measure_to_base(%)'] <= VOLATILITY_THRESHOLD_PERCENT: volatility = '-'
+        elif vol['measure_to_base(%)'] > VOLATILITY_THRESHOLD_PERCENT: volatility = 'Up'
         else: volatility = '(na)'
 
         # amount movement in measure period
         amt = self.assess_data['amount']
-        if amt['measure_to_base(%)'] < 100-AMOUNT_DAILY_THRESHOLD_PERCENT: amount = 'Dn'
-        elif amt['measure_to_base(%)'] <= 100+AMOUNT_DAILY_THRESHOLD_PERCENT: amount = '-'
-        elif amt['measure_to_base(%)'] > 100+AMOUNT_DAILY_THRESHOLD_PERCENT: amount = 'Up'
+        if amt['measure_to_base(%)'] < -AMOUNT_DAILY_THRESHOLD_PERCENT: amount = 'Dn'
+        elif amt['measure_to_base(%)'] <= AMOUNT_DAILY_THRESHOLD_PERCENT: amount = '-'
+        elif amt['measure_to_base(%)'] > AMOUNT_DAILY_THRESHOLD_PERCENT: amount = 'Up'
         else: amount = '(na)'
 
         # alpha_level
-        alp = self.assess_data['alpha_beta']['measure_duration']
+        alp = self.assess_data['alpha_beta']['measure_period']
         if alp['alpha(%)'] < -ALPHA_DAILY_THRESHOLD_PERCENT: alpha_level = 'udr_pfm' # strong negative
         elif alp['alpha(%)'] <=  ALPHA_DAILY_THRESHOLD_PERCENT: alpha_level = '-'
         elif alp['alpha(%)'] >  ALPHA_DAILY_THRESHOLD_PERCENT: alpha_level = 'out_pfm' # strong positive
@@ -841,76 +846,6 @@ class SectorAnalysis:
             plt.show()
         plt.close(fig)   
 
-    def _plot_individual_panel(self, ax, plot_data):
-        """Draw recent individual market caps with Matplotlib's color cycle."""
-        annotations = []
-        for name, series in plot_data:
-            (line,) = ax.plot(
-                series.index,
-                series.values,
-                marker="o",
-                markersize=3,
-                linewidth=1.2,
-            )
-            annotation = ax.annotate(
-                str(name),
-                xy=(series.index[-1], series.iloc[-1]),
-                xytext=(4, 0),
-                textcoords="offset points",
-                color=line.get_color(),
-                va="center",
-                fontsize=8,
-            )
-            annotations.append((annotation, series.index[-1], series.iloc[-1]))
-        ax.set_ylabel(f"MarCap ({KRW_UNIT_KR[self.meta['unit']]} KRW)")
-        ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:,.0f}"))
-        ax.grid(True, linestyle="--", alpha=0.3)
-        self._separate_individual_end_labels(ax, annotations)
-
-    @staticmethod
-    def _separate_individual_end_labels(ax, annotations):
-        """Space end labels vertically in display coordinates where possible."""
-        if len(annotations) < 2:
-            return
-
-        figure = ax.figure
-        figure.canvas.draw()
-        renderer = figure.canvas.get_renderer()
-        dpi = figure.dpi
-        axes_bottom, axes_top = ax.bbox.y0, ax.bbox.y1
-        labels = []
-        for annotation, x_value, y_value in annotations:
-            point_y = ax.transData.transform((mdates.date2num(x_value), y_value))[1]
-            bbox = annotation.get_window_extent(renderer=renderer)
-            labels.append({
-                "annotation": annotation,
-                "point_y": point_y,
-                "height": bbox.height + 2,
-                "target_y": bbox.y0 + bbox.height / 2,
-                "placed_y": bbox.y0 + bbox.height / 2,
-            })
-        labels.sort(key=lambda item: item["target_y"])
-
-        # Push labels apart from bottom to top. If the panel is too crowded,
-        # clamp to its bounds and allow the remaining overlap.
-        for index in range(1, len(labels)):
-            previous = labels[index - 1]
-            current = labels[index]
-            minimum_y = previous["placed_y"] + (previous["height"] + current["height"]) / 2
-            current["placed_y"] = max(current["target_y"], minimum_y)
-        overflow = labels[-1]["placed_y"] + labels[-1]["height"] / 2 - axes_top
-        if overflow > 0:
-            for label in labels:
-                label["placed_y"] -= overflow
-        underflow = axes_bottom - (labels[0]["placed_y"] - labels[0]["height"] / 2)
-        if underflow > 0:
-            for label in labels:
-                label["placed_y"] += underflow
-
-        for label in labels:
-            offset_points = (label["placed_y"] - label["point_y"]) * 72 / dpi
-            label["annotation"].set_position((4, offset_points))
-
     # =======================================================================================================================
     # (1) TOP PANEL: MARCAP + AMOUNT
     # =======================================================================================================================
@@ -991,7 +926,7 @@ class SectorAnalysis:
         # annotations
         # -----------------------------------------------------
         ax.annotate(
-            f"rp:{self._aggr_ma_plotdata.loc['recent_inc', 'marcap']:.0%}",
+            f"rm:{self._aggr_ma_plotdata.loc['recent_inc', 'marcap']:.0%}",
             xy=(x[-1], self._aggr_dataset['marcap'].iloc[-1]),
             xytext=(-3, 5),
             textcoords='offset points',
@@ -1009,7 +944,7 @@ class SectorAnalysis:
         mid_ = len(_mc_col) // 2
 
         ax.annotate(
-            f"sp:{self._aggr_ma_plotdata.at['slope', 'marcap']:,.0f}",
+            f"sm:{self._aggr_ma_plotdata.at['slope', 'marcap']:,.0f}",
             xy=(_mc_col.index[mid_], mc_fitted[mid_]),
             xytext=(0, 10),
             textcoords='offset points',
@@ -1065,7 +1000,6 @@ class SectorAnalysis:
             loc='upper left',
         )
 
-
     # =======================================================================================================================
     # (2) FINANCIALS PANEL
     # =======================================================================================================================
@@ -1089,7 +1023,7 @@ class SectorAnalysis:
             basis_text = "Annualized by qx4"
 
         opincome = self._aggr_dataset[opincome_col]
-        opmargin = self._aggr_dataset[opmargin_col]
+        opmargin_percent = self._aggr_dataset[opmargin_col]*100
         per = self._aggr_dataset[per_col]
 
         # -----------------------------------------------------
@@ -1111,20 +1045,30 @@ class SectorAnalysis:
         # -----------------------------------------------------
         # opmargin
         # -----------------------------------------------------
-        scale_factor = opincome.abs().max()
-
-        if scale_factor == 0 or np.isnan(scale_factor):
-            scale_factor = 1
-
-        opmargin_scaled = opmargin * scale_factor
+        margin_observations = opmargin_percent.dropna()
+        margin_top = 50
+        if not margin_observations.empty:
+            # Keep zero at 1/4 height. Expanding the top scale also lowers the
+            # bottom limit to -margin_top / 3, so positive and negative values fit.
+            required_top = max(
+                margin_top,
+                margin_observations.max(),
+                -3 * margin_observations.min(),
+            )
+            if required_top > margin_top:
+                margin_top = int(np.ceil(required_top * 1.1 / 10) * 10)
+        # Draw margin against the plot height: 0% is 1/4 up from the bottom,
+        # and the default top of the panel represents 50%.
+        opmargin_plot_y = 0.25 + 0.75 * opmargin_percent / margin_top
 
         ax.plot(
             x,
-            opmargin_scaled,
+            opmargin_plot_y,
+            transform=ax.get_xaxis_transform(),
             linestyle=':',
             color='red',
             linewidth=3,
-            label='opmargin',
+            label='opmargin(%)',
         )
 
         # -----------------------------------------------------
@@ -1141,8 +1085,12 @@ class SectorAnalysis:
         # -----------------------------------------------------
         # baseline
         # -----------------------------------------------------
-        if opincome.notna().any():
-            ax.set_ylim(bottom=min(0, opincome.min()))
+        income_values = opincome.dropna()
+        if not income_values.empty:
+            y_min = min(0, income_values.min())
+            y_max = max(0, income_values.max())
+            padding = max((y_max - y_min) * 0.05, abs(y_min) * 0.01, abs(y_max) * 0.01, 1)
+            ax.set_ylim(y_min - padding, y_max + padding)
 
         if per.notna().any():
             ax_r.set_ylim(bottom=min(0, per.min()))
@@ -1158,16 +1106,47 @@ class SectorAnalysis:
             fontsize=12,
         )
 
-        ax.annotate(
-            f"{opmargin.iloc[-1]:.2f}",
-            xy=(x[-1], opmargin_scaled.iloc[-1]),
-            xytext=(1, 2),
-            textcoords='offset points',
-            fontsize=12,
-        )
+        if not margin_observations.empty:
+            last_date = margin_observations.index[-1]
+            last_value = margin_observations.iloc[-1]
+            last_plot_y = 0.25 + 0.75 * last_value / margin_top
+
+            extrema = [
+                ("min", margin_observations.idxmin(), margin_observations.min(), 12),
+                ("max", margin_observations.idxmax(), margin_observations.max(), -12),
+            ]
+            annotated_dates = {last_date}
+            x_numbers = mdates.date2num(x)
+            x_midpoint = (x_numbers.min() + x_numbers.max()) / 2
+            for label, date, value, offset_y in extrema:
+                if date in annotated_dates or np.isclose(value, last_value):
+                    continue
+                annotated_dates.add(date)
+                x_number = mdates.date2num(date)
+                text_offset_x = -4 if x_number > x_midpoint else 4
+                horizontal_alignment = 'right' if text_offset_x < 0 else 'left'
+                ax.annotate(
+                    f"{label}: {value:.2g}",
+                    xy=(x_number, 0.25 + 0.75 * value / margin_top),
+                    xycoords=ax.get_xaxis_transform(),
+                    xytext=(text_offset_x, offset_y),
+                    textcoords='offset points',
+                    ha=horizontal_alignment,
+                    fontsize=9,
+                    color='red',
+                )
+
+            ax.annotate(
+                f"{last_value:.2g}",
+                xy=(mdates.date2num(last_date), last_plot_y),
+                xycoords=ax.get_xaxis_transform(),
+                xytext=(1, 2),
+                textcoords='offset points',
+                fontsize=12,
+            )
 
         ax_r.annotate(
-            f"{per.iloc[-1]:.1f}",
+            f"{per.iloc[-1]:.0f}",
             xy=(x[-1], per.iloc[-1]),
             xytext=(1, 2),
             textcoords='offset points',
@@ -1195,7 +1174,7 @@ class SectorAnalysis:
 
         ax.set_title(
             f"[{basis_text}] opincome | "
-            f"opmargin (%) | "
+            f"opmargin(%) | "
             f"PER (marcap / opincome)"
         )
 
@@ -1217,3 +1196,81 @@ class SectorAnalysis:
         ax.xaxis.set_major_formatter(
             mdates.DateFormatter('%Y-%m-%d')
         )
+
+    # =======================================================================================================================
+    # (3) INDIVIDUAL PANEL
+    # =======================================================================================================================
+    def _plot_individual_panel(self, ax, plot_data):
+        """Draw recent individual market caps indexed to 100 at each series start."""
+        annotations = []
+        for name, series in plot_data:
+            (line,) = ax.plot(
+                series.index,
+                series.values,
+                marker="o",
+                markersize=3,
+                linewidth=1.2,
+            )
+            annotation = ax.annotate(
+                str(name),
+                xy=(series.index[-1], series.iloc[-1]),
+                xytext=(4, 0),
+                textcoords="offset points",
+                color=line.get_color(),
+                va="center",
+                fontsize=8,
+            )
+            annotations.append((annotation, series.index[-1], series.iloc[-1]))
+        first_date = min(series.index[0] for _, series in plot_data)
+        ax.set_title(
+            f"[Normalized as of {first_date:%Y-%m-%d}] "
+            f"MarCap trend ({self.meta['indplot_per']} days)"
+        )
+        ax.set_ylabel("MarCap (first = 100)")
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:,.0f}"))
+        ax.grid(True, linestyle="--", alpha=0.3)
+        self._separate_individual_end_labels(ax, annotations)
+
+    @staticmethod
+    def _separate_individual_end_labels(ax, annotations):
+        """Space end labels vertically in display coordinates where possible."""
+        if len(annotations) < 2:
+            return
+
+        figure = ax.figure
+        figure.canvas.draw()
+        renderer = figure.canvas.get_renderer()
+        dpi = figure.dpi
+        axes_bottom, axes_top = ax.bbox.y0, ax.bbox.y1
+        labels = []
+        for annotation, x_value, y_value in annotations:
+            point_y = ax.transData.transform((mdates.date2num(x_value), y_value))[1]
+            bbox = annotation.get_window_extent(renderer=renderer)
+            labels.append({
+                "annotation": annotation,
+                "point_y": point_y,
+                "height": bbox.height + 2,
+                "target_y": bbox.y0 + bbox.height / 2,
+                "placed_y": bbox.y0 + bbox.height / 2,
+            })
+        labels.sort(key=lambda item: item["target_y"])
+
+        # Push labels apart from bottom to top. If the panel is too crowded,
+        # clamp to its bounds and allow the remaining overlap.
+        for index in range(1, len(labels)):
+            previous = labels[index - 1]
+            current = labels[index]
+            minimum_y = previous["placed_y"] + (previous["height"] + current["height"]) / 2
+            current["placed_y"] = max(current["target_y"], minimum_y)
+        overflow = labels[-1]["placed_y"] + labels[-1]["height"] / 2 - axes_top
+        if overflow > 0:
+            for label in labels:
+                label["placed_y"] -= overflow
+        underflow = axes_bottom - (labels[0]["placed_y"] - labels[0]["height"] / 2)
+        if underflow > 0:
+            for label in labels:
+                label["placed_y"] += underflow
+
+        for label in labels:
+            offset_points = (label["placed_y"] - label["point_y"]) * 72 / dpi
+            label["annotation"].set_position((4, offset_points))

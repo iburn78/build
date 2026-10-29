@@ -60,7 +60,7 @@ def make_mp_point(label: str, code: str, financials: dict | None, page_path: Pat
     """Convert a model's saved financial assessment into a chart point."""
     financials = financials or {}
     assess_data = financials.get("assess_data") or {}
-    margin = (assess_data.get("opmargin") or {}).get("ltm(%)")
+    margin = (assess_data.get("opmargin(%)") or {}).get("ltm")
     if margin is not None:
         margin = margin / 100
     per = (assess_data.get("PER") or {}).get("PER_ltm")

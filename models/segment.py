@@ -14,7 +14,7 @@ class FinancialsAdjuster(InfoSection):
     def model_post_init(self, context: Any) -> None:
         if self.marcap_share is None:
             self.marcap_share = self.revenue_share
-        if not self.search_theme: 
+        if not self.reviewed: 
             self.search_theme = SEGMENT_SEARCH_THEME
         return super().model_post_init(context)
 

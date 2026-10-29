@@ -74,11 +74,11 @@ def round_sig(x, n=3, na_to_zero=False):
     rounded = float(f"{x:.{n}g}")
     return int(rounded) if rounded.is_integer() else rounded
 
-def calc_increment(s: pd.Series, measure_duration, base_duration):
+def calc_increment(s: pd.Series, measure_period, base_period):
     """Compare a recent mean with the preceding baseline mean.
 
-    Zero and non-finite observations are omitted. ``base_duration`` is the
-    maximum sample count including the recent ``measure_duration`` samples.
+    Zero and non-finite observations are omitted. ``base_period`` is the
+    maximum sample count including the recent ``measure_period`` samples.
     Returns the recent-to-baseline ratio as a percentage, where 100 means
     unchanged; returns NaN when there is no usable comparison window.
     """
@@ -88,8 +88,8 @@ def calc_increment(s: pd.Series, measure_duration, base_duration):
     if (s < 0).any():
         raise ValueError(f"check nonnegative numbers in {s}")
 
-    bd = min(len(s), base_duration)
-    md = min(bd, measure_duration)
+    bd = min(len(s), base_period)
+    md = min(bd, measure_period)
 
     if md == 0 or bd <= md:
         return {'measure_to_base(%)': np.nan}
@@ -97,7 +97,7 @@ def calc_increment(s: pd.Series, measure_duration, base_duration):
     base_upto_measure = s.iloc[-bd:-md].mean()
     measure_only = s.iloc[-md:].mean()
 
-    measure_to_base_pct = measure_only / base_upto_measure * 100
+    measure_to_base_pct = (measure_only / base_upto_measure -1) * 100
 
     return {
         'measure_to_base(%)': round_sig(measure_to_base_pct, n=2),

@@ -6,7 +6,7 @@ This manual describes the units, calculations, and assessment rules used in gene
 
 - `meta.unit` is the scale used for monetary financial values. For example, with the default unit of ₩1 billion, a value of `1` represents ₩1 billion.
 - `meta.start_date` is the first date used for quarterly operating-income trend calculations.
-- `MEASURE_DURATION` is the recent comparison window. `BASE_DURATION` is the maximum number of valid observations considered, including the recent window.
+- `MEASURE_PERIOD` is the recent comparison window. `BASE_PERIOD` is the maximum number of valid observations considered, including the recent window.
 - Zero and non-finite observations are omitted by `calc_increment()`.
 
 ## Financial data
@@ -43,13 +43,13 @@ A result of `100` means the recent mean equals the baseline mean.
 
 - Volatility uses the absolute daily percentage change in market capitalization.
 - Amount uses daily trading amount, scaled by `meta.unit`.
-- The latest `MEASURE_DURATION` valid non-zero observations form the recent window. The preceding observations within `BASE_DURATION` form the baseline.
+- The latest `MEASURE_PERIOD` valid non-zero observations form the recent window. The preceding observations within `BASE_PERIOD` form the baseline.
 
 ### `assess_data.alpha_beta`
 
 - `alpha(%)` is the estimated daily excess return, expressed in percentage points.
 - `beta` is the dimensionless market sensitivity estimated from daily returns.
-- `from_start_date`, `base_duration`, and `measure_duration` contain estimates using the corresponding history windows.
+- `from_start_date`, `base_period`, and `measure_period` contain estimates using the corresponding history windows.
 - `indplot_period` compares each member's recent `INDIVIDUAL_PLOT_DAYS` market-cap returns with the return of the group's summed market capitalization. The group sum does not deduplicate profiles or segments.
 
 ### `assess_data.PER`
