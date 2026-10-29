@@ -21,7 +21,7 @@ FINANCIALS_UPDATE_PERIOD_HR = 3 # Hours
 # The HTML can still be regenerated if child financials changed or the HTML is missing.
 # The .md research file follows separate refresh logic, so it isn’t automatically regenerated just because the financial update period is zero.
 
-FORCE_FINANCIALS_REGENERATE = True
+FORCE_FINANCIALS_REGENERATE = False
 # if set to True, financials and PNG, HTML are regenerated, saves JSON with a new timestamp.
 # The .md research file follows separate refresh logic.
 

@@ -67,7 +67,7 @@ def _dict_signature(data):
             key,
             _dict_signature(value) if isinstance(value, dict) else None
         )
-        for key, value in data.items()
+        for key, value in sorted(data.items(), key=lambda item: str(item[0]))
     )
 
 def _same_signature(*dicts):
