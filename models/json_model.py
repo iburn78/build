@@ -17,6 +17,7 @@ import re
 import time
 import random
 import copy
+import math
 from threading import Event, Lock
 from contextvars import ContextVar
 from concurrent.futures import ThreadPoolExecutor
@@ -298,6 +299,17 @@ class JsonModel(BaseModel, ABC):
 
     def get_json_path(self) -> Path:
         return self.DIR / f"{self.filename}.json"
+
+    @staticmethod
+    def _marcap_sort_key(item: JsonModel) -> tuple[int, float]:
+        """Sort items by their latest saved market cap, with unknown values last."""
+        try:
+            marcap = float(item.financials["shape"]["financials"]["marcap"])
+        except (AttributeError, KeyError, TypeError, ValueError):
+            return (1, 0)
+        if not math.isfinite(marcap):
+            return (1, 0)
+        return (0, -marcap)
 
     def get_llm_research_path(self) -> Path:
         return self.get_json_path().with_suffix(".md")

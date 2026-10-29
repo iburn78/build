@@ -98,6 +98,7 @@ class ValueChain(JsonModel):
 
     def _get_subitems(self, components: list[Component] | None = None):
         self._sub_items.clear()
+        changed = False
         provided_components = {component.key: component for component in components or []}
         unknown_components = set(provided_components) - set(self.component_keys)
         if unknown_components:
@@ -126,6 +127,17 @@ class ValueChain(JsonModel):
 
         for k in self.component_keys:
             self._sub_items[k] = provided_components.get(k) or Component.get_item(k)
+
+        sorted_items = sorted(
+            self._sub_items.items(),
+            key=lambda entry: self._marcap_sort_key(entry[1]),
+        )
+        sorted_component_keys = [key for key, _ in sorted_items]
+        if sorted_component_keys != self.component_keys:
+            self.component_keys = sorted_component_keys
+            changed = True
+        self._sub_items = dict(sorted_items)
+        return changed
 
     def _get_financials(self, **kwargs):
         _sa = SectorAnalysis()
@@ -174,7 +186,7 @@ class ValueChain(JsonModel):
             self.news = self.llm_manager.gen_news(self)
             changed = True
 
-        self._get_subitems(components=kwargs.get("components"))
+        changed = self._get_subitems(components=kwargs.get("components")) or changed
 
         if changed or self._update_financials(**kwargs):
             changed = self._refresh_financials_if_changed(**kwargs) or changed

@@ -117,8 +117,22 @@ class Component(JsonModel):
             resolved_listed_companies.append(resolved_listed_company)
             self._sub_items[listed_company_key] = item
 
-        if changed:
-            self.listed_companies = resolved_listed_companies
+        sorted_items = sorted(
+            self._sub_items.items(),
+            key=lambda entry: self._marcap_sort_key(entry[1]),
+        )
+        listed_company_by_key = {
+            listed_company.key: listed_company
+            for listed_company in resolved_listed_companies
+        }
+        sorted_listed_companies = [
+            listed_company_by_key[key]
+            for key, _ in sorted_items
+        ]
+        if sorted_listed_companies != self.listed_companies:
+            self.listed_companies = sorted_listed_companies
+            changed = True
+        self._sub_items = dict(sorted_items)
         return changed
 
     def _get_financials(self, **kwargs):

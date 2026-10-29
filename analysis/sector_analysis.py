@@ -916,6 +916,43 @@ class SectorAnalysis:
             label='amount_subtotal trend',
         )
 
+        # Mark the starts of the assessment windows on daily data. Group equal
+        # dates so a single line can carry every applicable period marker.
+        daily_dates = self.ma_data.index
+        markers_by_date = {}
+        for marker, period_key, default_period in (
+            ('b', 'base_per', BASE_PERIOD),
+            ('m', 'measure_per', MEASURE_PERIOD),
+            ('i', 'indplot_per', INDIVIDUAL_PLOT_PERIOD),
+        ):
+            if len(daily_dates) == 0:
+                continue
+            period = int(self.meta.get(period_key, default_period))
+            start_index = max(0, len(daily_dates) - period)
+            start_date = pd.Timestamp(daily_dates[start_index])
+            markers_by_date.setdefault(start_date, []).append(marker)
+
+        for start_date, markers in markers_by_date.items():
+            ax.axvline(
+                start_date,
+                color='green',
+                linestyle=':',
+                linewidth=1.2,
+                alpha=1,
+            )
+            ax.annotate(
+                f"({'/'.join(markers)})",
+                xy=(mdates.date2num(start_date), 1),
+                xycoords=ax.get_xaxis_transform(),
+                xytext=(0, -2),
+                textcoords='offset points',
+                ha='center',
+                va='top',
+                fontsize=9,
+                color='green',
+                clip_on=True,
+            )
+
         # -----------------------------------------------------
         # baseline
         # -----------------------------------------------------
@@ -1046,7 +1083,7 @@ class SectorAnalysis:
         # opmargin
         # -----------------------------------------------------
         margin_observations = opmargin_percent.dropna()
-        margin_top = 50
+        margin_top = 25
         if not margin_observations.empty:
             # Keep zero at 1/4 height. Expanding the top scale also lowers the
             # bottom limit to -margin_top / 3, so positive and negative values fit.
@@ -1058,7 +1095,7 @@ class SectorAnalysis:
             if required_top > margin_top:
                 margin_top = int(np.ceil(required_top * 1.1 / 10) * 10)
         # Draw margin against the plot height: 0% is 1/4 up from the bottom,
-        # and the default top of the panel represents 50%.
+        # and the default top of the panel represents margin_top
         opmargin_plot_y = 0.25 + 0.75 * opmargin_percent / margin_top
 
         ax.plot(

@@ -1,6 +1,7 @@
 import requests
 import hashlib
 import math
+import unicodedata
 from html import escape
 from datetime import datetime
 from build.tools.tools import get_FN_GUIDE_url, get_NAVER_url
@@ -198,12 +199,38 @@ def _render_rows(dict_list, level=0, path="", collapsed_paths=None, no_chart_key
     return rows
 
 # column_names = [{'name': , 'link': }, ...]
+def _name_width_units(text: str) -> int:
+    return sum(2 if unicodedata.east_asian_width(char) in {"F", "W"} else 1 for char in text)
+
+
+def _render_column_name(name: str) -> str:
+    text = str(name)
+    safe_text = escape(text)
+    if _name_width_units(text) <= 10:
+        return f'<span class="column-name">{safe_text}</span>'
+
+    preview_chars = []
+    width = 0
+    for char in text:
+        char_width = 2 if unicodedata.east_asian_width(char) in {"F", "W"} else 1
+        if width + char_width > 9:
+            break
+        preview_chars.append(char)
+        width += char_width
+    preview = escape("".join(preview_chars) + "…")
+    safe_title = escape(text, quote=True)
+    return f'''<span class="column-name" title="{safe_title}">
+        <span class="column-name-preview">{preview}</span>
+        <span class="column-name-marquee" aria-hidden="true"><span>{safe_text}　　{safe_text}</span></span>
+    </span>'''
+
+
 def _render_header(object_type, column_names):
     cells = []
     segment_names = []
 
     for column in column_names:
-        name = escape(str(column["name"]))
+        name = _render_column_name(column["name"])
         link = column.get("link")
 
         if link:
@@ -213,11 +240,8 @@ def _render_header(object_type, column_names):
                             <th class="value">{name}</th>''')
         segment_name = column.get("segment_name")
         if segment_name is not None:
-            segment_name = str(segment_name)
-            if len(segment_name) > 7:
-                segment_name = f"{segment_name[:7]}…"
             segment_names.append(
-                f'<th class="value segment-name">{escape(segment_name)}</th>'
+                f'<th class="value segment-name">{_render_column_name(segment_name)}</th>'
             )
         else:
             segment_names.append('<th class="value segment-name"></th>')
@@ -233,8 +257,13 @@ def _render_header(object_type, column_names):
                         </tr>'''
     return header
 
-def _render_table(header, rows): 
-    return f"""<thead>
+def _render_table(header, rows, value_column_count):
+    colgroup = (
+        '<col class="row-label-column">'
+        + '<col class="financial-column">' * value_column_count
+    )
+    return f"""<colgroup>{colgroup}</colgroup>
+                    <thead>
                         {header}    
                     </thead>
                     <tbody>
@@ -291,7 +320,7 @@ def _render_financials(target_type, target_key, financials_names: list, financia
     meta_dict = financials_list[0].get('meta', {})
     header = _render_header(target_type, financials_names)
     rows = _render_rows(financials_list, collapsed_paths=collapsed_paths, no_chart_keys=no_chart_keys)
-    table_content = _render_table(header, rows)
+    table_content = _render_table(header, rows, len(financials_names))
     images = _render_images(output_file, meta_dict)
     ext_links = _get_ext_links(meta_dict.get('code'))
 
