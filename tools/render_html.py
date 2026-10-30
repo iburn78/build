@@ -669,6 +669,17 @@ def _render_roma_plot(codes, target_key: str):
     '''
 
 
+def _render_mv_plot(code: str | None, target_type: str):
+    """Render the on-demand market-cap movement plot button."""
+    if target_type not in {"Profile", "Segment"} or not code:
+        return ""
+    return f'''
+        <button class="mv-plot-link" type="button" aria-haspopup="dialog"
+            data-code="{escape(str(code), quote=True)}"
+            title="Market-cap movement plot (v)">MV plot (v)</button>
+    '''
+
+
 # list all news articles in the given folder newest first
 def _render_news(news_dir: Path, target_type: str, target_key: str):
     if not news_dir.exists():
@@ -724,7 +735,8 @@ def render_html(target_class,
                 llm_research: str = "",
                 llm_research_updated: str = "",
                 show_research_delete: bool = False,
-                roma_codes=None):
+                roma_codes=None,
+                mv_plot_code: str | None = None):
 
     if not financials_dicts:
         raise ValueError("dict_list cannot be empty")
@@ -742,6 +754,7 @@ def render_html(target_class,
     financials_section = _render_financials(target_class, target_key, financials_names, financials_dicts, output_file, collapsed_paths, no_chart_keys)
     qual_section = _render_qualitative(qual_dict, target_class, target_key, info_section_validator)
     roma_markup = _render_roma_plot(roma_codes, target_key)
+    mv_markup = _render_mv_plot(mv_plot_code, target_class)
     mp_markup = ""
     if target_class in {"Component", "ValueChain"}:
         mp_markup = f'''
@@ -756,7 +769,7 @@ def render_html(target_class,
         show_delete=show_research_delete,
         updated=llm_research_updated,
         target_type=target_class,
-        extra_action=roma_markup + mp_markup,
+        extra_action=roma_markup + mv_markup + mp_markup,
     ) + _render_news(news_dir, target_class, target_key)
 
     html = template_html.read_text(encoding="utf-8")

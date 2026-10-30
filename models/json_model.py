@@ -404,6 +404,10 @@ class JsonModel(BaseModel, ABC):
         """Return keys or prepared ROMA data entries for this model."""
         return self.get_roma_codes()
 
+    def get_mv_plot_code(self) -> str | None:
+        """Return the listed-company code used for profile/segment MV plots."""
+        return getattr(self, "profile_code", None) or getattr(self, "code", None)
+
 
     @abstractmethod
     def get_news_dir(self) -> Path:
@@ -687,6 +691,7 @@ class JsonModel(BaseModel, ABC):
         research_getter = getattr(self, "get_llm_research", None)
         llm_research = research_getter() if callable(research_getter) else ""
         roma_plot_items = self.get_roma_plot_items()
+        mv_plot_code = self.get_mv_plot_code()
         news_dir = self.get_news_dir() 
         output_file = self.get_json_path().with_suffix('.html')
 
@@ -701,4 +706,5 @@ class JsonModel(BaseModel, ABC):
                     llm_research=llm_research,
                     llm_research_updated=getattr(self, "llm_research_updated", ""),
                     show_research_delete=callable(research_getter),
-                    roma_codes=roma_plot_items)
+                    roma_codes=roma_plot_items,
+                    mv_plot_code=mv_plot_code)

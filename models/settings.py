@@ -39,6 +39,18 @@ OLLAMA_WEB_SEARCH_MAX_ATTEMPTS = 2
 OLLAMA_WEB_SEARCH_RESULT_CONTENT_CHARS = 3000
 # os.environ["BUILD_LLM_RESEARCH"] = "0" # to override defaults - True: 1 (mac), False: 0 (other)
 
+# base-mearsure periods
+BASE_PERIOD = 120 # days
+MEASURE_PERIOD = 20 # days 
+
+# ind plot 
+INDIVIDUAL_PLOT_PERIOD_LONG = 120 # days
+INDIVIDUAL_PLOT_PERIOD_SHORT = 20 # days
+
+# movmements plot (mv)
+MV_MIN_MARCAP = 3e11
+MV_CLOSESTS_N_TO_CHOOSE = 5
+
 # parallel running
 NUM_THREAD_TO_RUN = 8
 

@@ -1,5 +1,4 @@
 """Build interactive margin-versus-PER plots for profile, segment and sector pages."""
-
 import json
 import sys
 from pathlib import Path
