@@ -50,7 +50,7 @@ A result of `100` means the recent mean equals the baseline mean.
 - `alpha(%)` is the estimated daily excess return, expressed in percentage points.
 - `beta` is the dimensionless market sensitivity estimated from daily returns.
 - `from_start_date`, `base_period`, and `measure_period` contain estimates using the corresponding history windows.
-- `indplot_period` compares each member's recent `INDIVIDUAL_PLOT_DAYS` market-cap returns with the return of the group's summed market capitalization. The group sum does not deduplicate profiles or segments.
+- `indplot_long` and `indplot_short` compare each member's market-cap returns over the corresponding `meta.indplot_long` and `meta.indplot_short` windows with the return of the group's summed market capitalization. The group sum does not deduplicate profiles or segments.
 
 ### `assess_data.PER`
 

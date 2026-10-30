@@ -34,7 +34,8 @@ DEFAULT_START_DATE = '2024-01-01'
 
 BASE_PERIOD = 120 # days
 MEASURE_PERIOD = 20 # days 
-INDIVIDUAL_PLOT_PERIOD = 20 # days
+INDIVIDUAL_PLOT_PERIOD_LONG = 120 # days
+INDIVIDUAL_PLOT_PERIOD_SHORT = 20 # days
 
 # ASSESS parameters
 OPINCOME_GROWTH_PERCENT = 5
@@ -248,7 +249,8 @@ class SectorAnalysis:
             'start_date': start_date, # start date in "yyyy-mm-dd" format
             'base_per': BASE_PERIOD, 
             'measure_per': MEASURE_PERIOD, 
-            'indplot_per': INDIVIDUAL_PLOT_PERIOD,
+            'indplot_long': INDIVIDUAL_PLOT_PERIOD_LONG,
+            'indplot_short': INDIVIDUAL_PLOT_PERIOD_SHORT,
         }
 
         self.ma_data = add_dfs([cd.ma_data for cd in fd_list], fill) # daily basis
@@ -274,6 +276,8 @@ class SectorAnalysis:
             'name': name,
             'unit': unit if unit else DEFAULT_KRW_UNIT, # KRW unit
             'start_date': start_date, # start date in "yyyy-mm-dd" format
+            'indplot_long': INDIVIDUAL_PLOT_PERIOD_LONG,
+            'indplot_short': INDIVIDUAL_PLOT_PERIOD_SHORT,
         }
 
         _index = kospi if name == 'KOSPI' else kosdaq if name == "KOSDAQ" else kospi200 if name == "KOSPI200" else None
@@ -292,7 +296,7 @@ class SectorAnalysis:
         individual_plot_fds = kwargs.get("individual_plot_fds")
         individual_analysis_fds = individual_plot_fds or []
         self._individual_period_stats = (
-            self._calculate_individual_period_stats(individual_analysis_fds, period=self.meta['indplot_per'])
+            self._calculate_individual_period_stats(individual_analysis_fds)
             if len(individual_analysis_fds) >= 3 else []
         )
         if individual_plot_fds is not None:
@@ -310,22 +314,35 @@ class SectorAnalysis:
     # Individual process
     # =======================================================================================================================
     def individual_plots(self, fd_list):
-        """Prepare individual market-cap series for the lower plot panel."""
-        self._individual_plot_data = []
-        period = self.meta['indplot_per']
+        """Prepare short and long market-cap series for the plot panels."""
+        self._individual_plot_data_short = []
+        self._individual_plot_data_long = []
         for fd in fd_list:
-            marcap = fd.ma_data["marcap"].dropna().tail(period)
-            if not marcap.empty:
-                normalized = marcap / marcap.iloc[0] * 100
-                self._individual_plot_data.append((fd.name or fd.key, normalized))
+            marcap = fd.ma_data["marcap"].dropna()
+            name = fd.name or fd.key
+            for period, plot_data in (
+                (self.meta['indplot_long'], self._individual_plot_data_long),
+                (self.meta['indplot_short'], self._individual_plot_data_short),
+            ):
+                period_marcap = marcap.tail(period)
+                if not period_marcap.empty:
+                    normalized = period_marcap / period_marcap.iloc[0] * 100
+                    plot_data.append((name, normalized))
 
-    @staticmethod
-    def _calculate_individual_period_stats(fd_list, period):
-        """Calculate each line's alpha and beta against the sum of all lines."""
+    def _calculate_individual_period_stats(self, fd_list):
+        """Calculate long and short alpha/beta against the sum of all lines."""
         group_total = add_dfs([fd.ma_data["marcap"] for fd in fd_list], fill=True)
-        group_total = group_total.tail(period)
         return [
-            calc_alpha_beta(fd.ma_data["marcap"].tail(period), group_total)
+            {
+                "indplot_long": calc_alpha_beta(
+                    fd.ma_data["marcap"].tail(self.meta['indplot_long']),
+                    group_total.tail(self.meta['indplot_long']),
+                ),
+                "indplot_short": calc_alpha_beta(
+                    fd.ma_data["marcap"].tail(self.meta['indplot_short']),
+                    group_total.tail(self.meta['indplot_short']),
+                ),
+            }
             for fd in fd_list
         ]
 
@@ -336,7 +353,7 @@ class SectorAnalysis:
         for stats, financials in zip(self._individual_period_stats, subitems_financials):
             alpha_beta = financials.get("assess_data", {}).get("alpha_beta", {})
             if alpha_beta:
-                alpha_beta["indplot_period"] = stats
+                alpha_beta.update(stats)
 
     # =======================================================================================================================
     # Assessment  
@@ -370,7 +387,7 @@ class SectorAnalysis:
         - alpha_beta:
             - alpha(%): 해당 구간의 일별 초과수익률 추정치, percent 단위
             - beta: 해당 구간의 일별 수익률로 추정한 단위 없는 값
-            - indplot_period: 최근 INDIVIDUAL_PLOT_DAYS 동안 각 member 수익률을 그룹 합계와 비교한 alpha/beta
+            - indplot_long, indplot_short: 각 기간 동안 member 수익률을 그룹 합계와 비교한 alpha/beta
 
             
     [assess_result]
@@ -398,7 +415,7 @@ class SectorAnalysis:
         
         - alpha_level:
             - alpha(%)가 +/- ALPHA_DAILY_THRESHOLD_PERCENT를 넘는지로 outperform/underperform 구분
-            - indplot_period: 최근 INDIVIDUAL_PLOT_DAYS 동안 각 individual item의 일별 MarCap 수익률을 MarCap 합계의 수익률에 대비하여 계산
+            - indplot_long, indplot_short: 각 기간 동안 individual item의 일별 MarCap 수익률을 MarCap 합계의 수익률에 대비하여 계산
                 * profile/segment level dedupe 수행하지 않은 단순 sum
 
         - category: 
@@ -521,7 +538,8 @@ class SectorAnalysis:
             'measure_period': _measure_period,
         }
         if not self.meta.get('code'):
-            alpha_beta['indplot_period'] = {'alpha(%)': None, 'beta': None}
+            alpha_beta['indplot_long'] = {'alpha(%)': None, 'beta': None}
+            alpha_beta['indplot_short'] = {'alpha(%)': None, 'beta': None}
         res['alpha_beta'] = alpha_beta
         self.assess_data = res
 
@@ -816,13 +834,21 @@ class SectorAnalysis:
 
         else:
             if figsize is None: figsize = (12, 7)
-            individual_plot_data = getattr(self, "_individual_plot_data", [])
-            panel_count = 3 if individual_plot_data else 2
-            panel_heights = (4, 3, 3) if individual_plot_data else (4, 3) # ratio
+            individual_panels = [
+                ("long", getattr(self, "_individual_plot_data_long", [])),
+                ("short", getattr(self, "_individual_plot_data_short", [])),
+            ]
+            individual_panels = [
+                (period_key, plot_data)
+                for period_key, plot_data in individual_panels
+                if plot_data
+            ]
+            panel_count = 2 + len(individual_panels)
+            panel_heights = (4, 3, *([3] * len(individual_panels)))
             fig, axes = plt.subplots(
                 panel_count,
                 1,
-                figsize=(figsize[0], figsize[1] + (3 if individual_plot_data else 0)),
+                figsize=(figsize[0], figsize[1] + 3 * len(individual_panels)),
                 sharex=False,
                 gridspec_kw={"height_ratios": panel_heights},
             )
@@ -834,10 +860,13 @@ class SectorAnalysis:
 
             self._plot_financials_panel(ax2, use_ltm=True)
 
-            if individual_plot_data:
-                self._plot_individual_panel(axes[2], individual_plot_data)
-
-            # self._plot_financials_panel(ax3, use_ltm=False)
+            for ax, (period_key, plot_data) in zip(axes[2:], individual_panels):
+                self._plot_individual_panel(
+                    ax,
+                    plot_data,
+                    self.meta[f'indplot_{period_key}'],
+                    hide_first_tick_label=True,
+                )
 
         plt.tight_layout()
         if save_path: 
@@ -922,8 +951,9 @@ class SectorAnalysis:
         markers_by_date = {}
         for marker, period_key, default_period in (
             ('b', 'base_per', BASE_PERIOD),
+            ('l', 'indplot_long', INDIVIDUAL_PLOT_PERIOD_LONG),
             ('m', 'measure_per', MEASURE_PERIOD),
-            ('i', 'indplot_per', INDIVIDUAL_PLOT_PERIOD),
+            ('s', 'indplot_short', INDIVIDUAL_PLOT_PERIOD_SHORT),
         ):
             if len(daily_dates) == 0:
                 continue
@@ -1237,7 +1267,9 @@ class SectorAnalysis:
     # =======================================================================================================================
     # (3) INDIVIDUAL PANEL
     # =======================================================================================================================
-    def _plot_individual_panel(self, ax, plot_data):
+    def _plot_individual_panel(
+        self, ax, plot_data, period, hide_first_tick_label=False
+    ):
         """Draw recent individual market caps indexed to 100 at each series start."""
         annotations = []
         for name, series in plot_data:
@@ -1261,11 +1293,17 @@ class SectorAnalysis:
         first_date = min(series.index[0] for _, series in plot_data)
         ax.set_title(
             f"[Normalized as of {first_date:%Y-%m-%d}] "
-            f"MarCap trend ({self.meta['indplot_per']} days)"
+            f"MarCap trend ({period} days)"
         )
         ax.set_ylabel("MarCap (first = 100)")
         ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:,.0f}"))
         ax.grid(True, linestyle="--", alpha=0.3)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+        if hide_first_tick_label:
+            ax.figure.canvas.draw()
+            tick_labels = ax.get_xticklabels()
+            if tick_labels:
+                tick_labels[0].set_visible(False)
         self._separate_individual_end_labels(ax, annotations)
 
     @staticmethod
