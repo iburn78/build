@@ -11,6 +11,7 @@ from pydantic_ai.settings import ModelSettings
 from openai import AsyncOpenAI
 from datetime import datetime, timedelta
 from typing import Any, ClassVar
+import requests
 import json
 import sys
 import re
@@ -135,11 +136,6 @@ class LLM_Manager(ABC):
         """Register Ollama's hosted web-search API as an agent tool."""
         @agent.tool_plain(name="web_search")
         def web_search_tool(query: str, max_results: int = 5) -> str:
-            """Search the web for current information relevant to the query."""
-            if not api_key or api_key == "-":
-                raise RuntimeError("An Ollama API key is required for web search")
-
-            import requests
 
             for attempt in range(OLLAMA_WEB_SEARCH_MAX_ATTEMPTS):
                 response = requests.post(
@@ -151,17 +147,11 @@ class LLM_Manager(ABC):
                     },
                     timeout=30,
                 )
-                if response.status_code != 429:
+                if response.status_code not in [402, 429,]:
                     break
                 if attempt == OLLAMA_WEB_SEARCH_MAX_ATTEMPTS - 1:
                     response.raise_for_status()
-
-                retry_after = response.headers.get("Retry-After")
-                try:
-                    delay = float(retry_after) if retry_after else 2 ** (attempt + 1)
-                except ValueError:
-                    delay = 2 ** (attempt + 1)
-                time.sleep(min(delay, 60) + random.uniform(0, 0.5))
+                time.sleep(1)
 
             response.raise_for_status()
             results = response.json().get("results", [])

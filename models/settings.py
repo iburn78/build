@@ -7,7 +7,7 @@ from pathlib import Path
 # Project parameters:
 #------------------------------------------------------------------
 
-OLLAMA_ACCOUNT = 'nv' # 'it', 'cp', 'ak', 'hm' (hotmail), 'nv' (naver)
+OLLAMA_ACCOUNT = 'it' # 'it', 'cp', 'ak', 'hm' (hotmail)
 
 # LLMs: local, ollama, openai
 DEFAULT_BIZ_LLM = 'ollama' 
