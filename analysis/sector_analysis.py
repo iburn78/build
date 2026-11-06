@@ -177,14 +177,24 @@ class FinancialsData:
         cfs = fr_target.loc[fr_target['fs_div'] == 'CFS']
         ofs = fr_target.loc[fr_target['fs_div'] == 'OFS']
 
-        # Use CFS where available, fill missing values with OFS
-        row_r = cfs.loc[cfs['account'] == 'revenue', _FR_QCOLS].iloc[0].copy()
-        ofs_r = ofs.loc[ofs['account'] == 'revenue', _FR_QCOLS].iloc[0]
-        row_r = row_r.fillna(ofs_r)
+        def get_account_row(account):
+            cfs_rows = cfs.loc[cfs['account'] == account, _FR_QCOLS]
+            ofs_rows = ofs.loc[ofs['account'] == account, _FR_QCOLS]
+            cfs_row = cfs_rows.iloc[0].copy() if not cfs_rows.empty else None
+            ofs_row = ofs_rows.iloc[0] if not ofs_rows.empty else None
 
-        row_o = cfs.loc[cfs['account'] == 'operating_income', _FR_QCOLS].iloc[0].copy()
-        ofs_o = ofs.loc[ofs['account'] == 'operating_income', _FR_QCOLS].iloc[0]
-        row_o = row_o.fillna(ofs_o)
+            # Prefer consolidated statements, filling their missing quarters
+            # from parent-only statements. Some companies only publish OFS.
+            if cfs_row is None:
+                return (
+                    ofs_row.copy()
+                    if ofs_row is not None
+                    else pd.Series(np.nan, index=_FR_QCOLS, dtype=np.float64)
+                )
+            return cfs_row.fillna(ofs_row) if ofs_row is not None else cfs_row
+
+        row_r = get_account_row('revenue')
+        row_o = get_account_row('operating_income')
 
         row_r = row_r / self.unit
         row_o = row_o / self.unit

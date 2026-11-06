@@ -422,8 +422,7 @@ class Profile(JsonModel):
                 info_section_changed = True
 
         if overview_changed or self.news is None or self.news.needs_refresh():
-            print(f"Generating news for {self.key}")
-            self.news = self.llm_manager.gen_news(self)
+            self.news = self.llm_manager.gen_news(self) # Generating news for {self.key}
             news_changed = True
 
         # Build derived segments once, using the final info_section for this update.

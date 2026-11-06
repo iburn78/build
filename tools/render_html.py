@@ -676,7 +676,7 @@ def _render_mv_plot(code: str | None, target_type: str):
     return f'''
         <button class="mv-plot-link" type="button" aria-haspopup="dialog"
             data-code="{escape(str(code), quote=True)}"
-            title="Market-cap movement plot (v)">MV plot (v)</button>
+            title="Market-cap movement plot (m)">MV plot (m)</button>
     '''
 
 
@@ -761,7 +761,7 @@ def render_html(target_class,
         <button class="mp-plot-link" type="button" aria-haspopup="dialog"
             data-object-type="{escape(str(target_class), quote=True)}"
             data-object-id="{escape(str(target_key), quote=True)}"
-            title="Margin vs PER plot (m)">MP plot (m)</button>
+            title="Margin vs PER plot (n)">MP plot (n)</button>
         '''
     news_section = _render_llm_research(
         llm_research,
@@ -782,10 +782,6 @@ def render_html(target_class,
     if output_file.is_file() and output_file.read_text(encoding="utf-8") == html:
         return
 
-    if needs_alignment:
-        print("Signatures do not match.")
-        print("Aligning financial data...")
-
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text(html, encoding="utf-8")
-    print(f"Wrote file: {output_file}")
+    print(f"Saved: {output_file.name}")

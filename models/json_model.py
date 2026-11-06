@@ -209,7 +209,6 @@ class LLM_Manager(ABC):
         if not COLLECT_NEWS:
             return target.news
 
-        print(f"Collecting news for {target.key}")
         news_collection = target.scrape_news()
         if not news_collection.strip():
             return None
@@ -414,7 +413,7 @@ class JsonModel(BaseModel, ABC):
             self.model_dump_json(indent=4, exclude_none=True),
             encoding="utf-8",
         )
-        print(f"Saved {type(self).__name__}: {jp}")
+        print(f"Saved {type(self).__name__}: {jp.name} (in {jp.parent})")
 
     def get_qualitative_dict(self) -> dict:
         # Return a dictionary for HTML rendering, including the InfoSection.

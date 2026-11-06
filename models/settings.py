@@ -153,6 +153,14 @@ QUARTERLY_PERFORMANCES_URL = 'http://10.245.110.101:3000'
 TEMPLATE_HTML = THIS_PROJECT / "tools" / "templates" / "dict_template.html"
 INDEX_HTML = "http://localhost:3000"
 
+show_in_search = """Search tips
+• Search Profiles (including segments), Components, and Valuechains by a case-insensitive part of their displayed name or ID.
+• Press Enter to open an exact match, or the only result when there is one.
+• If nothing matches locally, enter an exact listed-company name or numeric stock code and press Enter to look up and create its Profile.
+• Use #tag to find models with that exact tag (case-insensitive).
+• Use #tags to list all unique tags.
+• Press / from any page to focus search and show these tips."""
+
 def llm_selector(mode='local'):
     if mode == 'ollama':
         base_url='https://ollama.com/v1'
