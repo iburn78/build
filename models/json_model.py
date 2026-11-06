@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from pydantic import BaseModel, PrivateAttr, Field
 from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai import Agent, WebSearchTool
+from pydantic_ai import Agent, RunContext, WebSearchTool
 from pydantic_ai.usage import UsageLimits
 from pydantic_ai.capabilities import NativeTool
 from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
@@ -15,7 +15,6 @@ import requests
 import json
 import sys
 import re
-import time
 import random
 import copy
 import math
@@ -38,16 +37,16 @@ from build.models.settings import (
     AGENT_RETRIES,
     SEARCH_CONTEXT_SIZE,
     USAGE_REQUEST_LIMIT,
+    WEB_SEARCH_MAX_CALLS_PER_REQUEST,
+    OLLAMA_WEB_SEARCH_RESULT_CONTENT_CHARS,
     COLLECT_LLM_RESEARCH,
     LLM_RESEARCH_REFRESH_THRES,
-    OLLAMA_WEB_SEARCH_MAX_ATTEMPTS,
-    OLLAMA_WEB_SEARCH_RESULT_CONTENT_CHARS,
 )
 from build.tools.render_html import render_html
 from build.tools.crawl_news import crawl_news
 
-# A hosted Ollama web-search rate limit should disable research for the rest of
-# the current batch build, rather than making every worker retry the same API.
+# A hosted Ollama web-search 402/429 response disables research for the rest of
+# the current batch build, avoiding repeated failed search requests.
 _OLLAMA_RESEARCH_DISABLED = Event()
 _OLLAMA_RESEARCH_STATE_LOCK = Lock()
 
@@ -81,6 +80,9 @@ class LLM_Manager(ABC):
     def __init__(self, news_type, news_mode=DEFAULT_NEWS_LLM, research_mode=DEFAULT_RESEARCH_LLM):
         self.research_mode = research_mode
         self._search_results = ContextVar(f"{type(self).__name__}_search_results", default=None)
+        self._web_search_request_budget = ContextVar(
+            f"{type(self).__name__}_web_search_request_budget", default=None
+        )
         self.news_agent = self._make_agent(llm_mode=news_mode, output_type=news_type)
         self.research_agent = self._make_agent(
             llm_mode=research_mode, output_type=str, web_search=True
@@ -111,6 +113,16 @@ class LLM_Manager(ABC):
         model_settings: ModelSettings | None = None
 
         if web_search and llm_mode == "openai":
+            responses = client.responses
+            original_create = responses.create
+
+            async def create_with_web_search_limit(*args, **kwargs):
+                # OpenAI applies this built-in-tool cap to each Responses API
+                # request, so later model requests get a fresh allowance.
+                kwargs["max_tool_calls"] = WEB_SEARCH_MAX_CALLS_PER_REQUEST
+                return await original_create(*args, **kwargs)
+
+            responses.create = create_with_web_search_limit
             model = OpenAIResponsesModel(model_name=m, provider=provider)
             capabilities = [NativeTool(WebSearchTool(search_context_size=SEARCH_CONTEXT_SIZE))]
             model_settings = {
@@ -131,27 +143,22 @@ class LLM_Manager(ABC):
 
         return agent
 
-    @staticmethod
-    def _register_ollama_web_search(agent, api_key, search_results_context):
+    def _register_ollama_web_search(self, agent, api_key, search_results_context):
         """Register Ollama's hosted web-search API as an agent tool."""
-        @agent.tool_plain(name="web_search")
-        def web_search_tool(query: str, max_results: int = 5) -> str:
+        @agent.tool(name="web_search")
+        def web_search_tool(ctx: RunContext[Any], query: str, max_results: int = 5) -> str:
+            if not self._claim_web_search_for_request(ctx.usage.requests):
+                return "Web search limit reached for this model request. Use the results already collected."
 
-            for attempt in range(OLLAMA_WEB_SEARCH_MAX_ATTEMPTS):
-                response = requests.post(
-                    "https://ollama.com/api/web_search",
-                    headers={"Authorization": f"Bearer {api_key}"},
-                    json={
-                        "query": query,
-                        "max_results": max(1, min(max_results, 10)),
-                    },
-                    timeout=30,
-                )
-                if response.status_code not in [402, 429,]:
-                    break
-                if attempt == OLLAMA_WEB_SEARCH_MAX_ATTEMPTS - 1:
-                    response.raise_for_status()
-                time.sleep(1)
+            response = requests.post(
+                "https://ollama.com/api/web_search",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "query": query,
+                    "max_results": max(1, min(max_results, 10)),
+                },
+                timeout=30,
+            )
 
             response.raise_for_status()
             results = response.json().get("results", [])
@@ -170,6 +177,20 @@ class LLM_Manager(ABC):
             if search_results is not None:
                 search_results.append((query, result_text))
             return result_text
+
+    def _claim_web_search_for_request(self, request_number: int) -> bool:
+        """Allow at most the configured number of searches for one model request."""
+        budget = self._web_search_request_budget.get()
+        if budget is None:
+            return True
+        with budget["lock"]:
+            if budget["request_number"] != request_number:
+                budget["request_number"] = request_number
+                budget["calls"] = 0
+            if budget["calls"] >= WEB_SEARCH_MAX_CALLS_PER_REQUEST:
+                return False
+            budget["calls"] += 1
+            return True
 
     def gen_news(self, target: "JsonModel"):
         if not COLLECT_NEWS:
@@ -204,6 +225,9 @@ class LLM_Manager(ABC):
         try:
             search_results = []
             token = self._search_results.set(search_results)
+            search_limit_token = self._web_search_request_budget.set(
+                {"request_number": None, "calls": 0, "lock": Lock()}
+            )
             run_result = self.research_agent.run_sync(
                 request_text,
                 usage_limits=UsageLimits(request_limit=USAGE_REQUEST_LIMIT),
@@ -217,17 +241,18 @@ class LLM_Manager(ABC):
             error_text = str(e)
             if (
                 self.research_mode == "ollama"
-                and "429" in error_text
+                and any(status_code in error_text for status_code in ("402", "429"))
                 and "https://ollama.com/api/web_search" in error_text
             ):
                 with _OLLAMA_RESEARCH_STATE_LOCK:
                     first_rate_limit = not _OLLAMA_RESEARCH_DISABLED.is_set()
                     _OLLAMA_RESEARCH_DISABLED.set()
                     if first_rate_limit:
-                        print("============= Skipping further Ollama LLM research for this build run after web-search rate limit =============")
+                        print("============= Skipping further Ollama LLM research for this build run after web-search 402/429 response =============")
             return ""
         finally:
             self._search_results.reset(token)
+            self._web_search_request_budget.reset(search_limit_token)
 
     @staticmethod
     def _append_search_results(report: str, search_results: list) -> str:

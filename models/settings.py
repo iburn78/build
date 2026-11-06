@@ -33,9 +33,9 @@ NUM_TO_FEED_LLM = 10 # number of articles to provide to LLM
 
 # research
 LLM_RESEARCH_REFRESH_THRES = 20 # days
-SEARCH_CONTEXT_SIZE = "medium"
-USAGE_REQUEST_LIMIT = 3
-OLLAMA_WEB_SEARCH_MAX_ATTEMPTS = 2
+SEARCH_CONTEXT_SIZE = "medium" # openai setting
+USAGE_REQUEST_LIMIT = 3 # maximum model requests per research run
+WEB_SEARCH_MAX_CALLS_PER_REQUEST = 2
 OLLAMA_WEB_SEARCH_RESULT_CONTENT_CHARS = 3000
 # os.environ["BUILD_LLM_RESEARCH"] = "0" # to override defaults - True: 1 (mac), False: 0 (other)
 
@@ -127,10 +127,16 @@ with open(OPENAI_CONF, 'r') as json_file:
     config = json.load(json_file)
 
 OPENAI_API_KEY = config['openai_api_key']
-if OLLAMA_ACCOUNT == 'is': _olk = 'ollama_api_key_i'
-if OLLAMA_ACCOUNT == 'cp': _olk = 'ollama_api_key_c'
-if OLLAMA_ACCOUNT == 'ak': _olk = 'ollama_api_key_a'
-else: _olk = 'ollama_api_key_h' # 'hm'
+_OLLAMA_API_KEY_BY_ACCOUNT = {
+    'it': 'ollama_api_key_i',
+    'cp': 'ollama_api_key_c',
+    'ak': 'ollama_api_key_a',
+    'hm': 'ollama_api_key_h',
+}
+try:
+    _olk = _OLLAMA_API_KEY_BY_ACCOUNT[OLLAMA_ACCOUNT]
+except KeyError as exc:
+    raise ValueError(f"Unknown OLLAMA_ACCOUNT: {OLLAMA_ACCOUNT!r}") from exc
 OLLAMA_API_KEY = config[_olk]
 
 _PLATFORM_COLLECTION_DEFAULT = "1" if sys.platform == "darwin" else "0"
