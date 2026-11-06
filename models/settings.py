@@ -63,16 +63,32 @@ NUM_THREAD_TO_RUN = 8
 OVERVIEW_REFRESH_THRES = 30 # days
 MAX_SEGMENTS = 5
 PROFILE_SEARCH_THEME = ['실적', '전망']
+PROFILE_LIST_SCOPES = [
+    "A-L",
+    "M-Z",
+    "ㄱㄴㄷ",
+    "ㄹㅁㅂ",
+    "ㅅㅇㅈ",
+    "ㅊㅋㅌ", 
+    "ㅍㅎ",
+]
 
 # segment
 SEGMENT_SEARCH_THEME = ['사업부', '실적']
 
 # component
 COMPONENT_SEARCH_THEME = ['산업', '업종']
-
+COMPONENT_LIST_SCOPES = [
+    "A-Z",
+    "ㄱ-ㅅ",
+    "ㅇ-ㅎ", 
+]
 # valuechian
 VALUECHAIN_SEARCH_THEME = ['산업', '밸류체인', '업계']
-
+VALUECHAIN_LIST_SCOPES = [
+    "A-Z",
+    "ㄱ-ㅎ",
+]
 #------------------------------------------------------------------
 # Display dict in html
 #------------------------------------------------------------------
