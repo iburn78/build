@@ -13,7 +13,7 @@ OLLAMA_ACCOUNT = 'it' # 'it', 'cp', 'ak', 'hm' (hotmail)
 DEFAULT_BIZ_LLM = 'ollama' 
 DEFAULT_RESEARCH_LLM = 'ollama'
 DEFAULT_NEWS_LLM = 'ollama'
-AGENT_RETRIES = 5
+AGENT_RETRIES = 3
 
 # financials
 FINANCIALS_UPDATE_PERIOD_HR = 3 # Hours 
@@ -21,7 +21,7 @@ FINANCIALS_UPDATE_PERIOD_HR = 3 # Hours
 # The HTML can still be regenerated if child financials changed or the HTML is missing.
 # The .md research file follows separate refresh logic, so it isn’t automatically regenerated just because the financial update period is zero.
 
-FORCE_FINANCIALS_REGENERATE = True
+FORCE_FINANCIALS_REGENERATE = False
 # if set to True, financials and PNG, HTML are regenerated, saves JSON with a new timestamp.
 # The .md research file follows separate refresh logic.
 
@@ -32,11 +32,12 @@ NUM_TO_FEED_LLM = 10 # number of articles to provide to LLM
 # os.environ["BUILD_COLLECT_NEWS"] = "0" # to override defaults - True: 1 (mac), False: 0 (other)
 
 # research
-LLM_RESEARCH_REFRESH_THRES = 20 # days
+LLM_RESEARCH_REFRESH_THRES = 30 # days
 SEARCH_CONTEXT_SIZE = "medium" # openai setting
-USAGE_REQUEST_LIMIT = 3 # maximum model requests per research run
-WEB_SEARCH_MAX_CALLS_PER_REQUEST = 2
-OLLAMA_WEB_SEARCH_RESULT_CONTENT_CHARS = 3000
+USAGE_REQUEST_LIMIT = 2 # maximum model requests per research run (minimum is 2: one for keyword and another for summary)
+WEB_SEARCH_MAX_CALLS_PER_REQUEST = 1
+MAX_RESULT_OLLAMA_WEB_SEARCH = 7  # None uses Ollama's maximum of 10 results
+OLLAMA_WEB_SEARCH_RESULT_CONTENT_CHARS = 5000  # Set to None to include full result content
 # os.environ["BUILD_LLM_RESEARCH"] = "0" # to override defaults - True: 1 (mac), False: 0 (other)
 
 # base-mearsure periods

@@ -15,7 +15,6 @@ import requests
 import json
 import sys
 import re
-import random
 import copy
 import math
 from threading import Event, Lock
@@ -38,6 +37,7 @@ from build.models.settings import (
     SEARCH_CONTEXT_SIZE,
     USAGE_REQUEST_LIMIT,
     WEB_SEARCH_MAX_CALLS_PER_REQUEST,
+    MAX_RESULT_OLLAMA_WEB_SEARCH,
     OLLAMA_WEB_SEARCH_RESULT_CONTENT_CHARS,
     COLLECT_LLM_RESEARCH,
     LLM_RESEARCH_REFRESH_THRES,
@@ -146,8 +146,18 @@ class LLM_Manager(ABC):
     def _register_ollama_web_search(self, agent, api_key, search_results_context):
         """Register Ollama's hosted web-search API as an agent tool."""
         @agent.tool(name="web_search")
-        def web_search_tool(ctx: RunContext[Any], query: str, max_results: int = 5) -> str:
-            if not self._claim_web_search_for_request(ctx.usage.requests):
+        def web_search_tool(
+            ctx: RunContext[Any], query: str,
+            max_results: int | None = MAX_RESULT_OLLAMA_WEB_SEARCH,
+        ) -> str:
+            request_number = ctx.usage.requests
+            allowed = self._claim_web_search_for_request(request_number)
+            status = "allowed" if allowed else "blocked"
+            print(
+                f"[research] model request {request_number}: web_search {status}; "
+                f"query={query!r}"
+            )
+            if not allowed:
                 return "Web search limit reached for this model request. Use the results already collected."
 
             response = requests.post(
@@ -155,7 +165,10 @@ class LLM_Manager(ABC):
                 headers={"Authorization": f"Bearer {api_key}"},
                 json={
                     "query": query,
-                    "max_results": max(1, min(max_results, 10)),
+                    "max_results": max(1, min(
+                        10 if max_results is None else max_results,
+                        10,
+                    )),
                 },
                 timeout=30,
             )
@@ -222,6 +235,16 @@ class LLM_Manager(ABC):
         if self.research_disabled():
             return ""
         request_text = self._get_llm_research_request_text(target)
+        if self.research_mode == "ollama":
+            request_text = (
+                "For this entire research run, make exactly one web_search call. "
+                "Create one concise, comprehensive Korean query that combines the "
+                "company or subject name with all key topics requested below. "
+                "Do not split the topics into separate searches. Use the returned "
+                "results to address every requested topic, and state clearly where "
+                "the sources do not provide enough information.\n\n"
+                + request_text
+            )
         try:
             search_results = []
             token = self._search_results.set(search_results)

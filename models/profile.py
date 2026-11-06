@@ -240,7 +240,7 @@ class Profile(JsonModel):
 
     def get_qualitative_dict(self):
         return {
-            "Business": self.info_section,
+            "business": self.info_section,
             "news": self.news,
             "overview": self.overview,
         }

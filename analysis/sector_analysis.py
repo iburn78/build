@@ -451,7 +451,7 @@ class SectorAnalysis:
             s = fr[col].tail(5)
 
             if len(s) < 5 or s.isna().any():
-                print(f'{col} requires 5 non-missing quarterly data points.')
+                # print(f'{col} requires 5 non-missing quarterly data points.')
                 # print(fr)
                 return False
 
