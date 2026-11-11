@@ -1,5 +1,8 @@
 import re
+import holidays
 from data.tools.load import df_krx, get_name
+from datetime import datetime, timedelta
+from functools import lru_cache
 from pydantic import BaseModel
 
 df_krx = df_krx
@@ -19,6 +22,42 @@ def get_FN_GUIDE_url(code):
 
 def get_NAVER_url(code):
     return f"https://stock.naver.com/domestic/stock/{code}/price"
+
+
+def remove_nonlanguage_parentheticals(text: str) -> str:
+    """Remove parentheticals that contain no English or Korean letters."""
+    return re.sub(
+        r"\(([^()]*)\)",
+        lambda match: "" if not re.search(r"[A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ]", match.group(1)) else match.group(0),
+        text,
+    )
+
+def business_days_elapsed(start: datetime, end: datetime) -> int:
+    """Count completed Korean business days between two naive datetimes."""
+    if end <= start:
+        return 0
+
+    day = start.date() + timedelta(days=1)
+    end_day = end.date()
+    count = 0
+    while day <= end_day:
+        if is_korean_business_day(day):
+            count += 1
+        day += timedelta(days=1)
+
+    # A weekday only counts once the corresponding time of day has elapsed.
+    if is_korean_business_day(end.date()) and end.time() < start.time():
+        count -= 1
+    return count
+
+@lru_cache(maxsize=16)
+def _korean_holidays(year: int):
+    """Build each year's Korean holiday calendar once, even across many models."""
+    return holidays.KR(years=year)
+
+def is_korean_business_day(day) -> bool:
+    """Return whether a date is a weekday and not a Korean public holiday."""
+    return day.weekday() < 5 and day not in _korean_holidays(day.year)
 
 # returns name/code, id:char in name(id) or code(id)
 def get_id(s: str) -> tuple[str, str | None]:

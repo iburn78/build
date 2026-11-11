@@ -1,5 +1,5 @@
 from pydantic import Field
-from build.tools.tools import get_id, ListedCompany
+from build.tools.tools import get_id, ListedCompany, remove_nonlanguage_parentheticals
 from build.models.settings import COMPONENTS_DIR, COMPONENT_NEWS_DIR, COMPONENT_SEARCH_THEME
 from build.models.json_model import JsonModel, InfoSection, NewsModel, LLM_Manager
 from build.models.profile import Profile
@@ -85,7 +85,7 @@ class Component(JsonModel):
         return COMPONENT_NEWS_DIR / self.filename
 
     def get_search_key(self, sk=''):
-        sk= self.key
+        sk = remove_nonlanguage_parentheticals(self.key)
         return super().get_search_key(sk)
 
     def _get_subitems(self):

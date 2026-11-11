@@ -20,7 +20,7 @@ import math
 from threading import Event, Lock
 from contextvars import ContextVar
 from concurrent.futures import ThreadPoolExecutor
-from build.tools.tools import sanitized_filename
+from build.tools.tools import sanitized_filename, business_days_elapsed
 from build.models.settings import (
     BUILD_DIR,
     COLLECT_NEWS,
@@ -72,7 +72,7 @@ class NewsModel(BaseModel):
             updated_at = datetime.fromisoformat(self.updated)
             if updated_at.tzinfo is not None:
                 return True
-            return datetime.now() - updated_at >= timedelta(days=NEWS_REFRESH_THRES)
+            return business_days_elapsed(updated_at, datetime.now()) >= NEWS_REFRESH_THRES
         except (TypeError, ValueError):
             return True
 

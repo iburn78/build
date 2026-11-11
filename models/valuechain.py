@@ -1,5 +1,6 @@
 from pydantic import Field
 from build.models.settings import VALUECHAINS_DIR, VALUECHAIN_NEWS_DIR, VALUECHAIN_SEARCH_THEME
+from build.tools.tools import remove_nonlanguage_parentheticals
 from build.models.json_model import JsonModel, InfoSection, NewsModel, LLM_Manager
 from build.models.component import Component
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
@@ -81,7 +82,7 @@ class ValueChain(JsonModel):
         return VALUECHAIN_NEWS_DIR / self.filename
 
     def get_search_key(self, sk=''):
-        sk= self.key
+        sk = remove_nonlanguage_parentheticals(self.key)
         return super().get_search_key(sk)
 
     def get_roma_plot_items(self):

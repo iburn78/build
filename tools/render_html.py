@@ -338,6 +338,9 @@ def _render_financials(target_type, target_key, financials_names: list, financia
     </h3>
     <div class="dashboard">
         <div class="table-panel">
+            <div class="table-scrollbar" aria-label="Scroll financials table horizontally" tabindex="0">
+                <div class="table-scrollbar-content"></div>
+            </div>
             <div class="table-wrapper">
                 <div class="table-controls">
                     <button onclick="expandAll()">+</button>

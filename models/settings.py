@@ -26,13 +26,13 @@ FORCE_FINANCIALS_REGENERATE = False
 # The .md research file follows separate refresh logic.
 
 # news
-NEWS_REFRESH_THRES = 3 # days
+NEWS_REFRESH_THRES = 3 # business days (excl. weekends and KR holidays)
 NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
 NUM_TO_FEED_LLM = 10 # number of articles to provide to LLM
 # os.environ["BUILD_COLLECT_NEWS"] = "0" # to override defaults - True: 1 (mac), False: 0 (other)
 
 # research
-LLM_RESEARCH_REFRESH_THRES = 30 # days
+LLM_RESEARCH_REFRESH_THRES = 60 # days
 SEARCH_CONTEXT_SIZE = "medium" # openai setting
 USAGE_REQUEST_LIMIT = 2 # maximum model requests per research run (minimum is 2: one for keyword and another for summary)
 WEB_SEARCH_MAX_CALLS_PER_REQUEST = 1

@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo
 from functools import reduce
 import pandas as pd
 import numpy as np
-import holidays
+from build.tools.tools import is_korean_business_day
 
 DEFAULT_KRW_UNIT: float = 1e9 # 10 억원
 KRW_UNIT_KR = {
@@ -30,7 +30,6 @@ def is_KRX_open(now=None, strict=False):
     - or ~ 12:00 KST (if strict==False)
     """
 
-    KR_HOLIDAYS = holidays.KR()
     kst = ZoneInfo("Asia/Seoul")
 
     if now is None:
@@ -40,12 +39,7 @@ def is_KRX_open(now=None, strict=False):
 
     today = now.date()
 
-    # Weekend
-    if now.weekday() >= 5:
-        return False
-
-    # Korean holiday
-    if today in KR_HOLIDAYS:
+    if not is_korean_business_day(today):
         return False
 
     market_open = time(9, 0)
