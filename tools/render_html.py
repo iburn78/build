@@ -273,7 +273,9 @@ def _render_table(header, rows, value_column_count):
 
 def _url_exists(url):
     try:
-        return requests.get(url, stream=True, timeout=2).ok
+        with requests.get(url, stream=True, timeout=2) as response:
+            content_type = response.headers.get("Content-Type", "").split(";", 1)[0]
+            return response.status_code == 200 and content_type.startswith("image/")
     except requests.RequestException:
         return False
 
@@ -289,8 +291,6 @@ def _render_images(output_file, meta_dict):
         url = f"{QUARTERLY_PERFORMANCES_URL}/data/{code}.png"
         if _url_exists(url):
             images.append(url)
-        else: 
-            print(f"Could not reach URL: {url}")
 
     # ------------------------------
     # may add additional images here
@@ -323,6 +323,7 @@ def _render_financials(target_type, target_key, financials_names: list, financia
     rows = _render_rows(financials_list, collapsed_paths=collapsed_paths, no_chart_keys=no_chart_keys)
     table_content = _render_table(header, rows, len(financials_names))
     images = _render_images(output_file, meta_dict)
+    charts_panel = f'<div class="charts-panel">{images}</div>' if images else ""
     ext_links = _get_ext_links(meta_dict.get('code'))
 
     return f"""<h3 class="financials-heading">
@@ -338,23 +339,21 @@ def _render_financials(target_type, target_key, financials_names: list, financia
     </h3>
     <div class="dashboard">
         <div class="table-panel">
-            <div class="table-scrollbar" aria-label="Scroll financials table horizontally" tabindex="0">
-                <div class="table-scrollbar-content"></div>
-            </div>
             <div class="table-wrapper">
                 <div class="table-controls">
                     <button onclick="expandAll()">+</button>
                     <button onclick="collapseAll()">-</button>
                     {ext_links}
                 </div>
+                <div class="table-scrollbar" aria-label="Scroll financials table horizontally" tabindex="0">
+                    <div class="table-scrollbar-content"></div>
+                </div>
                 <table class="dict-table">
                     {table_content}
                 </table>
             </div>
         </div>
-        <div class="charts-panel">
-            {images}
-        </div>
+        {charts_panel}
     </div>"""
 
 def _render_qualitative_value(value):
@@ -427,6 +426,17 @@ def _render_info_section(section):
                                         {status}
                                     </span>
                                 </td>
+                            </tr>
+            """)
+            continue
+
+        if field_name == "recomm_segs":
+            recommendation = "Yes" if value else "No"
+            recommendation_class = "recommendation-yes" if value else "recommendation-no"
+            rows.append(f"""
+                            <tr>
+                                <th>{escape(str(field_name))}</th>
+                                <td><span class="{recommendation_class}">{recommendation}</span></td>
                             </tr>
             """)
             continue

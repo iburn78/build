@@ -78,6 +78,7 @@ class NewsModel(BaseModel):
 
 class LLM_Manager(ABC):
     def __init__(self, news_type, news_mode=DEFAULT_NEWS_LLM, research_mode=DEFAULT_RESEARCH_LLM):
+        self.news_type = news_type
         self.research_mode = research_mode
         self._search_results = ContextVar(f"{type(self).__name__}_search_results", default=None)
         self._web_search_request_budget = ContextVar(
@@ -211,7 +212,9 @@ class LLM_Manager(ABC):
 
         news_collection = target.scrape_news()
         if not news_collection.strip():
-            return None
+            # Record completed empty searches so automatic model updates do not
+            # repeat the same news crawl on every run.
+            return self.news_type(updated=datetime.now().strftime("%Y-%m-%d %H:%M"))
         request_text = self._get_news_request_text(target, news_collection)
         try:
             res = self.news_agent.run_sync(request_text).output

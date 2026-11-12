@@ -23,6 +23,8 @@ from build.models.settings import (
     LLM_RESEARCH_REFRESH_THRES,
     OVERVIEW_REFRESH_THRES,
     MAX_SEGMENTS,
+    REV_ANNUAL_THRES_2ND_SEGMENT_CREATION,
+    FORCE_RECALC_SEG_CREATION_ASSESSMENT,
     PROFILE_SEARCH_THEME,
 )
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
@@ -112,6 +114,7 @@ class Business(InfoSection):
         description="Brief outlook or recent direction for each segment, in segment order"
     )
     create_segments: bool = False
+    recomm_segs: bool = False
     key_products: list[str] = Field(
         default_factory=list,
         description="Products or services for each segment, in segment order; combine multiple items in one comma-separated string"
@@ -128,16 +131,19 @@ class Business(InfoSection):
 
 class News(NewsModel):
     key_facts: list[str] = Field(
+        default_factory=list,
         description="Article-specific factual developments, explicitly stated.",
         min_length=0,
         max_length=5,
     )
     key_issues: list[str] = Field(
+        default_factory=list,
         description="Explicitly stated risks, issues, or uncertainties (include resolution only if stated).",
         min_length=0,
         max_length=5,
     )
     news_summary: str = Field(
+        default="",
         description="Single concise synthesis of all articles.",
         max_length=500,
     )
@@ -355,6 +361,34 @@ class Profile(JsonModel):
         self._subitems_financials_processed = _sa._subitems_financials_processed
         self._pending_financials_analysis = _sa if kwargs.get("_defer_plot") else None
 
+    def _update_segment_recommendation(self) -> bool:
+        """Set recomm_segs when the second-largest segment clears the revenue threshold."""
+        revenue_ltm = (
+            (self.financials or {})
+            .get("shape", {})
+            .get("financials", {})
+            .get("revenue_ltm")
+        )
+        unit = (self.financials or {}).get("meta", {}).get("unit")
+        shares = self.info_section.revenue_share
+
+        try:
+            if revenue_ltm is None or unit is None or len(shares) < 2:
+                recommended = False
+            else:
+                segment_revenues = sorted(
+                    (float(revenue_ltm) * float(unit) * float(share) for share in shares),
+                    reverse=True,
+                )
+                recommended = segment_revenues[1] >= REV_ANNUAL_THRES_2ND_SEGMENT_CREATION
+        except (TypeError, ValueError, OverflowError):
+            recommended = False
+
+        if self.info_section.recomm_segs == recommended:
+            return False
+        self.info_section.recomm_segs = recommended
+        return True
+
     def _update(self, **kwargs):
         overview_changed = False
         info_section_changed = False
@@ -466,6 +500,7 @@ class Profile(JsonModel):
         profile._get_subitems()
         # Populate financials after creating the profile.
         profile._get_financials(**kwargs)
+        profile._update_segment_recommendation()
 
         return profile
 
@@ -479,6 +514,24 @@ class Profile(JsonModel):
 
         code, id = get_id(listed_company.key)
         profile = super().get_item(code, **kwargs)
+        if FORCE_RECALC_SEG_CREATION_ASSESSMENT:
+            profile._update_segment_recommendation()
+            if len(profile._subitems_financials_processed) != len(profile._sub_items):
+                subitem_financials = profile._get_subitems_financials()
+                if subitem_financials and all(
+                    isinstance(financials, dict) for financials in subitem_financials
+                ) and isinstance(profile.financials, dict):
+                    analysis = SectorAnalysis()
+                    analysis.shape = profile.financials["shape"]
+                    analysis._sub_sector_analyses(subitem_financials)
+                    profile._subitems_financials_processed = subitem_financials
+            # This targeted recalculation writes the Business field and page
+            # without changing either updated timestamp.
+            profile.get_json_path().write_text(
+                profile.model_dump_json(indent=4, exclude_none=True),
+                encoding="utf-8",
+            )
+            profile.create_html()
         if id:
             try:
                 return profile.get_subitems()[listed_company.key]

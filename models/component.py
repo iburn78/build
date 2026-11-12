@@ -19,16 +19,19 @@ class Traits(InfoSection):
 
 class News(NewsModel):
     key_facts: list[str] = Field(
+        default_factory=list,
         description="Distinct, explicitly reported developments relevant to this sector.",
         min_length=0,
         max_length=5,
     )
     new_trends: list[str] = Field(
+        default_factory=list,
         description="Explicitly reported emerging technologies, key issues, or new participants relevant to this sector.",
         min_length=0,
         max_length=5,
     )
     news_summary: str = Field(
+        default="",
         description="A concise Korean synthesis of the collected articles that focuses on this sector.",
         max_length=500,
     )

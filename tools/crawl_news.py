@@ -6,7 +6,6 @@ from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
 from crawl4ai.content_filter_strategy import PruningContentFilter
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
 from build.tools.ggl_news_feed import get_google_news_feed, add_banned_domain
-from build.models.settings import GENERAL_DIR
 
 CUTOFF_MONTHS=3 
 MAX_RESULT=10 
@@ -15,9 +14,9 @@ SHOW_RES=True
 # fix once to express download time
 _exetime = datetime.now().strftime('%y%m%d%H%M') 
 
-def _set_dir_path(dest_dir=None): # and create dirs
+def _set_dir_path(dest_dir): # and create dirs
     if dest_dir is None:
-        dest_dir = GENERAL_DIR
+        raise ValueError("A destination directory is required when crawling news.")
     dest_dir = Path(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
     return dest_dir
@@ -93,7 +92,7 @@ async def _crawl_url_and_save(crawler, url, title=None, published=None, dest_dir
         f.write("\n")
         print(f"Saved: {filename}")
 
-async def _crawl_news(query, kr, cutoff_months, max_result, show_res, dest_dir=None):
+async def _crawl_news(query, kr, cutoff_months, max_result, show_res, dest_dir):
     items = await get_google_news_feed(
         query,
         kr_title=kr,

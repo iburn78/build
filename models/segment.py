@@ -20,21 +20,25 @@ class FinancialsAdjuster(InfoSection):
 
 class News(NewsModel):
     key_financials: list[str] = Field(
+        default_factory=list,
         description="Recent financial results explicitly attributed to this segment, including the reporting period and trend when stated. Never infer segment figures from company-wide totals.",
         min_length=0,
         max_length=3,
     )
     key_facts: list[str] = Field(
+        default_factory=list,
         description="Distinct, explicitly reported developments relevant to this segment. Include company-wide developments only when the article directly connects them to this segment.",
         min_length=0,
         max_length=5,
     )
     key_issues: list[str] = Field(
+        default_factory=list,
         description="Explicitly reported risks, issues, or uncertainties relevant to this segment. Include any resolution only when the article states it.",
         min_length=0,
         max_length=5,
     )
     news_summary: str = Field(
+        default="",
         description="A concise Korean synthesis of the collected articles that focuses on this segment. State when the articles contain no clear segment-specific information.",
         max_length=500,
     )

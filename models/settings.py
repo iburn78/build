@@ -61,11 +61,22 @@ NUM_THREAD_TO_RUN = 8
 #------------------------------------------------------------------
 
 # profile
+# - overview
 OVERVIEW_REFRESH_THRES = 30 # days
+
+# - segments
 MAX_SEGMENTS = 5
+REV_ANNUAL_THRES_2ND_SEGMENT_CREATION = 3e11 # 3,000억
+FORCE_RECALC_SEG_CREATION_ASSESSMENT = False # when changed the threshold, make this True
+
+# - business
+PROFILE_SEARCH_THEME = ['실적', '전망']
+
+# - grouping
 MIN_PROFILES_IN_GROUPING = 3
 MIN_MARCAP_IN_GROUPING = 1e11 # 1,000억
-PROFILE_SEARCH_THEME = ['실적', '전망']
+
+# - other
 PROFILE_LIST_SCOPES = [
     "A-L",
     "M-Z",
@@ -133,7 +144,6 @@ PROJECTS_DIR = THIS_PROJECT.parent
 # project "data"
 BASE_DATA_DIR = PROJECTS_DIR / "data"
 BUILD_DIR = BASE_DATA_DIR / "build"
-GENERAL_DIR = BUILD_DIR / "general" # to be created when needed
 NEWS_DIR = BUILD_DIR / "news"
 PROFILE_NEWS_DIR = NEWS_DIR / "profiles"
 COMPONENT_NEWS_DIR = NEWS_DIR / "components"
@@ -143,7 +153,6 @@ COMPONENTS_DIR = BUILD_DIR / "components"
 VALUECHAINS_DIR = BUILD_DIR / "valuechains"
 
 for directory in (
-    GENERAL_DIR,
     PROFILE_NEWS_DIR,
     COMPONENT_NEWS_DIR,
     VALUECHAIN_NEWS_DIR,
