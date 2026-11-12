@@ -74,6 +74,7 @@ PROFILE_LIST_SCOPES = [
     "ㅅㅇㅈ",
     "ㅊㅋㅌ", 
     "ㅍㅎ",
+    "0-9",
 ]
 
 # segment
@@ -85,12 +86,14 @@ COMPONENT_LIST_SCOPES = [
     "A-Z",
     "ㄱ-ㅅ",
     "ㅇ-ㅎ", 
+    "0-9",
 ]
 # valuechian
 VALUECHAIN_SEARCH_THEME = ['산업', '밸류체인', '업계']
 VALUECHAIN_LIST_SCOPES = [
     "A-Z",
     "ㄱ-ㅎ",
+    "0-9",
 ]
 #------------------------------------------------------------------
 # Display dict in html
@@ -122,6 +125,7 @@ THIS_PROJECT = Path(__file__).resolve().parents[1]
 DATASET_DIR = THIS_PROJECT / "dataset"
 REFS_DIR = DATASET_DIR / "refs"
 PROFILE_GROUPING_JSON_FILE = REFS_DIR / "profile_grouping.json"
+KRICS_STRUCTURE_FILE = REFS_DIR / "2026-krics-structure-korean_KRX.xlsx"
 
 # projects path
 PROJECTS_DIR = THIS_PROJECT.parent

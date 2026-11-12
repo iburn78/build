@@ -18,20 +18,22 @@ Python model JSON, charts, and HTML reports are written into these directories. 
 - **Profile** (`key`/`code`): company identity, generated or reviewed `Business` information, source `Overview`, and `News`. Its financial-analysis end key is the company key.
 - **Segment** (key such as `005930(A)`): a virtual part of a company. It uses the parent profile's financial data and applies a `FinancialsAdjuster`.
 - **Component** (`key`): a group of `ListedCompany` records. Each record points to a company profile or segment by `key` and carries a display `name`. Component financial-analysis end keys are the listed-company keys.
-- **ValueChain** (`key`): an ordered list of components. Its end keys are the union of the listed-company keys in its components.
+- **ValueChain** (`key`): an ordered list of components and/or child valuechains. Its financials sum its direct members additively.
 
-Each persisted model has a JSON file, an `info_section`, and optional generated `financials`. Components store references in `listed_companies`; value chains store component names/keys in `component_keys`. The in-memory `_sub_items` map is not serialized.
+Each persisted model has a JSON file, an `info_section`, and optional generated `financials`. Components store references in `listed_companies`; value chains store member references in `component_keys` and `valuechain_keys`. The in-memory `_sub_items` map is not serialized.
 
 ## Creating or refreshing models
 
 `Profile.get_item()`, `Component.get_item()`, and `ValueChain.get_item()` load, refresh, or create model records. `dataset_generation.py` uses these class methods directly; it does not rely on the old manager classes.
 
-Value chains accept either of these inputs:
+Value chains accept component and child-valuechain members together:
 
 - `component_keys=[...]` to provide component names/keys
 - `components=[...]` to provide `Component` instances
+- `valuechain_keys=[...]` to provide child valuechain names/keys
+- `valuechains=[...]` to provide `ValueChain` instances
 
-Pass one argument, not both. The `components` form uses the supplied instances in memory and derives the persisted `component_keys` from their keys. On load, the value chain checks that every referenced component JSON exists and validates before loading components; missing or invalid components are reported by name.
+For each member type, pass either its `*_keys` list or its instance list. The instance forms use supplied objects in memory and derive persisted keys. On load, the value chain validates each referenced member and rejects cycles.
 
 The common `JsonModel.get_item(key, **kwargs)` lifecycle is:
 
@@ -59,7 +61,7 @@ Assessment metrics are computed only when at least five quarterly points are ava
 ## Node app and qualitative editing
 
 - `data/node/server.js` serves static files from `data` and lists report HTML files from `data/build`.
-- Relationship endpoints read component and value-chain JSON using `key`, `listed_companies[].key`, and `component_keys`. The lookup UI uses the same fields.
+- Relationship endpoints read component and value-chain JSON using `key`, `listed_companies[].key`, `component_keys`, and `valuechain_keys`. The lookup UI uses the same fields.
 - Relationship JSON is reloaded for each request, so data-file updates do not require a Node restart.
 - Qualitative editing uses a password check to issue a short-lived, single-use token. The browser posts edited `info_section` values to Node; Node starts `build/tools/update_info.py`; Python validates and saves the section, then reruns `SectorAnalysis.process()` to refresh report artifacts.
 

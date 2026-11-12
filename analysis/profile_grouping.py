@@ -18,6 +18,7 @@ from build.models.settings import (
     MIN_MARCAP_IN_GROUPING,
     PROFILE_GROUPING_LLM,
     REFS_DIR,
+    VALUECHAINS_DIR,
     llm_selector,
     PROFILE_GROUPING_JSON_FILE,
 )
@@ -156,11 +157,26 @@ def _validate_assignments(result: ProfileGrouping, profiles: list[Profile]) -> N
     assigned_set = set(assigned)
     missing = sorted(expected_set - assigned_set)
     unexpected = sorted(assigned_set - expected_set)
-    if len(assigned) != len(assigned_set) or missing or unexpected:
+    duplicate_count = len(assigned) - len(assigned_set)
+    if not missing and not duplicate_count and unexpected:
+        unexpected_set = set(unexpected)
+        for group in result.groups:
+            group.profile_codes = [
+                code for code in group.profile_codes
+                if code not in unexpected_set
+            ]
+        result.groups = [group for group in result.groups if group.profile_codes]
+        print(
+            "Removed unexpected profile codes from LLM grouping: "
+            + ", ".join(unexpected)
+        )
+        return
+
+    if duplicate_count or missing or unexpected:
         raise ValueError(
             "LLM grouping must assign every input profile code exactly once. "
             f"Missing: {missing[:10]}; unexpected: {unexpected[:10]}; "
-            f"duplicate assignments: {len(assigned) - len(assigned_set)}."
+            f"duplicate assignments: {duplicate_count}."
         )
 
 
@@ -508,7 +524,7 @@ def krics_create_components(
     sector_code: str | None = None,
     subsector_code: str | None = None,
 ) -> list[Component]:
-    """Create/update components and their sector valuechain from saved groupings."""
+    """Create group components, subsector valuechains, and sector valuechains."""
     if not Path(PROFILE_GROUPING_JSON_FILE).is_file():
         raise FileNotFoundError(f"No saved profile groupings found: {PROFILE_GROUPING_JSON_FILE}")
     data = json.loads(Path(PROFILE_GROUPING_JSON_FILE).read_text(encoding="utf-8"))
@@ -546,28 +562,45 @@ def krics_create_components(
             group_keys.append(component.key)
             print(f"Created/updated component {component.key}: {len(profile_codes)} profiles")
 
-        # Enrich the sector valuechain with components already created from all
-        # saved subsectors. This lets callers build it incrementally.
-        sector_components = set()
-        for saved_subsector_name, saved_subsector in sector_data.get("subsectors", {}).items():
-            for group_label in saved_subsector.get("groups", {}):
-                if _is_unclassified_label(group_label) or group_label.casefold() == "small_cap":
-                    continue
-                if not saved_subsector.get("groups", {}).get(group_label, {}).get("profiles"):
-                    continue
-                key = _component_key(
-                    str(sector_data["sector_code"]),
-                    str(saved_subsector.get("subsector_code", "")),
-                    group_label,
-                )
-                if Component._get_json_path_from_prefix(key):
-                    sector_components.add(key)
-        if sector_components:
-            valuechain_key = f"{sector_data['sector_code']}00 {sector_name}"
+        sector_code = str(sector_data["sector_code"])
+        subsector_code = str(subsector_data["subsector_code"])
+        subsector_valuechain_key = f"{sector_code}{subsector_code} {subsector_name}"
+        if group_keys:
             ValueChain.get_item(
-                key=valuechain_key,
-                component_keys=sorted(sector_components),
+                key=subsector_valuechain_key,
+                component_keys=group_keys,
+                valuechain_keys=[],
             )
+        else:
+            subsector_path = ValueChain._get_json_path_from_prefix(subsector_valuechain_key)
+            if subsector_path:
+                from build.tools.delete_instance import delete_instance
+
+                delete_instance({"objectType": "ValueChain", "objectId": subsector_valuechain_key})
+
+        # Build the sector view from subsector valuechains that already exist.
+        sector_valuechain_keys = []
+        for saved_subsector_name, saved_subsector in sector_data.get("subsectors", {}).items():
+            key = (
+                f"{sector_code}{saved_subsector.get('subsector_code', '')} "
+                f"{saved_subsector_name}"
+            )
+            if ValueChain._get_json_path_from_prefix(key):
+                sector_valuechain_keys.append(key)
+
+        sector_valuechain_key = f"{sector_code}00 {sector_name}"
+        if sector_valuechain_keys:
+            ValueChain.get_item(
+                key=sector_valuechain_key,
+                component_keys=[],
+                valuechain_keys=sector_valuechain_keys,
+            )
+        else:
+            sector_path = ValueChain._get_json_path_from_prefix(sector_valuechain_key)
+            if sector_path:
+                from build.tools.delete_instance import delete_instance
+
+                delete_instance({"objectType": "ValueChain", "objectId": sector_valuechain_key})
     return components
 
 

@@ -13,9 +13,9 @@ Last edited: 2026-10-21
 - **Profile** represents a listed company or a tracked business record.
 - **Segment** represents part of a company and applies a `FinancialsAdjuster` to the parent profile's financial data.
 - **Component** groups `ListedCompany` records. Each record refers to a profile or segment by `key` and includes a display `name`.
-- **ValueChain** groups components. Its persisted references are `component_keys`, which are component names/keys.
-- `ValueChain.get_item()` accepts either `component_keys=[...]` or `components=[...]` containing `Component` instances. The component instances are used in memory; the value-chain JSON stores only `component_keys`. Pass one argument, not both.
-- A value chain checks that referenced component JSON files exist and validate before loading them. Missing or invalid files are reported by component name.
+- **ValueChain** groups components and/or child valuechains. Its persisted references are `component_keys` and `valuechain_keys`.
+- `ValueChain.get_item()` accepts component and child-valuechain key lists and/or instance lists. Member pages are linked directly, and financial series add recursively through the hierarchy.
+- A value chain checks that referenced component and child-valuechain JSON files exist and validate before loading them. Missing or invalid files are reported, and cycles are rejected.
 
 ## Running local services
 

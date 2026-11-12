@@ -35,6 +35,7 @@ def print_valuechains() -> None:
         print("vc = ValueChain.get_item(")
         print(f"    key={data['key']!r},")
         print(f"    component_keys={data.get('component_keys', [])!r},")
+        print(f"    valuechain_keys={data.get('valuechain_keys', [])!r},")
         print(")")
 
 

@@ -52,6 +52,45 @@ def build_profile_plot_data() -> dict:
         "per_bound": PER_BOUND,
         "category_colors": CATEGORY_COLORS,
         "points": rows,
+        "title": "Profiles",
+    }
+
+
+def build_collection_plot_data(model_type: str) -> dict:
+    """Return list-level operating-margin/PER points for components or chains."""
+    directories = {
+        "Component": COMPONENTS_DIR,
+        "ValueChain": VALUECHAINS_DIR,
+    }
+    if model_type not in directories:
+        raise ValueError("Collection plots are available for Component and ValueChain.")
+
+    rows = []
+    for json_path in sorted(directories[model_type].glob("*.json")):
+        try:
+            data = json.loads(json_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not data.get("key"):
+            continue
+        page_path = json_path.with_suffix(".html")
+        if not page_path.is_file():
+            continue
+        point = make_mp_point(
+            label=data["key"],
+            code=data["key"],
+            financials=data.get("financials"),
+            page_path=page_path,
+        )
+        if point:
+            rows.append(point)
+
+    label = "Components" if model_type == "Component" else "Value Chains"
+    return {
+        "per_bound": PER_BOUND,
+        "category_colors": CATEGORY_COLORS,
+        "points": rows,
+        "title": label,
     }
 
 
@@ -129,30 +168,8 @@ def build_model_plot_data(model_type: str, model_key: str) -> dict:
     points = []
     seen = set()
 
-    if model_type == "Component":
-        target = components.get(model_key)
-        if not target:
-            raise ValueError(f"Component not found: {model_key}")
-        component_data, component_path = target
+    def append_component(component_data: dict, component_path: Path) -> None:
         _append_model_point(points, component_data, component_path, "Component", seen)
-        component_records = [component_data]
-    else:
-        valuechains = _load_records(VALUECHAINS_DIR)
-        target = valuechains.get(model_key)
-        if not target:
-            raise ValueError(f"Value chain not found: {model_key}")
-        chain_data, chain_path = target
-        _append_model_point(points, chain_data, chain_path, "ValueChain", seen)
-        component_records = [
-            components[key][0]
-            for key in chain_data.get("component_keys", [])
-            if key in components
-        ]
-
-    for component_data in component_records:
-        if model_type == "ValueChain":
-            component_path = components[component_data["key"]][1]
-            _append_model_point(points, component_data, component_path, "Component", seen)
         for listed in component_data.get("listed_companies", []):
             record = profiles.get(listed.get("key"))
             if not record:
@@ -160,6 +177,42 @@ def build_model_plot_data(model_type: str, model_key: str) -> dict:
             data, json_path = record
             point_type = "Segment" if data.get("profile_name") else "Profile"
             _append_model_point(points, data, json_path, point_type, seen)
+
+    if model_type == "Component":
+        target = components.get(model_key)
+        if not target:
+            raise ValueError(f"Component not found: {model_key}")
+        component_data, component_path = target
+        append_component(component_data, component_path)
+    else:
+        valuechains = _load_records(VALUECHAINS_DIR)
+        target = valuechains.get(model_key)
+        if not target:
+            raise ValueError(f"Value chain not found: {model_key}")
+        chain_data, chain_path = target
+        _append_model_point(points, chain_data, chain_path, "ValueChain", seen)
+        visited_valuechains = set()
+
+        def append_valuechain_members(valuechain_data: dict) -> None:
+            valuechain_key = valuechain_data.get("key")
+            if valuechain_key in visited_valuechains:
+                return
+            visited_valuechains.add(valuechain_key)
+            for component_key in valuechain_data.get("component_keys", []):
+                component_record = components.get(component_key)
+                if component_record is None:
+                    continue
+                component_data, component_path = component_record
+                append_component(component_data, component_path)
+            for child_key in valuechain_data.get("valuechain_keys", []):
+                child_record = valuechains.get(child_key)
+                if child_record is None:
+                    continue
+                child_data, child_path = child_record
+                _append_model_point(points, child_data, child_path, "ValueChain", seen)
+                append_valuechain_members(child_data)
+
+        append_valuechain_members(chain_data)
 
     return {
         "per_bound": PER_BOUND,
@@ -275,8 +328,10 @@ def draw_mp_plot(points: list[dict], title: str):
 if __name__ == "__main__":
     if sys.argv[1:] == ["--json"]:
         print(json.dumps(build_profile_plot_data(), ensure_ascii=False))
+    elif len(sys.argv) == 3 and sys.argv[1] == "--collection-json":
+        print(json.dumps(build_collection_plot_data(sys.argv[2]), ensure_ascii=False))
     elif len(sys.argv) == 4 and sys.argv[1] == "--figure":
         plot_data = build_model_plot_data(sys.argv[2], sys.argv[3])
         print(draw_mp_plot(plot_data["points"], plot_data["title"]).to_json())
     else:
-        raise SystemExit("Usage: mp_plot.py --json | --figure Component|ValueChain KEY")
+        raise SystemExit("Usage: mp_plot.py --json | --collection-json Component|ValueChain | --figure Component|ValueChain KEY")

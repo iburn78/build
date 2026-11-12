@@ -28,12 +28,12 @@ Last edited: 2026-10-21
 
 ## ValueChain
 
-- **Purpose:** Orders related components into an industry value chain.
-- **Lookup:** `ValueChain.get_item(key, component_keys=[...])` or `ValueChain.get_item(key, components=[...])`.
-- **Inputs:** `component_keys` accepts component names/keys; `components` accepts `Component` instances. Supply one form. `components` is an input convenience; JSON persists the references as `component_keys`.
-- **Validation:** Before loading sub-items, the value chain checks that each referenced component JSON exists and validates. Missing or invalid references raise a `ValueError` that identifies the components.
+- **Purpose:** Orders related components and child valuechains into an industry hierarchy.
+- **Lookup:** `ValueChain.get_item(key, component_keys=[...], valuechain_keys=[...])`, or pass `components=[...]` and/or `valuechains=[...]` instances.
+- **Inputs:** Component and valuechain members can be supplied together. JSON persists their keys separately as `component_keys` and `valuechain_keys`.
+- **Validation:** Before loading sub-items, the value chain checks that each referenced component or valuechain JSON exists and validates. Cyclic valuechain references are rejected.
 - **Other information:** `Landscape` (`InfoSection`), `News`, and generated `financials`.
-- **Financial end keys:** The union of listed-company keys across its components.
+- **Financial end keys:** Member financial series are summed additively, recursively through child valuechains.
 
 ## Shared model conventions
 
