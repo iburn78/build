@@ -206,7 +206,7 @@ class Component(JsonModel):
             key = key,
             filename = key,
             listed_companies = listed_companies,
-            info_section = isection if isection else Traits(),
+            info_section = kwargs.get("info_section") or isection or Traits(),
         )
         # Populate news after creating the instance.
         component.news = cls.llm_manager.gen_news(component)

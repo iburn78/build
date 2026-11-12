@@ -1,4 +1,5 @@
 import re
+import unicodedata
 import holidays
 from data.tools.load import df_krx, get_name
 from datetime import datetime, timedelta
@@ -13,6 +14,9 @@ def sanitized_filename(name):
     name = re.sub(r'[<>:"/\\|?*]+', "", name)
     name = "_".join(name.split())
     return name
+
+def nfc(value):
+    return unicodedata.normalize("NFC", value) if isinstance(value, str) else value
 
 def get_FN_GUIDE_url(code):
     return (

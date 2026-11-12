@@ -13,6 +13,7 @@ OLLAMA_ACCOUNT = 'it' # 'it', 'cp', 'ak', 'hm' (hotmail)
 DEFAULT_BIZ_LLM = 'ollama' 
 DEFAULT_RESEARCH_LLM = 'ollama'
 DEFAULT_NEWS_LLM = 'ollama'
+PROFILE_GROUPING_LLM = 'ollama'
 AGENT_RETRIES = 3
 
 # financials
@@ -62,6 +63,8 @@ NUM_THREAD_TO_RUN = 8
 # profile
 OVERVIEW_REFRESH_THRES = 30 # days
 MAX_SEGMENTS = 5
+MIN_PROFILES_IN_GROUPING = 3
+MIN_MARCAP_IN_GROUPING = 1e11 # 1,000억
 PROFILE_SEARCH_THEME = ['실적', '전망']
 PROFILE_LIST_SCOPES = [
     "A-L",
@@ -114,8 +117,16 @@ NO_CHART_KEYS = {
 #------------------------------------------------------------------
 # Project settings:
 #------------------------------------------------------------------
+# project "build"
 THIS_PROJECT = Path(__file__).resolve().parents[1]
+DATASET_DIR = THIS_PROJECT / "dataset"
+REFS_DIR = DATASET_DIR / "refs"
+PROFILE_GROUPING_JSON_FILE = REFS_DIR / "profile_grouping.json"
+
+# projects path
 PROJECTS_DIR = THIS_PROJECT.parent
+
+# project "data"
 BASE_DATA_DIR = PROJECTS_DIR / "data"
 BUILD_DIR = BASE_DATA_DIR / "build"
 GENERAL_DIR = BUILD_DIR / "general" # to be created when needed
