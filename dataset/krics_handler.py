@@ -172,6 +172,7 @@ def create_sector_map():
 
 
 def _get_sector_map():
+    global _SECTOR_MAP
     if _SECTOR_MAP is None:
         excel_paths = sorted(OUT_DIR.parent.glob("krics_????-??-??.xlsx"))
         if not excel_paths:
@@ -265,6 +266,6 @@ def sector_to_valuechain(sector=None, sector_code=None):
     return valuechain
 
 if __name__ == "__main__":
-    # download_all() # done for today
+    # download_all() 
     create_sector_map() 
     subsector_to_component(sector_code='10', subsector_code='10')
