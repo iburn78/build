@@ -17,6 +17,7 @@ from build.models.settings import (
     MIN_PROFILES_IN_GROUPING,
     MIN_MARCAP_IN_GROUPING,
     PROFILE_GROUPING_LLM,
+    KRICS_STRUCTURE_FILE,
     REFS_DIR,
     VALUECHAINS_DIR,
     llm_selector,
@@ -41,6 +42,36 @@ class ProfileGrouping(BaseModel):
     subsector: str = Field(default="", exclude=True)
     sector_code: str = Field(default="", exclude=True)
     subsector_code: str = Field(default="", exclude=True)
+
+
+def get_krics_sector_map() -> dict[str, list[str]]:
+    """Map each KRICS sector code to its ordered industry-group codes."""
+    if not KRICS_STRUCTURE_FILE.is_file():
+        raise FileNotFoundError(f"KRICS structure file not found: {KRICS_STRUCTURE_FILE}")
+
+    structure = pd.read_excel(KRICS_STRUCTURE_FILE, header=2)
+    if structure.shape[1] < 3:
+        raise ValueError(f"KRICS structure file has no sector/group columns: {KRICS_STRUCTURE_FILE}")
+
+    def normalize_code(value: object) -> str | None:
+        if pd.isna(value):
+            return None
+        if isinstance(value, float) and value.is_integer():
+            return str(int(value))
+        return str(value).strip()
+
+    sector_codes = structure.iloc[:, 0].ffill()
+    group_codes = structure.iloc[:, 2].ffill()
+    result: dict[str, list[str]] = {}
+    for raw_sector, raw_group in zip(sector_codes, group_codes):
+        sector_code = normalize_code(raw_sector)
+        group_code = normalize_code(raw_group)
+        if sector_code is None or group_code is None:
+            continue
+        groups = result.setdefault(sector_code, [])
+        if group_code not in groups:
+            groups.append(group_code)
+    return result
 
 
 def _load_krics_map() -> pd.DataFrame:
@@ -674,7 +705,18 @@ def krics_group_profiles(
     _save_groupings(groupings, marcap_by_code)
     return groupings
 
+def runner(sector_code, subsector_code):
+    krics_prepare_profiles(sector_code, subsector_code)
+    krics_group_profiles(sector_code, subsector_code)
+    krics_create_components(sector_code, subsector_code)
+
 if __name__ == "__main__":
-    krics_prepare_profiles(sector_code='10', subsector_code='10')
-    krics_group_profiles(sector_code='10', subsector_code='10')
-    krics_create_components(sector_code='10', subsector_code='10')
+    sector_map = get_krics_sector_map()
+    # for sector, subsector_list in sector_map.items():
+    #     for subsector in subsector_list:
+    #         runner(sector, subsector)
+
+    to_run = '10'
+    for subsector in sector_map[to_run]:
+        runner(to_run, subsector)
+
