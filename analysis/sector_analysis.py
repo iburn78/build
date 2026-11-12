@@ -68,15 +68,15 @@ _KRICS_SOURCE: str | None = None
 
 
 def _get_krics_data() -> tuple[pd.DataFrame | None, str | None]:
-    """Load the newest dated KRICS pickle once per process."""
+    """Load the newest dated KRICS workbook once per process."""
     global _KRICS_CACHE_LOADED, _KRICS_DF, _KRICS_SOURCE
     with _KRICS_CACHE_LOCK:
         if not _KRICS_CACHE_LOADED:
-            pickle_paths = sorted(_KRICS_REFS_DIR.glob("krics_????-??-??.pickle"))
-            if pickle_paths:
-                latest_path = pickle_paths[-1]
+            excel_paths = sorted(_KRICS_REFS_DIR.glob("krics_????-??-??.xlsx"))
+            if excel_paths:
+                latest_path = excel_paths[-1]
                 try:
-                    _KRICS_DF = pd.read_pickle(latest_path)
+                    _KRICS_DF = pd.read_excel(latest_path, dtype={"code": str}).set_index("code")
                     _KRICS_SOURCE = latest_path.stem
                 except Exception as error:
                     print(f"Could not load KRICS summary {latest_path}: {error}")
@@ -904,7 +904,7 @@ class SectorAnalysis:
             ]
             panel_count = 2 + len(individual_panels)
             individual_heights = [
-                max(3, len(plot_data) * 0.16)
+                max(3, len(plot_data) * 0.21)
                 for _, plot_data in individual_panels
             ]
             panel_heights = (4, 3, *individual_heights)

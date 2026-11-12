@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import unicodedata
 from datetime import datetime
 import pandas as pd
 from build.tools.tools import df_krx
@@ -11,6 +12,14 @@ URL = "https://index.krx.co.kr/contents/MKD/03/0303/03030304/MKD03030304.jsp"
 updated = datetime.now().strftime("%Y-%m-%d")
 OUT_DIR = Path(__file__).resolve().parent / "refs" / f"krics_{updated}"
 _SECTOR_MAP = None
+
+
+def _nfc(value):
+    return unicodedata.normalize("NFC", value) if isinstance(value, str) else value
+
+
+def _nfd(value):
+    return unicodedata.normalize("NFD", value) if isinstance(value, str) else value
 
 def safe_filename(name):
     return re.sub(r'[\\/:*?"<>|]', "_", name).strip()
@@ -74,11 +83,16 @@ def download_all():
 
 def create_sector_map():
     global _SECTOR_MAP
-    if not OUT_DIR.is_dir():
-        raise FileNotFoundError(f"KRICS download directory does not exist: {OUT_DIR}")
+    download_dirs = sorted(
+        path for path in OUT_DIR.parent.glob("krics_????-??-??")
+        if path.is_dir()
+    )
+    source_dir = OUT_DIR if OUT_DIR.is_dir() else (download_dirs[-1] if download_dirs else None)
+    if source_dir is None:
+        raise FileNotFoundError(f"No dated KRICS download directory found in {OUT_DIR.parent}")
 
     rows = []
-    for filepath in sorted(OUT_DIR.iterdir()):
+    for filepath in sorted(source_dir.iterdir()):
         if not filepath.is_file() or filepath.suffix.lower() not in {".xls", ".xlsx"}:
             continue
 
@@ -121,7 +135,7 @@ def create_sector_map():
             })
 
     if not rows:
-        raise ValueError(f"No sector/subsector stock rows found in {OUT_DIR}")
+        raise ValueError(f"No sector/subsector stock rows found in {source_dir}")
 
     summary = pd.DataFrame(rows).drop_duplicates()
     summary["code"] = summary["code"].astype(str)
@@ -130,6 +144,8 @@ def create_sector_map():
         codes = ", ".join(conflicting_codes[conflicting_codes].index[:10])
         raise ValueError(f"Stocks occur in multiple KRICS categories: {codes}")
     summary = summary.drop_duplicates("code").set_index("code").sort_index()
+    for column in ("name", "sector", "subsector"):
+        summary[column] = summary[column].map(_nfc)
 
     sector_count = summary["sector_code"].nunique()
     subsector_count = summary[["sector_code", "subsector_code"]].drop_duplicates().shape[0]
@@ -147,22 +163,22 @@ def create_sector_map():
     if len(unknown_to_krx):
         print("Unknown KRICS codes:", ", ".join(unknown_to_krx[:20]))
 
-    output_path = OUT_DIR.parent / f"{OUT_DIR.name}.pickle"
-    summary.to_pickle(output_path)
+    output_path = source_dir.parent / f"{source_dir.name}.xlsx"
+    excel_summary = summary.reset_index()
+    excel_summary.to_excel(output_path, index=False)
     _SECTOR_MAP = summary
     print(f"Saved {len(summary)} rows to {output_path}")
     return summary
 
 
 def _get_sector_map():
-    global _SECTOR_MAP
     if _SECTOR_MAP is None:
-        pickle_paths = sorted(OUT_DIR.parent.glob("krics_????-??-??.pickle"))
-        if not pickle_paths:
+        excel_paths = sorted(OUT_DIR.parent.glob("krics_????-??-??.xlsx"))
+        if not excel_paths:
             raise FileNotFoundError(
                 f"No KRICS sector map found in {OUT_DIR.parent}; run create_sector_map() first."
             )
-        _SECTOR_MAP = pd.read_pickle(pickle_paths[-1])
+        _SECTOR_MAP = pd.read_excel(excel_paths[-1], dtype={"code": str}).set_index("code")
     return _SECTOR_MAP
 
 
@@ -181,7 +197,10 @@ def subsector_to_component(sector=None, subsector=None, sector_code=None, subsec
     )
     for column, value in filters:
         if value is not None:
-            sector_map = sector_map[sector_map[column] == str(value).strip()]
+            value = str(value).strip()
+            if column in {"sector", "subsector"}:
+                value = _nfc(value)
+            sector_map = sector_map[sector_map[column] == value]
 
     if sector_map.empty:
         raise ValueError("No KRICS companies match the requested sector/subsector.")
@@ -194,6 +213,7 @@ def subsector_to_component(sector=None, subsector=None, sector_code=None, subsec
         component_key = (
             f"{sector_name}-{subsector_name}({sector_id}-{subsector_id})"
         )
+        component_key = _nfd(component_key)
         codes = companies["code"].drop_duplicates().tolist()
 
         # Component.get_item resolves these listed-company keys through
@@ -213,7 +233,7 @@ def sector_to_valuechain(sector=None, sector_code=None):
     sector_map = _get_sector_map().reset_index()
     rows = sector_map
     if sector is not None:
-        rows = rows[rows["sector"] == sector]
+        rows = rows[rows["sector"] == _nfc(str(sector).strip())]
     if sector_code is not None:
         rows = rows[rows["sector_code"] == str(sector_code).strip()]
     if rows.empty:
@@ -225,7 +245,7 @@ def sector_to_valuechain(sector=None, sector_code=None):
     sector_name, sector_id = sectors.iloc[0]
     categories = rows[["sector", "sector_code", "subsector", "subsector_code"]].drop_duplicates()
     component_keys = [
-        f"{row.sector}-{row.subsector}({row.sector_code}-{row.subsector_code})"
+        _nfd(f"{row.sector}-{row.subsector}({row.sector_code}-{row.subsector_code})")
         for row in categories.itertuples(index=False)
     ]
 
@@ -239,7 +259,7 @@ def sector_to_valuechain(sector=None, sector_code=None):
             f"Components: {', '.join(missing)}. Run subsector_to_component() for this sector first."
         )
 
-    key = f"{sector_name}({sector_id})"
+    key = _nfd(f"{sector_name}({sector_id})")
     valuechain = ValueChain.get_item(key, component_keys=component_keys)
     print(f"Created/updated {key} with {len(component_keys)} subsector components")
     return valuechain
