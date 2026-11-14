@@ -1,10 +1,11 @@
-import re
+import re, json
 import unicodedata
 import holidays
 from data.tools.load import df_krx, get_name
 from datetime import datetime, timedelta
 from functools import lru_cache
 from pydantic import BaseModel
+from build.models.settings import COMPONENTS_DIR, VALUECHAINS_DIR
 
 df_krx = df_krx
 get_name = get_name
@@ -137,3 +138,36 @@ def cn(name):
 # Resolve a listed company by key.
 def ck(key):
     return ListedCompany.from_key(key)
+
+
+def print_components() -> None:
+    print("#------------------------------------------")
+    print("# COMPONENTS:")
+    print("#------------------------------------------")
+    for path in sorted(COMPONENTS_DIR.glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        namelist = []
+        for listed_company in data.get("listed_companies", []):
+            name = listed_company["name"]
+            match = re.search(r"\(([A-Za-z])\)$", listed_company.get("key", ""))
+            if match:
+                name += f"({match.group(1)})"
+            namelist.append(name)
+
+        print(
+            f"Component.get_item({data['key']!r}, "
+            f"namelist={namelist!r})"
+        )
+
+def print_valuechains() -> None:
+    print("#------------------------------------------")
+    print("# VALUE CHAINS:")
+    print("#------------------------------------------")
+    for path in sorted(VALUECHAINS_DIR.glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        print("vc = ValueChain.get_item(")
+        print(f"    key={data['key']!r},")
+        print(f"    component_keys={data.get('component_keys', [])!r},")
+        print(f"    valuechain_keys={data.get('valuechain_keys', [])!r},")
+        print(")")
+

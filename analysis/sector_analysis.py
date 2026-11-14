@@ -33,10 +33,6 @@ DEFAULT_AGGREGATION = 'd'
 DEFAULT_START_DATE = '2024-01-01'
 
 from build.models.settings import BASE_PERIOD, MEASURE_PERIOD, INDIVIDUAL_PLOT_PERIOD_LONG, INDIVIDUAL_PLOT_PERIOD_SHORT
-# BASE_PERIOD = 120 # days
-# MEASURE_PERIOD = 20 # days 
-# INDIVIDUAL_PLOT_PERIOD_LONG = 120 # days
-# INDIVIDUAL_PLOT_PERIOD_SHORT = 20 # days
 
 # ASSESS parameters
 OPINCOME_GROWTH_PERCENT = 5
@@ -59,52 +55,6 @@ _FR_DATECOLS = [
     pd.Timestamp(f'{year}-{_FR_QUARTER_MAP[q]}')
     for year, q in (col.split('_') for col in _FR_QCOLS)
 ]
-
-_KRICS_REFS_DIR = Path(__file__).resolve().parents[1] / "dataset" / "refs"
-_KRICS_CACHE_LOCK = RLock()
-_KRICS_CACHE_LOADED = False
-_KRICS_DF: pd.DataFrame | None = None
-_KRICS_SOURCE: str | None = None
-
-
-def _get_krics_data() -> tuple[pd.DataFrame | None, str | None]:
-    """Load the newest dated KRICS workbook once per process."""
-    global _KRICS_CACHE_LOADED, _KRICS_DF, _KRICS_SOURCE
-    with _KRICS_CACHE_LOCK:
-        if not _KRICS_CACHE_LOADED:
-            excel_paths = sorted(_KRICS_REFS_DIR.glob("krics_????-??-??.xlsx"))
-            if excel_paths:
-                latest_path = excel_paths[-1]
-                try:
-                    _KRICS_DF = pd.read_excel(latest_path, dtype={"code": str}).set_index("code")
-                    _KRICS_SOURCE = latest_path.stem
-                except Exception as error:
-                    print(f"Could not load KRICS summary {latest_path}: {error}")
-            _KRICS_CACHE_LOADED = True
-        return _KRICS_DF, _KRICS_SOURCE
-
-
-def _get_krics_meta(code: str | None) -> dict | None:
-    if not code:
-        return None
-    krics_df, source = _get_krics_data()
-    if krics_df is None:
-        return None
-
-    code = str(code)
-    if code.isdigit():
-        code = code.zfill(6)
-    if code not in krics_df.index:
-        return None
-
-    row = krics_df.loc[code]
-    if isinstance(row, pd.DataFrame):
-        row = row.iloc[0]
-    return {
-        "sector": row["sector"],
-        "subsector": row["subsector"],
-        "source": source,
-    }
 
 def _per_ratio(marcap, opincome):
     """Return PER values, treating negative or undefined ratios as NaN."""
@@ -286,7 +236,7 @@ class FinancialsData:
 class SectorAnalysis: 
     # a sector analysis
     def __init__(self):
-        self.meta = {'name': '', 'code': '', 'segment_name': '', 'id': '', 'updated': pd.Timestamp.now().strftime("%Y-%m-%d %H:%M"), 'classification': None}
+        self.meta = {'name': '', 'code': '', 'segment_name': '', 'id': '', 'updated': pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")}
         self.shape = {}
         self.assess_data = {}
         self.assess_result = {}
@@ -308,7 +258,6 @@ class SectorAnalysis:
             'measure_per': MEASURE_PERIOD, 
             'indplot_long': INDIVIDUAL_PLOT_PERIOD_LONG,
             'indplot_short': INDIVIDUAL_PLOT_PERIOD_SHORT,
-            'classification': _get_krics_meta(self.meta.get('code')),
         }
 
         self.ma_data = add_dfs([cd.ma_data for cd in fd_list], fill) # daily basis
@@ -336,7 +285,6 @@ class SectorAnalysis:
             'start_date': start_date, # start date in "yyyy-mm-dd" format
             'indplot_long': INDIVIDUAL_PLOT_PERIOD_LONG,
             'indplot_short': INDIVIDUAL_PLOT_PERIOD_SHORT,
-            'classification': None,
         }
 
         _index = kospi if name == 'KOSPI' else kosdaq if name == "KOSDAQ" else kospi200 if name == "KOSPI200" else None

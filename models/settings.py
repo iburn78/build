@@ -13,7 +13,6 @@ OLLAMA_ACCOUNT = 'it' # 'it', 'cp', 'ak', 'hm' (hotmail)
 DEFAULT_BIZ_LLM = 'ollama' 
 DEFAULT_RESEARCH_LLM = 'ollama'
 DEFAULT_NEWS_LLM = 'ollama'
-PROFILE_GROUPING_LLM = 'ollama'
 AGENT_RETRIES = 3
 
 # financials
@@ -71,10 +70,6 @@ FORCE_RECALC_SEG_CREATION_ASSESSMENT = False # when changed the threshold, make 
 
 # - business
 PROFILE_SEARCH_THEME = ['실적', '전망']
-
-# - grouping
-MIN_PROFILES_IN_GROUPING = 3
-MIN_MARCAP_IN_GROUPING = 1e11 # 1,000억
 
 # - other
 PROFILE_LIST_SCOPES = [
@@ -135,8 +130,7 @@ NO_CHART_KEYS = {
 THIS_PROJECT = Path(__file__).resolve().parents[1]
 DATASET_DIR = THIS_PROJECT / "dataset"
 REFS_DIR = DATASET_DIR / "refs"
-PROFILE_GROUPING_JSON_FILE = REFS_DIR / "profile_grouping.json"
-KRICS_STRUCTURE_FILE = REFS_DIR / "2026-krics-structure-korean_KRX.xlsx"
+CLASSIFICATION_STRUCTURE_FILE = REFS_DIR / "classification_structure.json"
 
 # projects path
 PROJECTS_DIR = THIS_PROJECT.parent
