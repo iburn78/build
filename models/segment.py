@@ -141,7 +141,7 @@ class Segment(JsonModel):
             if field not in kwargs:
                 continue
             value = kwargs[field]
-            if field in {"revenue_share", "opmargin"} and value is None:
+            if field == "revenue_share" and value is None:
                 continue
             if field == "trend":
                 value = value or ""

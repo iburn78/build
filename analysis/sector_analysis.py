@@ -817,7 +817,13 @@ class SectorAnalysis:
         )
 
         for col in ['marcap', 'amount_subtotal']:
-            ma_plotdata.loc['recent_inc', col] = self._aggr_dataset[col].iloc[-1] / self._aggr_dataset[col].iloc[-2] - 1
+            previous = self._aggr_dataset[col].iloc[-2]
+            latest = self._aggr_dataset[col].iloc[-1]
+            if np.isfinite(previous) and np.isfinite(latest) and previous != 0:
+                with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
+                    ma_plotdata.loc['recent_inc', col] = latest / previous - 1
+            else:
+                ma_plotdata.loc['recent_inc', col] = np.nan
 
             slope, intercpet = get_slope_intercept(self._aggr_dataset[col])
             ma_plotdata.loc['slope', col] = slope

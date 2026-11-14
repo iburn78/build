@@ -1,11 +1,12 @@
 import shutil
 import hashlib
+import math
 from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from typing import Any, ClassVar
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from build.models.json_model import (
     JsonModel,
     InfoSection,
@@ -24,7 +25,7 @@ from build.models.settings import (
     OVERVIEW_REFRESH_THRES,
     MAX_SEGMENTS,
     REV_ANNUAL_THRES_2ND_SEGMENT_CREATION,
-    FORCE_RECALC_SEG_CREATION_ASSESSMENT,
+    SEGMENT_MIN_REVENUE_SHARE,
     PROFILE_SEARCH_THEME,
 )
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
@@ -105,8 +106,8 @@ class Business(InfoSection):
         default_factory=list,
         description="Relative revenue size of segments of this company (total is 1)"
     )
-    opmargin: list[float | None] = Field(
-        default_factory=list,
+    opmargin: list[float | None] | None = Field(
+        default=None,
         description="Operating margin for each segment as a ratio; null when unavailable"
     )
     trend: list[str] = Field(
@@ -123,6 +124,12 @@ class Business(InfoSection):
         default_factory=list,
         description="Direct competitors for each segment, in segment order; combine multiple names in one comma-separated string"
     )
+
+    @model_validator(mode="after")
+    def collapse_all_unknown_opmargins(self):
+        if self.opmargin and all(value is None for value in self.opmargin):
+            self.opmargin = None
+        return self
 
     def model_post_init(self, context: Any) -> None:
         if not self.reviewed:
@@ -298,9 +305,17 @@ class Profile(JsonModel):
                 key = self.code + f'({id})'
 
                 revenue_share = self.info_section.revenue_share[i]
+                existing_segment_path = Segment._get_json_path_from_prefix(key)
+                if (
+                    revenue_share < SEGMENT_MIN_REVENUE_SHARE
+                    and existing_segment_path is None
+                ):
+                    continue
+
                 opmargin = (
                     self.info_section.opmargin[i]
-                    if i < len(self.info_section.opmargin)
+                    if self.info_section.opmargin is not None
+                    and i < len(self.info_section.opmargin)
                     else None
                 )
                 trend = (
@@ -362,26 +377,35 @@ class Profile(JsonModel):
         self._pending_financials_analysis = _sa if kwargs.get("_defer_plot") else None
 
     def _update_segment_recommendation(self) -> bool:
-        """Set recomm_segs when the second-largest segment clears the revenue threshold."""
-        revenue_ltm = (
-            (self.financials or {})
-            .get("shape", {})
-            .get("financials", {})
-            .get("revenue_ltm")
-        )
-        unit = (self.financials or {}).get("meta", {}).get("unit")
-        shares = self.info_section.revenue_share
-
+        """Set recomm_segs from the second-largest estimated segment revenue."""
         try:
-            if revenue_ltm is None or unit is None or len(shares) < 2:
+            segments = self.info_section.segments
+            shares = self.info_section.revenue_share
+            financials = self.financials or {}
+            revenue_ltm = float(
+                financials["shape"]["financials"]["revenue_ltm"]
+            )
+            unit = float(financials["meta"]["unit"])
+            if (
+                len(segments) < 2
+                or len(shares) != len(segments)
+                or not math.isfinite(revenue_ltm)
+                or not math.isfinite(unit)
+                or revenue_ltm <= 0
+                or unit <= 0
+            ):
                 recommended = False
             else:
-                segment_revenues = sorted(
-                    (float(revenue_ltm) * float(unit) * float(share) for share in shares),
-                    reverse=True,
-                )
-                recommended = segment_revenues[1] >= REV_ANNUAL_THRES_2ND_SEGMENT_CREATION
-        except (TypeError, ValueError, OverflowError):
+                segment_revenues = [float(share) * revenue_ltm * unit for share in shares]
+                if any(not math.isfinite(revenue) or revenue < 0 for revenue in segment_revenues):
+                    recommended = False
+                else:
+                    segment_revenues.sort(reverse=True)
+                    recommended = (
+                        segment_revenues[1]
+                        >= REV_ANNUAL_THRES_2ND_SEGMENT_CREATION
+                    )
+        except (KeyError, TypeError, ValueError, OverflowError):
             recommended = False
 
         if self.info_section.recomm_segs == recommended:
@@ -436,7 +460,6 @@ class Profile(JsonModel):
         segment_count = len(self.info_section.segments)
         aligned_fields = (
             self.info_section.revenue_share,
-            self.info_section.opmargin,
             self.info_section.trend,
             self.info_section.key_products,
             self.info_section.competitors,
@@ -444,6 +467,10 @@ class Profile(JsonModel):
         business_needs_refresh = (
             segment_count == 0
             or any(len(values) != segment_count for values in aligned_fields)
+            or (
+                bool(self.info_section.opmargin)
+                and len(self.info_section.opmargin) != segment_count
+            )
         )
         if (
             not self.info_section.reviewed
@@ -467,7 +494,8 @@ class Profile(JsonModel):
         if changed or self._update_financials(**kwargs):
             changed = self._refresh_financials_if_changed(**kwargs) or changed
 
-        return changed
+        recommendation_changed = self._update_segment_recommendation()
+        return changed or recommendation_changed
 
     @classmethod
     def _create_new_item(cls, key, isection: InfoSection | None, **kwargs):
@@ -514,24 +542,6 @@ class Profile(JsonModel):
 
         code, id = get_id(listed_company.key)
         profile = super().get_item(code, **kwargs)
-        if FORCE_RECALC_SEG_CREATION_ASSESSMENT:
-            profile._update_segment_recommendation()
-            if len(profile._subitems_financials_processed) != len(profile._sub_items):
-                subitem_financials = profile._get_subitems_financials()
-                if subitem_financials and all(
-                    isinstance(financials, dict) for financials in subitem_financials
-                ) and isinstance(profile.financials, dict):
-                    analysis = SectorAnalysis()
-                    analysis.shape = profile.financials["shape"]
-                    analysis._sub_sector_analyses(subitem_financials)
-                    profile._subitems_financials_processed = subitem_financials
-            # This targeted recalculation writes the Business field and page
-            # without changing either updated timestamp.
-            profile.get_json_path().write_text(
-                profile.model_dump_json(indent=4, exclude_none=True),
-                encoding="utf-8",
-            )
-            profile.create_html()
         if id:
             try:
                 return profile.get_subitems()[listed_company.key]

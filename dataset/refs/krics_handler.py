@@ -12,7 +12,7 @@ OUT_DIR = REFS_DIR / f"krics_{datetime.now():%Y-%m-%d}"
 STRUCTURE_SOURCE_FILE = "https://index.krx.co.kr/contents/MKD/03/0303/03030301/2026-krics-structure-korean_KRX.xlsx"
 
 def download_and_create_krics_summary(out_dir = OUT_DIR) -> pd.DataFrame:
-    """Download KRICS files into out_dir and save their combined Excel map beside it."""
+    """Download KRICS files into out_dir and save their combined pickle map beside it."""
     out_dir.mkdir(parents=True, exist_ok=True)
     downloaded_files = []
 
@@ -82,10 +82,10 @@ def download_and_create_krics_summary(out_dir = OUT_DIR) -> pd.DataFrame:
             # Top-level files such as "산업재(30)" do not identify a subsector.
             continue
 
-        names, sector_code, subsector_code = match.groups()
-        sector, separator, subsector = names.partition("-")
-        if not separator or not sector.strip() or not subsector.strip():
-            print(f"Skipping file with unrecognized sector/subsector name: {filepath.name}")
+        names, sector_code, group_code = match.groups()
+        sector, separator, group = names.partition("-")
+        if not separator or not sector.strip() or not group.strip():
+            print(f"Skipping file with unrecognized sector/group name: {filepath.name}")
             continue
 
         try:
@@ -102,7 +102,7 @@ def download_and_create_krics_summary(out_dir = OUT_DIR) -> pd.DataFrame:
         for code, name in workbook[["종목코드", "종목명"]].itertuples(index=False, name=None):
             if pd.isna(code) or pd.isna(name):
                 continue
-            code = re.sub(r"\.0+$", "", str(code).strip())
+            code = str(code).strip()
             if code.isdigit():
                 code = code.zfill(6)
             rows.append({
@@ -110,8 +110,9 @@ def download_and_create_krics_summary(out_dir = OUT_DIR) -> pd.DataFrame:
                 "name": str(name).strip(),
                 "sector": sector.strip(),
                 "sector_code": str(sector_code),
-                "subsector": subsector.strip(),
-                "subsector_code": str(subsector_code),
+                "group": group.strip(),
+                "group_code": str(group_code),
+                "class": str(sector_code).removesuffix("0") + str(group_code).removesuffix("0"),
             })
 
     if not rows:
@@ -124,13 +125,13 @@ def download_and_create_krics_summary(out_dir = OUT_DIR) -> pd.DataFrame:
         codes = ", ".join(conflicting_codes[conflicting_codes].index[:10])
         raise ValueError(f"Stocks occur in multiple KRICS categories: {codes}")
     summary = summary.drop_duplicates("code").set_index("code").sort_index()
-    for column in ("name", "sector", "subsector"):
+    for column in ("name", "sector", "group"):
         summary[column] = summary[column].map(nfc)
 
     sector_count = summary["sector_code"].nunique()
-    subsector_count = summary[["sector_code", "subsector_code"]].drop_duplicates().shape[0]
+    group_count = summary[["sector_code", "group_code"]].drop_duplicates().shape[0]
     print(f"Sectors found: {sector_count}")
-    print(f"Subsectors found: {subsector_count}")
+    print(f"Groups found: {group_count}")
 
     krx_codes = pd.Index(df_krx.index.astype(str))
     summary_codes = pd.Index(summary.index.astype(str))
@@ -143,9 +144,8 @@ def download_and_create_krics_summary(out_dir = OUT_DIR) -> pd.DataFrame:
     if len(unknown_to_krx):
         print("Unknown KRICS codes:", ", ".join(unknown_to_krx))
 
-    output_path = out_dir / "summary.xlsx"
-    excel_summary = summary.reset_index()
-    excel_summary.to_excel(output_path, index=False)
+    output_path = out_dir / "summary.pkl"
+    summary.to_pickle(output_path)
     print(f"Saved {len(summary)} rows to {output_path}")
     return summary
 

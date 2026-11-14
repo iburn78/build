@@ -14,6 +14,8 @@ DEFAULT_BIZ_LLM = 'ollama'
 DEFAULT_RESEARCH_LLM = 'ollama'
 DEFAULT_NEWS_LLM = 'ollama'
 AGENT_RETRIES = 3
+USAGE_REQUEST_LIMIT = 2 # maximum model requests per research run (minimum is 2: one for keyword and another for summary)
+WEB_SEARCH_MAX_CALLS_PER_REQUEST = 1
 
 # financials
 FINANCIALS_UPDATE_PERIOD_HR = 3 # Hours 
@@ -29,13 +31,12 @@ FORCE_FINANCIALS_REGENERATE = False
 NEWS_REFRESH_THRES = 3 # business days (excl. weekends and KR holidays)
 NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
 NUM_TO_FEED_LLM = 10 # number of articles to provide to LLM
+TRIGGER_LLM_WEB_SEARCH = 3 # run a news-focused LLM web search when this many or fewer relevant items remain
 # os.environ["BUILD_COLLECT_NEWS"] = "0" # to override defaults - True: 1 (mac), False: 0 (other)
 
 # research
 LLM_RESEARCH_REFRESH_THRES = 60 # days
 SEARCH_CONTEXT_SIZE = "medium" # openai setting
-USAGE_REQUEST_LIMIT = 2 # maximum model requests per research run (minimum is 2: one for keyword and another for summary)
-WEB_SEARCH_MAX_CALLS_PER_REQUEST = 1
 MAX_RESULT_OLLAMA_WEB_SEARCH = 7  # None uses Ollama's maximum of 10 results
 OLLAMA_WEB_SEARCH_RESULT_CONTENT_CHARS = 5000  # Set to None to include full result content
 # os.environ["BUILD_LLM_RESEARCH"] = "0" # to override defaults - True: 1 (mac), False: 0 (other)
@@ -63,11 +64,6 @@ NUM_THREAD_TO_RUN = 8
 # - overview
 OVERVIEW_REFRESH_THRES = 30 # days
 
-# - segments
-MAX_SEGMENTS = 5
-REV_ANNUAL_THRES_2ND_SEGMENT_CREATION = 3e11 # 3,000억
-FORCE_RECALC_SEG_CREATION_ASSESSMENT = False # when changed the threshold, make this True
-
 # - business
 PROFILE_SEARCH_THEME = ['실적', '전망']
 
@@ -84,6 +80,9 @@ PROFILE_LIST_SCOPES = [
 ]
 
 # segment
+MAX_SEGMENTS = 5
+REV_ANNUAL_THRES_2ND_SEGMENT_CREATION = 5e11 # 1e11 = 1,000억
+SEGMENT_MIN_REVENUE_SHARE = 0.1
 SEGMENT_SEARCH_THEME = ['사업부', '실적']
 
 # component
