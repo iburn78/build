@@ -3,16 +3,25 @@ import re, json
 import requests
 from datetime import datetime
 import pandas as pd
-from build.tools.tools import df_krx, sanitized_filename, nfc
-from build.models.settings import REFS_DIR, CLASSIFICATION_STRUCTURE_FILE 
+import unicodedata
+from build.models.settings import REFS_DIR, CLASSIFICATION_STRUCTURE
 from playwright.sync_api import sync_playwright
 
 URL = "https://index.krx.co.kr/contents/MKD/03/0303/03030304/MKD03030304.jsp"
 OUT_DIR = REFS_DIR / f"krics_{datetime.now():%Y-%m-%d}"
 STRUCTURE_SOURCE_FILE = "https://index.krx.co.kr/contents/MKD/03/0303/03030301/2026-krics-structure-korean_KRX.xlsx"
 
-def download_and_create_krics_summary(out_dir = OUT_DIR) -> pd.DataFrame:
-    """Download KRICS files into out_dir and save their combined pickle map beside it."""
+def _nfc(value):
+    return unicodedata.normalize("NFC", value) if isinstance(value, str) else value
+
+# the same as in tools
+def _sanitized_filename(name): 
+    name = re.sub(r'[<>:"/\\|?*]+', "", name)
+    name = "_".join(name.split())
+    return name
+
+def download_krics_files(out_dir=OUT_DIR) -> list[Path]:
+    """Download the KRICS stock lists into out_dir and return their paths."""
     out_dir.mkdir(parents=True, exist_ok=True)
     downloaded_files = []
 
@@ -63,7 +72,7 @@ def download_and_create_krics_summary(out_dir = OUT_DIR) -> pd.DataFrame:
 
             # Save with sector name
             ext = Path(download.suggested_filename).suffix or ".xlsx"
-            filepath = out_dir / f"{sanitized_filename(name)}{ext}"
+            filepath = out_dir / f"{_sanitized_filename(name)}{ext}"
 
             download.save_as(filepath)
             downloaded_files.append(filepath)
@@ -71,8 +80,13 @@ def download_and_create_krics_summary(out_dir = OUT_DIR) -> pd.DataFrame:
 
         browser.close()
 
+    return downloaded_files
+
+def make_krics_summary(out_dir=OUT_DIR) -> pd.DataFrame:
+    """Build summary.pkl from the KRICS Excel files already present in out_dir."""
+    out_dir = Path(out_dir)
     rows = []
-    for filepath in sorted(downloaded_files):
+    for filepath in sorted(out_dir.iterdir()):
         if filepath.suffix.lower() not in {".xls", ".xlsx"}:
             continue
 
@@ -112,7 +126,7 @@ def download_and_create_krics_summary(out_dir = OUT_DIR) -> pd.DataFrame:
                 "sector_code": str(sector_code),
                 "group": group.strip(),
                 "group_code": str(group_code),
-                "class": str(sector_code).removesuffix("0") + str(group_code).removesuffix("0"),
+                "sector_group": str(sector_code).removesuffix("0") + str(group_code).removesuffix("0"),
             })
 
     if not rows:
@@ -126,29 +140,12 @@ def download_and_create_krics_summary(out_dir = OUT_DIR) -> pd.DataFrame:
         raise ValueError(f"Stocks occur in multiple KRICS categories: {codes}")
     summary = summary.drop_duplicates("code").set_index("code").sort_index()
     for column in ("name", "sector", "group"):
-        summary[column] = summary[column].map(nfc)
-
-    sector_count = summary["sector_code"].nunique()
-    group_count = summary[["sector_code", "group_code"]].drop_duplicates().shape[0]
-    print(f"Sectors found: {sector_count}")
-    print(f"Groups found: {group_count}")
-
-    krx_codes = pd.Index(df_krx.index.astype(str))
-    summary_codes = pd.Index(summary.index.astype(str))
-    covered = krx_codes.intersection(summary_codes)
-    missing_from_krics = krx_codes.difference(summary_codes)
-    unknown_to_krx = summary_codes.difference(krx_codes)
-    print(f"df_krx codes with sector info: {len(covered)}")
-    print(f"df_krx codes without sector info: {len(missing_from_krics)}")
-    print(f"KRICS codes not found in df_krx: {len(unknown_to_krx)}")
-    if len(unknown_to_krx):
-        print("Unknown KRICS codes:", ", ".join(unknown_to_krx))
+        summary[column] = summary[column].map(_nfc)
 
     output_path = out_dir / "summary.pkl"
     summary.to_pickle(output_path)
     print(f"Saved {len(summary)} rows to {output_path}")
     return summary
-
 
 def _text(value) -> str:
     if value is None or pd.isna(value):
@@ -252,7 +249,7 @@ def create_structure_json(out_dir = OUT_DIR):
                 "definition": subindustry_definition,
             })
 
-    with open(CLASSIFICATION_STRUCTURE_FILE, "w", encoding="utf-8") as f:
+    with open(CLASSIFICATION_STRUCTURE, "w", encoding="utf-8") as f:
         json.dump(
             {"sectors": sectors},
             f,
@@ -260,14 +257,15 @@ def create_structure_json(out_dir = OUT_DIR):
             indent=2,
         )
 
-    print(f"Saved classification structure to {CLASSIFICATION_STRUCTURE_FILE}")
+    print(f"Saved classification structure to {CLASSIFICATION_STRUCTURE}")
 
 def runner():
-    # if CLASSIFICATION_STRUCTURE_FILE.exists():
-    #     print(f"TARGET FILE EXISTS: {CLASSIFICATION_STRUCTURE_FILE}")
-    #     print("Delete it before running again to overwrite.")
-    #     return
-    # download_and_create_krics_summary()
+    if OUT_DIR.exists() or CLASSIFICATION_STRUCTURE.exists():
+        print(f"TARGET DIR ({OUT_DIR}) or FILE EXISTS ({CLASSIFICATION_STRUCTURE})")
+        print("Delete or review before running again to overwrite.")
+        return
+    download_krics_files()
+    make_krics_summary()
     create_structure_json()
 
 if __name__ == "__main__":

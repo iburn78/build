@@ -363,6 +363,7 @@ class Profile(JsonModel):
             shutil.rmtree(p)
 
     def _get_financials(self, **kwargs):
+        classification = self._classification_for_financials()
         _sa = SectorAnalysis()
         _sa.meta['code'] = self.code
         _sa.meta['name'] = self.name
@@ -372,6 +373,7 @@ class Profile(JsonModel):
                     subitems_financials=self._get_subitems_financials(),
                     plot_path=False if kwargs.get("_defer_plot") else self.get_json_path().with_suffix('.png'),
                     defer_plot=kwargs.get("_defer_plot", False))
+        _sa.financials["meta"]["classification"] = classification
         self.financials = _sa.financials
         self._subitems_financials_processed = _sa._subitems_financials_processed
         self._pending_financials_analysis = _sa if kwargs.get("_defer_plot") else None

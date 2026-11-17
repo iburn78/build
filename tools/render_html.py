@@ -1,6 +1,7 @@
 import requests
 import hashlib
 import math
+import re
 import unicodedata
 from html import escape
 from datetime import datetime
@@ -105,13 +106,24 @@ def _align_dicts(*dicts):
 
     return result
 
-def _section_row(key, level=0, colspan=1, collapsed=False):
+def _section_row(key, level=0, colspan=1, collapsed=False, label_html=None):
     return f"""    
                         <tr class="section-row level-{level}{" collapsed" if collapsed else ""}">
-                            <td class="label" colspan="{colspan}">{escape(str(key))}</td>
+                            <td class="label" colspan="{colspan}">{label_html if label_html is not None else escape(str(key))}</td>
                         </tr>"""
 
-def _value_row(key, values=None, level=0, chart=True):
+def _classification_button(label, level):
+    match = re.search(r"\((\d+)\)\s*$", str(label))
+    if not match or level not in {"sector", "group", "industry", "subindustry"}:
+        return escape(str(label))
+    return (
+        f'<a class="classification-popup-button" '
+        f'href="/?classificationPopup=1&amp;classificationLevel={level}&amp;classificationCode={match.group(1)}#classification-map" '
+        f'target="_blank" rel="noopener" onclick="return openClassificationMap(this)">'
+        f'{escape(str(label))}</a>'
+    )
+
+def _value_row(key, values=None, level=0, chart=True, classification_level=None):
     values = values or []
 
     nums = []
@@ -162,9 +174,14 @@ def _value_row(key, values=None, level=0, chart=True):
                 f'style="height:{height:.1f}%; {position}"></div>'
             )
 
+        displayed_value = (
+            _classification_button(original, classification_level)
+            if classification_level
+            else f"<span>{_fmt_value(key, original)}</span>"
+        )
         cells.append(f'''
                             <td class="value">
-                                <span>{_fmt_value(key, original)}</span>
+                                {displayed_value}
                                 <div class="value-bar-container">
                                     {bar}
                                 </div>
@@ -176,7 +193,13 @@ def _value_row(key, values=None, level=0, chart=True):
                             {"".join(cells).strip()}
                         </tr>"""
 
-def _render_rows(dict_list, level=0, path="", collapsed_paths=None, no_chart_keys=None):
+def _render_rows(
+    dict_list,
+    level=0,
+    path="",
+    collapsed_paths=None,
+    no_chart_keys=None,
+):
     """Flatten nested dictionaries into table rows."""
     collapsed_paths = collapsed_paths or set()
     no_chart_keys = no_chart_keys or set()
@@ -191,11 +214,33 @@ def _render_rows(dict_list, level=0, path="", collapsed_paths=None, no_chart_key
 
         if isinstance(value, dict):
             collapsed = current_path in collapsed_paths
-            rows.append(_section_row(display_key, level=level, colspan=len(dict_list)+1, collapsed=collapsed))
-            rows.extend(_render_rows(values, level=level + 1, path=current_path, collapsed_paths=collapsed_paths, no_chart_keys=no_chart_keys))
+            rows.append(_section_row(
+                display_key,
+                level=level,
+                colspan=len(dict_list)+1,
+                collapsed=collapsed,
+            ))
+            rows.extend(_render_rows(
+                values,
+                level=level + 1,
+                path=current_path,
+                collapsed_paths=collapsed_paths,
+                no_chart_keys=no_chart_keys,
+            ))
 
         else:
-            rows.append(_value_row(display_key, values, level=level, chart=key not in no_chart_keys))
+            classification_level = None
+            if current_path.startswith("meta.classification."):
+                possible_level = current_path.rsplit(".", 1)[-1]
+                if possible_level in {"sector", "group", "industry", "subindustry"}:
+                    classification_level = possible_level
+            rows.append(_value_row(
+                display_key,
+                values,
+                level=level,
+                chart=key not in no_chart_keys,
+                classification_level=classification_level,
+            ))
 
     return rows
 
@@ -320,7 +365,11 @@ def _get_ext_links(code):
 def _render_financials(target_type, target_key, financials_names: list, financials_list: list, output_file: Path, collapsed_paths=None, no_chart_keys=None):
     meta_dict = financials_list[0].get('meta', {})
     header = _render_header(target_type, financials_names)
-    rows = _render_rows(financials_list, collapsed_paths=collapsed_paths, no_chart_keys=no_chart_keys)
+    rows = _render_rows(
+        financials_list,
+        collapsed_paths=collapsed_paths,
+        no_chart_keys=no_chart_keys,
+    )
     table_content = _render_table(header, rows, len(financials_names))
     images = _render_images(output_file, meta_dict)
     charts_panel = f'<div class="charts-panel">{images}</div>' if images else ""

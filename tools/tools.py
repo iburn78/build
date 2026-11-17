@@ -1,23 +1,120 @@
+#%%
 import re, json
-import unicodedata
 import holidays
-from data.tools.load import df_krx, get_name
 from datetime import datetime, timedelta
 from functools import lru_cache
 from pydantic import BaseModel
-from build.models.settings import COMPONENTS_DIR, VALUECHAINS_DIR
+import pandas as pd
+from threading import Lock
+from data.tools.load import df_krx, get_name
+from build.models.settings import COMPONENTS_DIR, VALUECHAINS_DIR, REFS_DIR, CLASSIFICATION_PATH, CLASSIFICATION_STRUCTURE
 
 df_krx = df_krx
 get_name = get_name
+df_sector = pd.read_pickle(CLASSIFICATION_PATH)
+sector_structure = json.loads(CLASSIFICATION_STRUCTURE.read_text(encoding="utf-8"))
+_df_sector_lock = Lock()
+
+def _save_df_sector() -> None:
+    CLASSIFICATION_PATH.parent.mkdir(parents=True, exist_ok=True)
+    df_sector.to_pickle(CLASSIFICATION_PATH)
+
+# Read older summary files and migrate them to the current persisted column name.
+if "sector_group" not in df_sector.columns and "class" in df_sector.columns:
+    df_sector = df_sector.rename(columns={"class": "sector_group"})
+    _save_df_sector()
+
+def get_industries(
+    company_code: str | None = None,
+    class_code: str | None = None,
+) -> dict:
+    if (company_code is None) == (class_code is None):
+        raise ValueError("Provide exactly one of company_code or class_code")
+
+    if company_code is not None:
+        company_code = str(company_code).strip().zfill(6)
+        try:
+            class_code = str(df_sector.loc[company_code, "sector_group"])
+        except KeyError as error:
+            raise ValueError(f"No KRICS class found for company code {company_code}") from error
+    else:
+        class_code = str(class_code).strip()
+
+    matches = []
+    for sector in sector_structure.get("sectors", []):
+        groups = [group for group in sector.get("groups", []) if str(group.get("code")) == class_code]
+        if groups:
+            matches.append({**sector, "groups": groups})
+
+    if not matches:
+        raise ValueError(f"No KRICS sector/group found for class {class_code!r}")
+
+    result = {"sectors": matches}
+    return result
+
+def save_company_classification(
+    company_code: str,
+    class_code: str,
+    classification_code: str,
+) -> None:
+    """Save a company's group and final subindustry code when they change."""
+    company_code = str(company_code).strip().zfill(6)
+    if company_code not in df_sector.index:
+        raise ValueError(f"Cannot save KRICS class for unknown company code {company_code}")
+    with _df_sector_lock:
+        class_code = str(class_code).strip()
+        classification_code = str(classification_code).strip()
+        if (
+            str(df_sector.at[company_code, "sector_group"]) == class_code
+            and "classification" in df_sector.columns
+            and str(df_sector.at[company_code, "classification"]) == classification_code
+        ):
+            return
+        df_sector.loc[company_code, "sector_group"] = class_code
+        df_sector.loc[company_code, "classification"] = classification_code
+        _save_df_sector()
+
+def save_segment_classification(
+    segment_code: str,
+    company_code: str,
+    classification_code: str,
+) -> None:
+    """Save a segment row with inherited company fields and its own leaf code."""
+    segment_code = str(segment_code).strip()
+    company_code = str(company_code).strip().zfill(6)
+    classification_code = str(classification_code).strip()
+    if company_code not in df_sector.index:
+        raise ValueError(f"Cannot save segment classification without parent {company_code}")
+    if "sector_group" not in df_sector.columns:
+        raise ValueError("KRICS summary is missing the sector_group column")
+
+    with _df_sector_lock:
+        parent = df_sector.loc[company_code]
+        inherited_columns = list(
+            df_sector.columns[:df_sector.columns.get_loc("sector_group") + 1]
+        )
+        values = {column: parent[column] for column in inherited_columns}
+        values["classification"] = classification_code
+        if "classification" not in df_sector.columns:
+            df_sector["classification"] = pd.Series(index=df_sector.index, dtype="object")
+
+        if segment_code in df_sector.index:
+            current = df_sector.loc[segment_code]
+            if all(
+                (pd.isna(current.get(column)) and pd.isna(value))
+                or str(current.get(column)) == str(value)
+                for column, value in values.items()
+            ):
+                return
+
+        df_sector.loc[segment_code, list(values)] = list(values.values())
+        _save_df_sector()
 
 def sanitized_filename(name): 
     if name is None or "": raise ValueError(f'name should be given: {name}')
     name = re.sub(r'[<>:"/\\|?*]+', "", name)
     name = "_".join(name.split())
     return name
-
-def nfc(value):
-    return unicodedata.normalize("NFC", value) if isinstance(value, str) else value
 
 def get_FN_GUIDE_url(code):
     return (
@@ -138,7 +235,6 @@ def cn(name):
 # Resolve a listed company by key.
 def ck(key):
     return ListedCompany.from_key(key)
-
 
 def print_components() -> None:
     print("#------------------------------------------")

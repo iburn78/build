@@ -13,6 +13,7 @@ OLLAMA_ACCOUNT = 'it' # 'it', 'cp', 'ak', 'hm' (hotmail)
 DEFAULT_BIZ_LLM = 'ollama' 
 DEFAULT_RESEARCH_LLM = 'ollama'
 DEFAULT_NEWS_LLM = 'ollama'
+CLASSIFICATION_LLM = 'ollama'
 AGENT_RETRIES = 3
 USAGE_REQUEST_LIMIT = 2 # maximum model requests per research run (minimum is 2: one for keyword and another for summary)
 WEB_SEARCH_MAX_CALLS_PER_REQUEST = 1
@@ -81,8 +82,8 @@ PROFILE_LIST_SCOPES = [
 
 # segment
 MAX_SEGMENTS = 5
-REV_ANNUAL_THRES_2ND_SEGMENT_CREATION = 5e11 # 1e11 = 1,000억
-SEGMENT_MIN_REVENUE_SHARE = 0.1
+REV_ANNUAL_THRES_2ND_SEGMENT_CREATION = 1e12 # 1e12 = 1조
+SEGMENT_MIN_REVENUE_SHARE = 0.2
 SEGMENT_SEARCH_THEME = ['사업부', '실적']
 
 # component
@@ -129,7 +130,8 @@ NO_CHART_KEYS = {
 THIS_PROJECT = Path(__file__).resolve().parents[1]
 DATASET_DIR = THIS_PROJECT / "dataset"
 REFS_DIR = DATASET_DIR / "refs"
-CLASSIFICATION_STRUCTURE_FILE = REFS_DIR / "classification_structure.json"
+CLASSIFICATION_STRUCTURE = REFS_DIR / "classification_structure.json"
+CLASSIFICATION_PATH = max(REFS_DIR.glob("krics_[0-9]*"), default=None) / "summary.pkl"
 
 # projects path
 PROJECTS_DIR = THIS_PROJECT.parent

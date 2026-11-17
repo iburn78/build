@@ -6,6 +6,10 @@
 <link rel="stylesheet" href="../../node/html/index.css">
 <link rel="stylesheet" href="../../node/html/dict_template.css">
 <link rel="stylesheet" href="../../node/html/qualitative.css">
+<style>
+.classification-popup-button { position: relative; z-index: 1; color: #1769aa; font: inherit; cursor: pointer; text-align: left; text-decoration: none; }
+.classification-popup-button:hover { text-decoration: underline; }
+</style>
 <script src="../../node/html/navbar.js" defer></script>
 </head>
 <body>
@@ -22,6 +26,18 @@
 <script src="../../node/html/progress.js"></script>
 <script src="../../node/html/model_instance.js"></script>
 <script src="../../node/html/qualitative.js"></script>
+<script>
+function openClassificationMap(link) {
+    const popup = window.open(
+        link.href,
+        "classification-map",
+        "popup=yes,width=1100,height=950,resizable=yes,scrollbars=yes"
+    );
+    if (!popup) return true;
+    popup.focus();
+    return false;
+}
+</script>
 </body> 
 <footer>
     <div class="footer-title">Quarterly Performances</div>
