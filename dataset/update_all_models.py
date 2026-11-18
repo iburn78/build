@@ -1,9 +1,6 @@
-#%% 
 import json
-import errno
 import re
 import sys
-import time
 from contextlib import contextmanager
 from collections import defaultdict
 import pandas as pd
@@ -119,32 +116,7 @@ def update_unclassified_profiles() -> None:
                 )
                 break
 
-            retryable = isinstance(error, OSError) and error.errno == errno.EMFILE
-            if retryable:
-                print(
-                    f"Retrying {key} in 2 seconds after: {error}",
-                    file=sys.stderr,
-                    flush=True,
-                )
-                time.sleep(2)
-                try:
-                    Profile.get_item(key)
-                except Exception as retry_error:
-                    if _is_fnguide_dns_failure(retry_error):
-                        print(
-                            f"FnGuide DNS resolution failed for {key}; stopping after "
-                            f"{index - 1} completed profiles.",
-                            file=sys.stderr,
-                            flush=True,
-                        )
-                        break
-                    print(
-                        f"Skipping {key} after retry failed: {retry_error}",
-                        file=sys.stderr,
-                        flush=True,
-                    )
-            else:
-                print(f"Skipping {key}: {error}", file=sys.stderr, flush=True)
+            print(f"Skipping {key}: {error}", file=sys.stderr, flush=True)
 
         if index % PROCESS_STEP == 0 or index == total:
             print(f"({index}/{total}) checked", file=sys.stderr, flush=True)
@@ -297,4 +269,3 @@ if __name__ == "__main__":
     #     create_update_from_classification()
     #     update_components() # reuses profiles/segments updated in the first pass
     #     update_valuechains() # reuses components updated in the second pass
-#%%
