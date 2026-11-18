@@ -15,6 +15,7 @@ from build.models.settings import (
     VALUECHAINS_DIR,
 )
 from build.tools.tools import df_sector, sector_structure
+from build.tools.fd_diagnostics import log_open_fds
 
 PROCESS_STEP = 20 
 
@@ -71,7 +72,11 @@ def update_profiles() -> None:
 
     for index, (_path, data) in enumerate(profile_items, start=1):
         key = data["key"]
-        Profile.get_item(key)
+        log_open_fds(f"before profile {index}/{total} {key}")
+        try:
+            Profile.get_item(key)
+        finally:
+            log_open_fds(f"after profile {index}/{total} {key}")
         if index % PROCESS_STEP == 0 or index == total:
             print(f"({index}/{total}) checked", file=sys.stderr, flush=True)
 
@@ -105,6 +110,7 @@ def update_unclassified_profiles() -> None:
 
     total = len(profile_keys)
     for index, key in enumerate(profile_keys, start=1):
+        log_open_fds(f"before unclassified profile {index}/{total} {key}")
         try:
             Profile.get_item(key)
         except Exception as error:
@@ -122,6 +128,8 @@ def update_unclassified_profiles() -> None:
                 )
 
             print(f"Skipping {key}: {error}", file=sys.stderr, flush=True)
+        finally:
+            log_open_fds(f"after unclassified profile {index}/{total} {key}")
 
         if index % PROCESS_STEP == 0 or index == total:
             print(f"({index}/{total}) checked", file=sys.stderr, flush=True)

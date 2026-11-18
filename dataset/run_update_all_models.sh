@@ -8,6 +8,8 @@ PROJECTS_DIR="$(dirname -- "$PROJECT_ROOT")"
 PYTHON="$PROJECT_ROOT/venv/bin/python"
 MAX_ATTEMPTS=30
 RETRY_DELAY_SECONDS=300
+export BUILD_FD_DIAGNOSTICS="${BUILD_FD_DIAGNOSTICS:-1}"
+exec > >(tee "$SCRIPT_DIR/script_run.log") 2>&1
 
 if [[ ! -x "$PYTHON" ]]; then
     PYTHON="$(command -v python3)"
