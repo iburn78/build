@@ -1,6 +1,11 @@
 from dataclasses import dataclass
 from typing import ClassVar, Literal
 from threading import RLock
+
+import matplotlib
+# This project renders financial charts to files; it does not need GUI windows.
+matplotlib.use("Agg")
+
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -836,6 +841,9 @@ class SectorAnalysis:
         return ma_plotdata
 
     def _plot(self, figsize = None, save_path = None):
+        if not save_path:
+            return
+
         set_KoreanFonts()
         if self.is_index:
             if figsize is None: figsize = (12, 3)
@@ -886,10 +894,7 @@ class SectorAnalysis:
                 )
 
         plt.tight_layout()
-        if save_path: 
-            fig.savefig(save_path)
-        else: 
-            plt.show()
+        fig.savefig(save_path)
         plt.close(fig)   
 
     # =======================================================================================================================

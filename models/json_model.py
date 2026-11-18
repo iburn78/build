@@ -954,7 +954,12 @@ class JsonModel(BaseModel, ABC):
     # and financials when available.
     @classmethod
     def get_item(cls, key, **kwargs):
-        json_path = cls._get_json_path_from_prefix(key)
+        exact_key_only = kwargs.pop("_exact_key_only", False)
+        if exact_key_only:
+            exact_path = cls.DIR / f"{sanitized_filename(str(key).strip())}.json"
+            json_path = exact_path if exact_path.is_file() else None
+        else:
+            json_path = cls._get_json_path_from_prefix(key)
         created = False
 
         if json_path:

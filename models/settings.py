@@ -19,7 +19,7 @@ USAGE_REQUEST_LIMIT = 2 # maximum model requests per research run (minimum is 2:
 WEB_SEARCH_MAX_CALLS_PER_REQUEST = 1
 
 # financials
-FINANCIALS_UPDATE_PERIOD_HR = 3 # Hours 
+FINANCIALS_UPDATE_PERIOD_HR = 6 # Hours 
 # if set to 0, then financials eligible for recalculation on each update: if the recalculated financials are unchanged, the JSON and existing PNG are left alone.
 # The HTML can still be regenerated if child financials changed or the HTML is missing.
 # The .md research file follows separate refresh logic, so it isn’t automatically regenerated just because the financial update period is zero.
@@ -29,7 +29,7 @@ FORCE_FINANCIALS_REGENERATE = False
 # The .md research file follows separate refresh logic.
 
 # news
-NEWS_REFRESH_THRES = 3 # business days (excl. weekends and KR holidays)
+NEWS_REFRESH_THRES = 4 # business days (excl. weekends and KR holidays)
 NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
 NUM_TO_FEED_LLM = 10 # number of articles to provide to LLM
 TRIGGER_LLM_WEB_SEARCH = 3 # run a news-focused LLM web search when this many or fewer relevant items remain
@@ -83,7 +83,7 @@ PROFILE_LIST_SCOPES = [
 # segment
 MAX_SEGMENTS = 5
 REV_ANNUAL_THRES_2ND_SEGMENT_CREATION = 1e12 # 1e12 = 1조
-SEGMENT_MIN_REVENUE_SHARE = 0.2
+SEGMENT_MIN_REVENUE_SHARE = 0.1
 SEGMENT_SEARCH_THEME = ['사업부', '실적']
 
 # component

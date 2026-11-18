@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 from pydantic import BaseModel
 import pandas as pd
-from threading import Lock
+from threading import RLock
 from data.tools.load import df_krx, get_name
 from build.models.settings import COMPONENTS_DIR, VALUECHAINS_DIR, REFS_DIR, CLASSIFICATION_PATH, CLASSIFICATION_STRUCTURE
 
@@ -13,13 +13,45 @@ df_krx = df_krx
 get_name = get_name
 df_sector = pd.read_pickle(CLASSIFICATION_PATH)
 sector_structure = json.loads(CLASSIFICATION_STRUCTURE.read_text(encoding="utf-8"))
-_df_sector_lock = Lock()
+_df_sector_lock = RLock()
+
+def sync_classification_structure() -> None:
+    """Refresh subindustry member codes from the current sector summary."""
+    with _df_sector_lock:
+        if "classification" not in df_sector.columns:
+            members = {}
+        else:
+            members = {}
+            for code, classification in df_sector["classification"].items():
+                if pd.isna(classification):
+                    continue
+                classification = str(classification).strip()
+                if not classification or classification.lower() == "nan":
+                    continue
+                members.setdefault(classification, []).append(str(code))
+
+        for sector in sector_structure.get("sectors", []):
+            for group in sector.get("groups", []):
+                for industry in group.get("industries", []):
+                    for subindustry in industry.get("subindustries", []):
+                        subindustry["companies"] = sorted(
+                            members.get(str(subindustry.get("code")), [])
+                        )
+        CLASSIFICATION_STRUCTURE.parent.mkdir(parents=True, exist_ok=True)
+        CLASSIFICATION_STRUCTURE.write_text(
+            json.dumps(sector_structure, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+
+sync_classification_structure()
 
 def _save_df_sector() -> None:
     CLASSIFICATION_PATH.parent.mkdir(parents=True, exist_ok=True)
     df_sector.to_pickle(CLASSIFICATION_PATH)
+    sync_classification_structure()
 
-# Read older summary files and migrate them to the current persisted column name.
+# Migrate older summary files before using the sector_group column.
 if "sector_group" not in df_sector.columns and "class" in df_sector.columns:
     df_sector = df_sector.rename(columns={"class": "sector_group"})
     _save_df_sector()

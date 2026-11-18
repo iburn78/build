@@ -1,8 +1,12 @@
+#%% 
 import json
+import errno
 import re
 import sys
+import time
 from contextlib import contextmanager
-
+from collections import defaultdict
+import pandas as pd
 from build.models.profile import Profile
 from build.models.component import Component
 from build.models.valuechain import ValueChain
@@ -12,6 +16,10 @@ from build.models.settings import (
     COMPONENTS_DIR,
     VALUECHAINS_DIR,
 )
+from build.tools.tools import df_sector, sector_structure
+
+PROCESS_STEP = 20 
+
 @contextmanager
 def _cache_model_items_for_run():
     """Reuse model instances across this script's profile/component/value-chain passes."""
@@ -48,7 +56,6 @@ def _cache_model_items_for_run():
             else:
                 setattr(model_class, "get_item", descriptor)
 
-PROCESS_STEP = 20
 
 def update_profiles() -> None:
     profile_items = []
@@ -69,6 +76,90 @@ def update_profiles() -> None:
         Profile.get_item(key)
         if index % PROCESS_STEP == 0 or index == total:
             print(f"({index}/{total}) checked", file=sys.stderr, flush=True)
+
+
+def update_unclassified_profiles() -> None:
+    """Refresh profiles whose classification row is missing."""
+    if "classification" not in df_sector.columns:
+        print(
+            "Classification column missing; skipping unclassified profiles.",
+            file=sys.stderr,
+            flush=True,
+        )
+        return
+
+    # Profile.get_item(parent) refreshes the profile and all of its segments,
+    # so collapse segment keys to their parent and avoid duplicate work.
+    profile_keys = sorted({
+        re.sub(r"\([A-Za-z]\)$", "", str(member_code).strip())
+        for member_code, classification in df_sector["classification"].items()
+        if pd.isna(classification)
+        and str(member_code).strip()
+    })
+    print(
+        f"Unclassified profiles to check: {len(profile_keys)}",
+        file=sys.stderr,
+        flush=True,
+    )
+
+    if not profile_keys:
+        return
+
+    total = len(profile_keys)
+    for index, key in enumerate(profile_keys, start=1):
+        try:
+            Profile.get_item(key)
+        except Exception as error:
+            if _is_fnguide_dns_failure(error):
+                print(
+                    f"FnGuide DNS resolution failed for {key}; stopping after "
+                    f"{index - 1} completed profiles.",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                break
+
+            retryable = isinstance(error, OSError) and error.errno == errno.EMFILE
+            if retryable:
+                print(
+                    f"Retrying {key} in 2 seconds after: {error}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                time.sleep(2)
+                try:
+                    Profile.get_item(key)
+                except Exception as retry_error:
+                    if _is_fnguide_dns_failure(retry_error):
+                        print(
+                            f"FnGuide DNS resolution failed for {key}; stopping after "
+                            f"{index - 1} completed profiles.",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                        break
+                    print(
+                        f"Skipping {key} after retry failed: {retry_error}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+            else:
+                print(f"Skipping {key}: {error}", file=sys.stderr, flush=True)
+
+        if index % PROCESS_STEP == 0 or index == total:
+            print(f"({index}/{total}) checked", file=sys.stderr, flush=True)
+
+
+def _is_fnguide_dns_failure(error: Exception) -> bool:
+    message = str(error).lower()
+    return (
+        "wcomp.fnguide.com" in message
+        and (
+            "nameresolutionerror" in message
+            or "failed to resolve" in message
+            or "nodename nor servname" in message
+        )
+    )
 
 
 def update_components() -> None:
@@ -94,9 +185,116 @@ def update_valuechains() -> None:
         if index % PROCESS_STEP == 0 or index == total:
             print(f"({index}/{total}) checked", file=sys.stderr, flush=True)
 
+    # creating all including valuechain: 0 KRX
+    sector_keys = [
+        f"{sector['code']} {sector['name']['ko']}"
+        for sector in sector_structure.get("sectors", [])
+    ]
+    ValueChain.get_item(
+        key="0 KRX",
+        valuechain_keys=sector_keys,
+    )
+
+
+def create_update_from_classification() -> None:
+    """Create taxonomy components and nested value chains from df_sector."""
+    if "classification" not in df_sector.columns:
+        print(
+            "Classification column missing; skipping taxonomy models.",
+            file=sys.stderr,
+            flush=True,
+        )
+        return
+
+    members_by_subindustry = defaultdict(list)
+    for member_code, classification_code in df_sector["classification"].items():
+        if pd.isna(classification_code):
+            continue
+        classification_code = str(classification_code).strip()
+        if not classification_code or classification_code.lower() == "nan":
+            continue
+        members_by_subindustry[classification_code].append(str(member_code).strip())
+
+    for sector in sector_structure.get("sectors", []):
+        group_valuechains = []
+        for group in sector.get("groups", []):
+            industry_valuechains = []
+            group_name = f"{group['code']} {group['name']['ko']}"
+            for industry in group.get("industries", []):
+                industry_components = []
+                for subindustry in industry.get("subindustries", []):
+                    subindustry_code = str(subindustry.get("code", ""))
+                    member_codes = sorted(set(members_by_subindustry.get(subindustry_code, [])))
+                    if not member_codes:
+                        continue
+
+                    # A profile and its segment rows can share a leaf; represent
+                    # that issuer through its segment rows only.
+                    segment_parents = {
+                        code.rsplit("(", 1)[0]
+                        for code in member_codes
+                        if re.search(r"\([A-Za-z]\)$", code)
+                    }
+                    member_codes = [
+                        code for code in member_codes
+                        if re.search(r"\([A-Za-z]\)$", code) or code not in segment_parents
+                    ]
+                    component_name = f"{subindustry_code} {subindustry['name']['ko']}"
+                    component = Component.get_item(
+                        component_name,
+                        keylist=member_codes,
+                        allow_multiple_segments_per_company=True,
+                        _exact_key_only=True,
+                    )
+                    industry_components.append(component)
+
+                if not industry_components:
+                    continue
+                industry_name = f"{industry['code']} {industry['name']['ko']}"
+                industry_valuechain = ValueChain.get_item(
+                    industry_name,
+                    components=industry_components,
+                    valuechains=[],
+                    _exact_key_only=True,
+                )
+                industry_valuechains.append(industry_valuechain)
+
+            if not industry_valuechains:
+                continue
+            group_valuechain = ValueChain.get_item(
+                group_name,
+                components=[],
+                valuechains=industry_valuechains,
+                _exact_key_only=True,
+            )
+            group_valuechains.append(group_valuechain)
+
+        if not group_valuechains:
+            continue
+        sector_name = f"{sector['code']} {sector['name']['ko']}"
+        ValueChain.get_item(
+            sector_name,
+            components=[],
+            valuechains=group_valuechains,
+            _exact_key_only=True,
+        )
+
+    print(
+        "Classification-derived components and valuechains refreshed.",
+        file=sys.stderr,
+        flush=True,
+    )
+
 
 if __name__ == "__main__":
-    with _cache_model_items_for_run():
-        update_profiles()
-        update_components() # reuses profiles/segments updated in the first pass
-        update_valuechains() # reuses components updated in the second pass
+
+    for i in range(30):
+        update_unclassified_profiles()
+        time.sleep(300)
+
+    # with _cache_model_items_for_run():
+    #     update_profiles()
+    #     create_update_from_classification()
+    #     update_components() # reuses profiles/segments updated in the first pass
+    #     update_valuechains() # reuses components updated in the second pass
+#%%

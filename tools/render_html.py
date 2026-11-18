@@ -118,7 +118,7 @@ def _classification_button(label, level):
         return escape(str(label))
     return (
         f'<a class="classification-popup-button" '
-        f'href="/?classificationPopup=1&amp;classificationLevel={level}&amp;classificationCode={match.group(1)}#classification-map" '
+        f'href="/?classificationLevel={level}&amp;classificationCode={match.group(1)}#classification-map" '
         f'target="_blank" rel="noopener" onclick="return openClassificationMap(this)">'
         f'{escape(str(label))}</a>'
     )
@@ -376,8 +376,15 @@ def _render_financials(target_type, target_key, financials_names: list, financia
     ext_links = _get_ext_links(meta_dict.get('code'))
 
     return f"""<h3 class="financials-heading">
-        <span>Financials Analysis</span>
+        <span class="financials-heading-label">
+            <span>Financials Analysis</span>
+            <span class="table-controls">
+                <button onclick="expandAll()">+</button>
+                <button onclick="collapseAll()">-</button>
+            </span>
+        </span>
         <span class="model-instance-actions">
+            {ext_links}
             <button class="model-instance-delete-button" type="button"
                 data-object-type="{escape(str(target_type), quote=True)}"
                 data-object-id="{escape(str(target_key), quote=True)}">Delete</button>
@@ -388,15 +395,10 @@ def _render_financials(target_type, target_key, financials_names: list, financia
     </h3>
     <div class="dashboard">
         <div class="table-panel">
+            <div class="table-scrollbar" aria-label="Scroll financials table horizontally" tabindex="0">
+                <div class="table-scrollbar-content"></div>
+            </div>
             <div class="table-wrapper">
-                <div class="table-controls">
-                    <button onclick="expandAll()">+</button>
-                    <button onclick="collapseAll()">-</button>
-                    {ext_links}
-                </div>
-                <div class="table-scrollbar" aria-label="Scroll financials table horizontally" tabindex="0">
-                    <div class="table-scrollbar-content"></div>
-                </div>
                 <table class="dict-table">
                     {table_content}
                 </table>

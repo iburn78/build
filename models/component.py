@@ -110,10 +110,6 @@ class Component(JsonModel):
             ):
                 changed = True
             if listed_company_key in self._sub_items:
-                print(
-                    f"Component {self.key}: skipping duplicate resolved listed company "
-                    f"{listed_company_name} ({listed_company_key})"
-                )
                 changed = True
                 continue
 
@@ -233,8 +229,14 @@ class Component(JsonModel):
 
         # Check for duplicates.
         codelist = []
+        allow_multiple_segments = kwargs.get("allow_multiple_segments_per_company", False)
         for listed_company in listed_companies:
-            codelist.append(get_id(listed_company.key)[0])
+            identity = (
+                listed_company.key.strip()
+                if allow_multiple_segments
+                else get_id(listed_company.key)[0]
+            )
+            codelist.append(identity)
         if len(codelist) != len(set(codelist)):
             raise ValueError(f'Duplication found in component {key} listed companies')
 

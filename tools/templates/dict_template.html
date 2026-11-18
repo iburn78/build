@@ -28,13 +28,9 @@
 <script src="../../node/html/qualitative.js"></script>
 <script>
 function openClassificationMap(link) {
-    const popup = window.open(
-        link.href,
-        "classification-map",
-        "popup=yes,width=1100,height=950,resizable=yes,scrollbars=yes"
-    );
-    if (!popup) return true;
-    popup.focus();
+    const tab = window.open(link.href, "_blank");
+    if (!tab) return true;
+    tab.focus();
     return false;
 }
 </script>
