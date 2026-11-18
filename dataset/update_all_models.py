@@ -1,3 +1,4 @@
+import errno
 import json
 import re
 import sys
@@ -107,14 +108,18 @@ def update_unclassified_profiles() -> None:
         try:
             Profile.get_item(key)
         except Exception as error:
-            if _is_fnguide_dns_failure(error):
-                print(
-                    f"FnGuide DNS resolution failed for {key}; stopping after "
-                    f"{index - 1} completed profiles.",
-                    file=sys.stderr,
-                    flush=True,
+            if (
+                isinstance(error, OSError) and error.errno == errno.EMFILE
+            ) or "too many open files" in str(error).lower():
+                raise SystemExit(
+                    f"Open-file limit reached while processing {key}; stopping this run."
                 )
-                break
+
+            if _is_fnguide_dns_failure(error):
+                raise SystemExit(
+                    f"FnGuide DNS resolution failed for {key}; stopping after "
+                    f"{index - 1} completed profiles."
+                )
 
             print(f"Skipping {key}: {error}", file=sys.stderr, flush=True)
 
@@ -259,13 +264,9 @@ def create_update_from_classification() -> None:
 
 
 if __name__ == "__main__":
-
-    for i in range(30):
+    with _cache_model_items_for_run():
         update_unclassified_profiles()
-        time.sleep(300)
-
-    # with _cache_model_items_for_run():
-    #     update_profiles()
-    #     create_update_from_classification()
-    #     update_components() # reuses profiles/segments updated in the first pass
-    #     update_valuechains() # reuses components updated in the second pass
+        update_profiles()
+        create_update_from_classification()
+        update_components() # reuses profiles/segments updated in the first pass
+        update_valuechains() # reuses components updated in the second pass

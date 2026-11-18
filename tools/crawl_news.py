@@ -118,4 +118,18 @@ def crawl_news(
         show_res=SHOW_RES,
         dest_dir=None,
     ):
-    asyncio.run(_crawl_news(query, kr=kr, cutoff_months=cutoff_months, max_result=max_result, show_res=show_res, dest_dir=dest_dir))
+    crawl = _crawl_news(
+        query,
+        kr=kr,
+        cutoff_months=cutoff_months,
+        max_result=max_result,
+        show_res=show_res,
+        dest_dir=dest_dir,
+    )
+    try:
+        asyncio.run(crawl)
+    except BaseException:
+        # asyncio.run can fail before it starts the coroutine (for example,
+        # when the process has exhausted its file descriptors).
+        crawl.close()
+        raise

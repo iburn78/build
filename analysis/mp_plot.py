@@ -1,4 +1,4 @@
-"""Build interactive margin-versus-PER plots for profile, segment and sector pages."""
+"""Build interactive margin-versus-PER plots for models"""
 import json
 import sys
 from pathlib import Path
@@ -9,7 +9,7 @@ DATA_DIR = PROFILES_DIR.parents[1]
 COMPONENTS_DIR = DATA_DIR / "build" / "components"
 VALUECHAINS_DIR = DATA_DIR / "build" / "valuechains"
 PER_BOUND = 40
-OPMARGIN_BOUND = 1.0
+OPMARGIN_BOUND = 0.8
 CATEGORY_COLORS = {
     "A": "#003B73",  # dark blue
     "B": "#1976D2",  # blue
