@@ -8,8 +8,11 @@ from threading import RLock, current_thread
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
 from crawl4ai.content_filter_strategy import PruningContentFilter
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
-from build.tools.ggl_news_feed import get_google_news_feed, add_banned_domain
-from build.tools.fd_diagnostics import log_open_fds
+from build.tools.ggl_news_feed import (
+    add_banned_domain,
+    close_google_news_browser,
+    get_google_news_feed,
+)
 
 CUTOFF_MONTHS=3 
 MAX_RESULT=10 
@@ -35,6 +38,10 @@ def _close_crawl_runners() -> None:
         runners = list(_CRAWL_RUNNERS.values())
         _CRAWL_RUNNERS.clear()
     for runner in runners:
+        try:
+            runner.run(close_google_news_browser(), context=contextvars.Context())
+        except Exception:
+            pass
         try:
             runner.close()
         except Exception:
@@ -126,7 +133,6 @@ async def _crawl_url_and_save(crawler, url, title=None, published=None, dest_dir
         print(f"Saved: {filename}")
 
 async def _crawl_news(query, kr, cutoff_months, max_result, show_res, dest_dir):
-    log_open_fds("before Google News feed")
     items = await get_google_news_feed(
         query,
         kr_title=kr,
@@ -134,20 +140,15 @@ async def _crawl_news(query, kr, cutoff_months, max_result, show_res, dest_dir):
         max_result=max_result, 
         show_res=show_res,
         )
-    log_open_fds(f"after Google News feed ({len(items)} items)")
-
     if not items:
         return
 
-    try:
-        async with AsyncWebCrawler() as crawler:
-            tasks = [
-                _crawl_url_and_save(crawler, i['url'], i['title'], i['published'], dest_dir)
-                for i in items
-            ]
-            await asyncio.gather(*tasks)
-    finally:
-        log_open_fds("after article crawl and crawler shutdown")
+    async with AsyncWebCrawler() as crawler:
+        tasks = [
+            _crawl_url_and_save(crawler, i['url'], i['title'], i['published'], dest_dir)
+            for i in items
+        ]
+        await asyncio.gather(*tasks)
 
 def crawl_news(
         query, 

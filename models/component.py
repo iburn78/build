@@ -183,7 +183,7 @@ class Component(JsonModel):
 
         changed = self._refresh_llm_research() or changed
 
-        if self.news is None or self.news.needs_refresh():
+        if self._news_needs_refresh():
             print(f"Generating component news summary for {self.key}")
             self.news = self.llm_manager.gen_news(self)
             changed = True

@@ -5,6 +5,7 @@ import asyncio
 import re
 import feedparser
 import requests
+from playwright.async_api import async_playwright
 from rapidfuzz import fuzz
 from pathlib import Path
 
@@ -48,6 +49,45 @@ def add_banned_domain(url: str):
 
 DEDUPLICATE_THRESHOLD = 75 # close enough / not too close
 MIN_DATES_TO_PASS = 3 # mimimum date difference not to compare titles
+
+_PLAYWRIGHT_BY_LOOP = {}
+
+
+async def _get_browser_for_loop():
+    """Reuse one Chromium process on each long-lived crawl event loop."""
+    loop = asyncio.get_running_loop()
+    browser_state = _PLAYWRIGHT_BY_LOOP.get(loop)
+    if browser_state is not None and browser_state[1].is_connected():
+        return browser_state[1]
+
+    if browser_state is not None:
+        _PLAYWRIGHT_BY_LOOP.pop(loop, None)
+        try:
+            await browser_state[0].stop()
+        except Exception:
+            pass
+
+    playwright = await async_playwright().start()
+    try:
+        browser = await playwright.chromium.launch(headless=True)
+    except Exception:
+        await playwright.stop()
+        raise
+    _PLAYWRIGHT_BY_LOOP[loop] = (playwright, browser)
+    return browser
+
+
+async def close_google_news_browser() -> None:
+    """Close the persistent Google News browser for the current event loop."""
+    loop = asyncio.get_running_loop()
+    browser_state = _PLAYWRIGHT_BY_LOOP.pop(loop, None)
+    if browser_state is None:
+        return
+    playwright, browser = browser_state
+    try:
+        await browser.close()
+    finally:
+        await playwright.stop()
 
 async def get_google_news_feed(
     query,
@@ -118,15 +158,24 @@ async def get_google_news_feed(
 
     items = []
 
-    # Google News RSS links resolve through HTTP redirects. Resolve them with
-    # bounded concurrent requests instead of starting a Chromium process for
-    # every query; update_all_models runs thousands of queries in one process.
+    # Keep the fast HTTP redirect path, but fall back to the persistent browser
+    # for Google News links that only redirect after browser navigation.
     batch_size = max(1, min(4, int(max_result * 1.5)))
     for start in range(0, len(entries), batch_size):
         batch = entries[start:start + batch_size]
         urls = await asyncio.gather(
             *(asyncio.to_thread(_resolve_google_news_url, entry["link"]) for entry in batch)
         )
+
+        unresolved = [index for index, url in enumerate(urls) if url is None]
+        if unresolved:
+            browser = await _get_browser_for_loop()
+            fallback_urls = await asyncio.gather(
+                *(_resolve_google_news_url_in_browser(batch[index]["link"], browser)
+                  for index in unresolved)
+            )
+            for index, url in zip(unresolved, fallback_urls):
+                urls[index] = url
 
         for entry, url in zip(batch, urls):
             if url is None:
@@ -191,6 +240,29 @@ def _resolve_google_news_url(link):
         return None
     except requests.RequestException:
         return None
+
+
+async def _resolve_google_news_url_in_browser(link, browser):
+    page = await browser.new_page()
+    try:
+        await page.goto(link, wait_until="commit", timeout=10000)
+        if "news.google.com" in page.url:
+            try:
+                await page.wait_for_url(
+                    lambda url: "news.google.com" not in url,
+                    timeout=10000,
+                )
+            except Exception:
+                return None
+
+        url = page.url
+        if not _is_valid_url(url) or _is_banned(url):
+            return None
+        return url
+    except Exception:
+        return None
+    finally:
+        await page.close()
 
 def _deduplicate_titles(
     entries,

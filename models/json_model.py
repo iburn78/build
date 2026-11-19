@@ -242,9 +242,14 @@ class LLM_Manager(ABC):
         target.scrape_news()
         news_paths = sorted(target.get_news_dir().glob("*.md"), reverse=True)[:NUM_TO_FEED_LLM]
         if not news_paths:
-            # Record completed empty searches so automatic model updates do not
-            # repeat the same news crawl on every run.
-            return self.news_type(updated=datetime.now().strftime("%Y-%m-%d %H:%M"))
+            # Google News can return no usable links even when a company has
+            # current coverage. Fall back to the configured LLM news search,
+            # then pass that digest through the normal relevance and summary
+            # steps. Leave the timestamp empty on failure so a later run retries.
+            search_path = self._generate_news_search(target)
+            if search_path is None:
+                return self.news_type(updated="")
+            news_paths = [search_path]
         kept = []
         subject_name = target._get_name()
         company_name = subject_name
@@ -496,6 +501,16 @@ class JsonModel(BaseModel, ABC):
 
     def get_json_path(self) -> Path:
         return self.DIR / f"{self.filename}.json"
+
+    def _news_needs_refresh(self) -> bool:
+        if not COLLECT_NEWS:
+            return False
+        news = getattr(self, "news", None)
+        if news is None or news.needs_refresh():
+            return True
+        # A recent empty summary must not suppress collection retries after a
+        # failed Google News redirect or an empty crawl.
+        return not any(self.get_news_dir().glob("*.md"))
 
     @staticmethod
     def _marcap_sort_key(item: JsonModel) -> tuple[int, float]:

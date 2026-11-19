@@ -171,7 +171,7 @@ class Segment(JsonModel):
 
         changed = self._refresh_llm_research() or changed
 
-        if segment_name_changed or self.news is None or self.news.needs_refresh():
+        if segment_name_changed or self._news_needs_refresh():
             print(f"Generating segment news summary for {self.key}")
             self.news = self.llm_manager.gen_news(self)
             changed = True
