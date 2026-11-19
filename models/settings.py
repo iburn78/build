@@ -30,17 +30,21 @@ FORCE_FINANCIALS_REGENERATE = False
 
 # news
 NEWS_REFRESH_THRES = 4 # business days (excl. weekends and KR holidays)
+NEWS_REFRESH_THRES_HIGH_MARCAP = 4 # business days (excl. weekends and KR holidays)
+NEWS_REFRESH_THRES_LOW_MARCAP = 10 # business days (excl. weekends and KR holidays)
+NEWS_REFRESH_THRES_MARCAP = 5e11
 NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
 NUM_TO_FEED_LLM = 10 # number of articles to provide to LLM
 TRIGGER_LLM_WEB_SEARCH = 3 # run a news-focused LLM web search when this many or fewer relevant items remain
 # os.environ["BUILD_COLLECT_NEWS"] = "0" # to override defaults - True: 1 (mac), False: 0 (other)
+NEWS_WEB_SEARCH_TOOL_ENABLE = False # if not sufficient news is collected, then launch llm web seaerch for news (effective only when BIULD_COLLECT_NEWS is on)
 
 # research
-LLM_RESEARCH_REFRESH_THRES = 60 # days
+LLM_RESEARCH_REFRESH_THRES = 90 # days
 SEARCH_CONTEXT_SIZE = "medium" # openai setting
 MAX_RESULT_OLLAMA_WEB_SEARCH = 7  # None uses Ollama's maximum of 10 results
 OLLAMA_WEB_SEARCH_RESULT_CONTENT_CHARS = 5000  # Set to None to include full result content
-# os.environ["BUILD_LLM_RESEARCH"] = "0" # to override defaults - True: 1 (mac), False: 0 (other)
+os.environ["BUILD_LLM_RESEARCH"] = "0" # to override defaults - True: 1 (mac), False: 0 (other)
 
 # base-mearsure periods
 BASE_PERIOD = 120 # days
@@ -63,7 +67,7 @@ NUM_THREAD_TO_RUN = 8
 
 # profile
 # - overview
-OVERVIEW_REFRESH_THRES = 30 # days
+OVERVIEW_REFRESH_THRES = 90 # days
 
 # - business
 PROFILE_SEARCH_THEME = ['실적', '전망']

@@ -40,6 +40,7 @@ from build.models.settings import (
     NEWS_REFRESH_THRES, 
     NUM_TO_CRAWL, 
     NUM_TO_FEED_LLM,
+    NEWS_WEB_SEARCH_TOOL_ENABLE,
     AGENT_RETRIES,
     SEARCH_CONTEXT_SIZE,
     USAGE_REQUEST_LIMIT,
@@ -242,10 +243,10 @@ class LLM_Manager(ABC):
         target.scrape_news()
         news_paths = sorted(target.get_news_dir().glob("*.md"), reverse=True)[:NUM_TO_FEED_LLM]
         if not news_paths:
+            if not NEWS_WEB_SEARCH_TOOL_ENABLE:
+                return self.news_type(updated="")
             # Google News can return no usable links even when a company has
-            # current coverage. Fall back to the configured LLM news search,
-            # then pass that digest through the normal relevance and summary
-            # steps. Leave the timestamp empty on failure so a later run retries.
+            # current coverage. Optionally fall back to the LLM web search.
             search_path = self._generate_news_search(target)
             if search_path is None:
                 return self.news_type(updated="")
@@ -336,7 +337,11 @@ class LLM_Manager(ABC):
                     path.unlink(missing_ok=True)
 
         has_llm_search = any("LLM web search on news" in path.name for path, _ in kept)
-        if len(kept) <= TRIGGER_LLM_WEB_SEARCH and not has_llm_search:
+        if (
+            NEWS_WEB_SEARCH_TOOL_ENABLE
+            and len(kept) <= TRIGGER_LLM_WEB_SEARCH
+            and not has_llm_search
+        ):
             search_path = self._generate_news_search(target)
             # Make the fresh search note available in this summary run.
             if search_path is not None:

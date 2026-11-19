@@ -16,6 +16,12 @@ CATEGORY_COLORS = {
     "C": "#64B5F6",  # light blue
     "D": "#8A8F98",  # gray
 }
+PLOT_STYLE = {
+    "marker_size": 4,
+    "label_position": "top right",
+    "label_font_size": 12,
+    "legend_tracegroupgap": 0,
+}
 
 
 def build_profile_plot_data() -> dict:
@@ -51,6 +57,7 @@ def build_profile_plot_data() -> dict:
     return {
         "per_bound": PER_BOUND,
         "category_colors": CATEGORY_COLORS,
+        "plot_style": PLOT_STYLE,
         "points": rows,
         "title": "Profiles",
     }
@@ -89,6 +96,7 @@ def build_collection_plot_data(model_type: str) -> dict:
     return {
         "per_bound": PER_BOUND,
         "category_colors": CATEGORY_COLORS,
+        "plot_style": PLOT_STYLE,
         "points": rows,
         "title": label,
     }
@@ -227,51 +235,6 @@ def draw_mp_plot(points: list[dict], title: str):
     import plotly.graph_objects as go
 
     traces = []
-    points_by_coordinates = {}
-    for point in points:
-        points_by_coordinates.setdefault(
-            (point["opmargin_ltm"], point["PER_ltm"]), []
-        ).append(point)
-
-    text_offsets = {}
-    for (_, per), same_position in points_by_coordinates.items():
-        same_position.sort(key=lambda point: point["label"].casefold())
-        duplicate_count = len(same_position)
-        for index, point in enumerate(same_position):
-            if duplicate_count == 1:
-                text_offsets[id(point)] = (0, 14, "center")
-                continue
-            column = index % 2
-            row = index // 2
-            xshift = (-1 if column == 0 else 1) * (12 + row * 2)
-            xanchor = "right" if column == 0 else "left"
-            vertical_direction = -1 if per >= PER_BOUND * 0.85 else 1
-            if per <= PER_BOUND * 0.1:
-                vertical_direction = 1
-            yshift = vertical_direction * (14 + row * 20)
-            text_offsets[id(point)] = (xshift, yshift, xanchor)
-
-    annotations = []
-    for point in points:
-        xshift, yshift, xanchor = text_offsets[id(point)]
-        annotations.append({
-            "x": point["opmargin_ltm"],
-            "y": point["PER_ltm"],
-            "xref": "x",
-            "yref": "y",
-            "text": point["label"],
-            "name": f"{point['category']}::{point['page_url']}",
-            "showarrow": False,
-            "captureevents": True,
-            "xshift": xshift,
-            "yshift": yshift,
-            "xanchor": xanchor,
-            "font": {
-                "color": CATEGORY_COLORS[point["category"]],
-                "weight": 700 if point.get("bold_label") else 400,
-            },
-        })
-
     for category, color in CATEGORY_COLORS.items():
         category_points = [point for point in points if point["category"] == category]
         if category_points:
@@ -283,13 +246,35 @@ def draw_mp_plot(points: list[dict], title: str):
                 mode="markers",
                 name=category,
                 legendgroup=category,
-                marker={"color": color, "size": 10, "opacity": 0.85},
+                marker={"color": color, "size": PLOT_STYLE["marker_size"], "opacity": 0.85},
                 hovertemplate=(
                     "%{text}<br>Code: %{customdata[1]}<br>"
                     "Operating margin: %{x:.1%}<br>PER (LTM): %{y:.2f}"
                     f"<extra>{category}</extra>"
                 ),
             ))
+
+            for bold in (False, True):
+                label_points = [
+                    point for point in category_points
+                    if bool(point.get("bold_label")) == bold
+                ]
+                if not label_points:
+                    continue
+                traces.append(go.Scatter(
+                    x=[point["opmargin_ltm"] for point in label_points],
+                    y=[point["PER_ltm"] for point in label_points],
+                    text=[point["label"] for point in label_points],
+                    customdata=[[point["page_url"], point["code"]] for point in label_points],
+                    mode="text",
+                    textposition=[PLOT_STYLE["label_position"]] * len(label_points),
+                    textfont={"color": color, "size": PLOT_STYLE["label_font_size"], "weight": 700 if bold else 400},
+                    name=f"{category} labels",
+                    legendgroup=category,
+                    showlegend=False,
+                    hoverinfo="none",
+                    meta={"mp_label_trace": True},
+                ))
 
     figure = go.Figure(data=traces)
     if not traces:
@@ -318,8 +303,8 @@ def draw_mp_plot(points: list[dict], title: str):
             "automargin": True,
         },
         legend={"title": {"text": "Category"}, "itemclick": "toggle",
-                "groupclick": "togglegroup", "itemdoubleclick": False},
-        annotations=annotations,
+                "groupclick": "togglegroup", "itemdoubleclick": False,
+                "tracegroupgap": PLOT_STYLE["legend_tracegroupgap"]},
         clickmode="event",
     )
     return figure
