@@ -104,6 +104,9 @@ async def _crawl_news(query, kr, cutoff_months, max_result, show_res, dest_dir):
         )
     log_open_fds(f"after Google News feed ({len(items)} items)")
 
+    if not items:
+        return
+
     try:
         async with AsyncWebCrawler() as crawler:
             tasks = [

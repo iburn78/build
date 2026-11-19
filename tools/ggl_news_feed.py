@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 import asyncio
 import re
 import feedparser
-from playwright.async_api import async_playwright 
+import requests
 from rapidfuzz import fuzz
 from pathlib import Path
 
@@ -118,43 +118,31 @@ async def get_google_news_feed(
 
     items = []
 
-    # Keep redirect resolution concurrent, but reuse one Chromium process for
-    # the whole query. Launching a browser for every RSS entry dominates the
-    # cost when update_all checks many models.
+    # Google News RSS links resolve through HTTP redirects. Resolve them with
+    # bounded concurrent requests instead of starting a Chromium process for
+    # every query; update_all_models runs thousands of queries in one process.
     batch_size = max(1, min(4, int(max_result * 1.5)))
-    finished = False
-    if entries:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            try:
-                for start in range(0, len(entries), batch_size):
-                    batch = entries[start:start + batch_size]
+    for start in range(0, len(entries), batch_size):
+        batch = entries[start:start + batch_size]
+        urls = await asyncio.gather(
+            *(asyncio.to_thread(_resolve_google_news_url, entry["link"]) for entry in batch)
+        )
 
-                    urls = await asyncio.gather(
-                        *[
-                            _resolve_google_news_url(e["link"], browser)
-                            for e in batch
-                        ]
-                    )
+        for entry, url in zip(batch, urls):
+            if url is None:
+                continue
 
-                    for e, url in zip(batch, urls):
-                        if url is None:
-                            continue
+            items.append({
+                "title": entry["title"],
+                "url": url,
+                "published": entry["published"],
+            })
 
-                        items.append({
-                            "title": e["title"],
-                            "url": url,
-                            "published": e["published"],
-                        })
+            if len(items) >= max_result:
+                break
 
-                        if len(items) >= max_result:
-                            finished = True
-                            break
-
-                    if finished:
-                        break
-            finally:
-                await browser.close()
+        if len(items) >= max_result:
+            break
 
     if show_res:
         print("---------------------------------------------------------------------------")
@@ -181,31 +169,28 @@ def _is_banned(url: str) -> bool:
     except:
         return True
 
-async def _resolve_google_news_url(link, browser):
-    page = await browser.new_page()
+def _resolve_google_news_url(link):
     try:
-        await page.goto(
+        response = requests.get(
             link,
-            wait_until="commit",
-            timeout=10000,
+            headers={"User-Agent": "Mozilla/5.0"},
+            allow_redirects=True,
+            stream=True,
+            timeout=(5, 10),
         )
-
         try:
-            await page.wait_for_url(
-                lambda u: "news.google.com" not in u,
-                timeout=10000,
-            )
-        except Exception:
+            url = response.url
+        finally:
+            response.close()
+
+        if "news.google.com" in url or not _is_valid_url(url):
             return None
 
-        if not _is_valid_url(page.url):
-            return None
-
-        if not _is_banned(page.url):
-            return page.url
+        if not _is_banned(url):
+            return url
         return None
-    finally:
-        await page.close()
+    except requests.RequestException:
+        return None
 
 def _deduplicate_titles(
     entries,

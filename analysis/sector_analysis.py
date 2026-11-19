@@ -496,7 +496,7 @@ class SectorAnalysis:
         # last 4 quarter opmargin: date is quarter starting date
         # The same forward-fill applies here.
         opms = {
-            quarter: round_sig(value, n=2)
+            quarter: round_sig(value, n=3)
             for quarter, value in (opic / rev * 100).iloc[-4:].items()
         }
         res['opmargin(%)'] = {
@@ -505,7 +505,7 @@ class SectorAnalysis:
         }
         r = self.fr_data[-4:].sum().iat[0]
         o = self.fr_data[-4:].sum().iat[1]
-        res['opmargin(%)']['ltm'] = round_sig(o/r*100, n=2)
+        res['opmargin(%)']['ltm'] = round_sig(o/r*100, n=3)
 
         # ------------------------------------------------------------------
         # PER
