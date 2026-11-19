@@ -1,7 +1,10 @@
 import re
 import asyncio
+import atexit
+import contextvars
 from datetime import datetime
 from pathlib import Path
+from threading import RLock, current_thread
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
 from crawl4ai.content_filter_strategy import PruningContentFilter
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
@@ -11,6 +14,35 @@ from build.tools.fd_diagnostics import log_open_fds
 CUTOFF_MONTHS=3 
 MAX_RESULT=10 
 SHOW_RES=True
+
+_CRAWL_RUNNERS = {}
+_CRAWL_RUNNERS_LOCK = RLock()
+
+
+def _get_crawl_runner() -> asyncio.Runner:
+    """Reuse one event loop per calling thread instead of creating one per query."""
+    thread = current_thread()
+    with _CRAWL_RUNNERS_LOCK:
+        runner = _CRAWL_RUNNERS.get(thread)
+        if runner is None:
+            runner = asyncio.Runner()
+            _CRAWL_RUNNERS[thread] = runner
+        return runner
+
+
+def _close_crawl_runners() -> None:
+    with _CRAWL_RUNNERS_LOCK:
+        runners = list(_CRAWL_RUNNERS.values())
+        _CRAWL_RUNNERS.clear()
+    for runner in runners:
+        try:
+            runner.close()
+        except Exception:
+            # Process shutdown should not be interrupted by async cleanup.
+            pass
+
+
+atexit.register(_close_crawl_runners)
 
 # fix once to express download time
 _exetime = datetime.now().strftime('%y%m%d%H%M') 
@@ -134,9 +166,9 @@ def crawl_news(
         dest_dir=dest_dir,
     )
     try:
-        asyncio.run(crawl)
+        _get_crawl_runner().run(crawl, context=contextvars.copy_context())
     except BaseException:
-        # asyncio.run can fail before it starts the coroutine (for example,
-        # when the process has exhausted its file descriptors).
+        # The runner can fail before scheduling the coroutine (for example,
+        # if the process has exhausted its file descriptors).
         crawl.close()
         raise

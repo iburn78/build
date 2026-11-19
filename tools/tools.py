@@ -15,6 +15,7 @@ df_sector = pd.read_pickle(CLASSIFICATION_PATH)
 sector_structure = json.loads(CLASSIFICATION_STRUCTURE.read_text(encoding="utf-8"))
 _df_sector_lock = RLock()
 
+#%%
 def sync_classification_structure() -> None:
     """Refresh subindustry member codes from the current sector summary."""
     with _df_sector_lock:
@@ -44,8 +45,6 @@ def sync_classification_structure() -> None:
         )
 
 
-sync_classification_structure()
-
 def _save_df_sector() -> None:
     CLASSIFICATION_PATH.parent.mkdir(parents=True, exist_ok=True)
     df_sector.to_pickle(CLASSIFICATION_PATH)
@@ -55,6 +54,102 @@ def _save_df_sector() -> None:
 if "sector_group" not in df_sector.columns and "class" in df_sector.columns:
     df_sector = df_sector.rename(columns={"class": "sector_group"})
     _save_df_sector()
+
+
+def _normalize_stock_code(value: object) -> str:
+    code = str(value).strip()
+    return code.zfill(6) if code.isdigit() else code
+
+
+def _remove_profile_from_components(stock_code: str) -> list[str]:
+    """Remove a profile and all its segments from component membership."""
+    from build.tools.delete_instance import delete_instance
+
+    changed = []
+    for path in sorted(COMPONENTS_DIR.glob("*.json")):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+
+        members = data.get("listed_companies", [])
+        remaining = [
+            member for member in members
+            if _normalize_stock_code(get_id(str(member.get("key", "")))[0]) != stock_code
+        ]
+        if len(remaining) == len(members):
+            continue
+
+        component_key = data.get("key")
+        if not remaining:
+            delete_instance({"objectType": "Component", "objectId": component_key})
+            changed.append(f"deleted empty component {component_key}")
+            continue
+
+        data["listed_companies"] = remaining
+        data["financials"] = None
+        data["updated"] = ""
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=4) + "\n", encoding="utf-8")
+        # The old chart and page still show the removed company. The next
+        # component update rebuilds both from the reduced member list.
+        path.with_suffix(".png").unlink(missing_ok=True)
+        path.with_suffix(".html").unlink(missing_ok=True)
+        changed.append(f"updated component {component_key}")
+
+    return changed
+
+
+def delete_stock_profile(stock_code: str) -> dict:
+    """Remove a delisted profile, segments, generated files, and memberships."""
+    stock_code = _normalize_stock_code(stock_code)
+    if not re.fullmatch(r"\d{6}", stock_code):
+        raise ValueError(f"Invalid stock code: {stock_code!r}")
+
+    from build.tools.delete_instance import delete_profile_by_code
+
+    deleted = delete_profile_by_code(stock_code)
+    changed_components = _remove_profile_from_components(stock_code)
+
+    # Drop the issuer and its segment rows from the source classification.
+    with _df_sector_lock:
+        indexes_to_drop = [
+            index for index in df_sector.index
+            if _normalize_stock_code(get_id(str(index).strip())[0]) == stock_code
+        ]
+        if indexes_to_drop:
+            df_sector.drop(index=indexes_to_drop, inplace=True)
+            _save_df_sector()
+
+    return {
+        "ok": True,
+        "stock_code": stock_code,
+        "deleted_files": deleted["deleted"],
+        "updated_components": changed_components,
+    }
+
+
+def _remove_delisted_profiles() -> None:
+    listed_codes = {
+        _normalize_stock_code(code)
+        for code in df_krx.index
+    }
+    profile_codes = {
+        _normalize_stock_code(raw_code)
+        for raw_code in df_sector.index
+        if not re.search(r"\([A-Za-z]\)$", str(raw_code).strip())
+        and re.fullmatch(r"\d{6}", _normalize_stock_code(raw_code))
+    }
+    delisted_codes = sorted(profile_codes - listed_codes)
+    for stock_code in delisted_codes:
+        result = delete_stock_profile(stock_code)
+        print(
+            f"Removed delisted profile {stock_code}: "
+            f"{len(result['deleted_files'])} files, "
+            f"{len(result['updated_components'])} components updated"
+        )
+    if not delisted_codes:
+        sync_classification_structure()
+
 
 def get_industries(
     company_code: str | None = None,
@@ -200,6 +295,9 @@ def get_id(s: str) -> tuple[str, str | None]:
         return s, None
 
     return s[:m.start()], m.group(1)
+
+
+_remove_delisted_profiles()
 
 class ListedCompany(BaseModel):
     # Holds a company or segment key and display name.

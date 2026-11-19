@@ -13,7 +13,7 @@ from build.models.settings import (
 
 '''
 Deletion follows the following scope: 
-- profiles remove their own files and associated segment files/news while keeping profile news;
+- profiles remove their own files/news and all associated segment files/news;
 - segments, components, and value chains remove their own JSON/PNG/HTML and news directory, leaving their listed companies untouched.
 - The server delegates deletion to a script that matches the exact model key.
 '''
@@ -62,11 +62,63 @@ def _delete_news_dir(news_root: Path, filename: str) -> list[str]:
     shutil.rmtree(news_dir)
     return [str(news_dir)]
 
+def _normalize_stock_code(value: object) -> str:
+    code = str(value).strip()
+    return code.zfill(6) if code.isdigit() else code
+
+def delete_profile_by_code(stock_code: str) -> dict:
+    """Delete a profile, its segments, and all of their generated/news files."""
+    stock_code = _normalize_stock_code(stock_code)
+    profiles = []
+    segments = []
+    for path in PROFILES_DIR.glob("*.json"):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+
+        if data.get("id") is not None:
+            key = str(data.get("key", ""))
+            parent_code = data.get("profile_code") or key.split("(", 1)[0]
+            if _normalize_stock_code(parent_code) == stock_code:
+                segments.append(path)
+        elif _normalize_stock_code(data.get("code") or data.get("key", "")) == stock_code:
+            profiles.append(path)
+
+    if len(profiles) > 1:
+        raise ValueError(f"Profile code is ambiguous: {stock_code}")
+
+    deleted = []
+    if profiles:
+        profile_path = profiles[0]
+        deleted.extend(_delete_model_files(profile_path))
+
+    for segment_path in segments:
+        deleted.extend(_delete_model_files(segment_path))
+
+    # Remove parent and segment news folders, including folders orphaned by
+    # an earlier interrupted cleanup that no longer have matching JSON files.
+    for news_dir in PROFILE_NEWS_DIR.iterdir():
+        if (
+            news_dir.is_dir()
+            and (
+                news_dir.name.startswith(f"{stock_code}_")
+                or news_dir.name.startswith(f"{stock_code}(")
+            )
+        ):
+            shutil.rmtree(news_dir)
+            deleted.append(str(news_dir))
+
+    return {"ok": True, "deleted": deleted}
+
 def delete_instance(data: dict) -> dict:
     model_type = data.get("objectType")
     object_id = data.get("objectId")
     if model_type not in MODEL_DIRS or not isinstance(object_id, str) or not object_id:
         raise ValueError("Invalid model type or identifier")
+
+    if model_type == "Profile":
+        return delete_profile_by_code(object_id)
 
     json_path = _resolve_json_path(model_type, object_id)
     try:
@@ -75,38 +127,9 @@ def delete_instance(data: dict) -> dict:
         raise ValueError(f"Could not read model data: {json_path.name}") from error
 
     filename = json_path.stem
-    profile_code = None
-    if model_type == "Profile":
-        profile_code = model_data.get("code") or model_data.get("key")
-        if not isinstance(profile_code, str) or not profile_code:
-            raise ValueError("Profile data has no valid company code")
-
     deleted = _delete_model_files(json_path)
     if model_type in NEWS_DIRS:
         deleted.extend(_delete_news_dir(NEWS_DIRS[model_type], filename))
-
-    if model_type == "Profile":
-        profile_dir = PROFILES_DIR
-        segment_paths = []
-        for candidate in profile_dir.glob("*.json"):
-            if candidate == json_path:
-                continue
-            try:
-                candidate_data = json.loads(candidate.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
-                continue
-            is_segment = candidate_data.get("id") is not None
-            belongs_to_profile = candidate_data.get("profile_code") == profile_code or (
-                isinstance(candidate_data.get("key"), str)
-                and candidate_data["key"].startswith(f"{profile_code}(")
-                and is_segment
-            )
-            if is_segment and belongs_to_profile:
-                segment_paths.append((candidate, candidate.stem))
-
-        for segment_path, segment_filename in segment_paths:
-            deleted.extend(_delete_model_files(segment_path))
-            deleted.extend(_delete_news_dir(PROFILE_NEWS_DIR, segment_filename))
 
     return {"ok": True, "deleted": deleted}
 
