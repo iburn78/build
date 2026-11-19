@@ -77,9 +77,9 @@ OVERVIEW_REFRESH_THRES = 90 # days
 # - business
 FORCE_LLM_TO_REGEN_BUSINESS = False # True: even without new info or within refresh cycle, this forces regenerate business. use when LLM command changed and leave False
 if FORCE_LLM_TO_REGEN_BUSINESS: 
-    print("====================================================")
-    print("FORCE_LLM_TO_REGEN_BUSINESS is ON ---> Shut this OFF")
-    print("====================================================")
+    print("====================================================", file=sys.stderr)
+    print("FORCE_LLM_TO_REGEN_BUSINESS is ON ---> Shut this OFF", file=sys.stderr)
+    print("====================================================", file=sys.stderr)
 PROFILE_SEARCH_THEME = ['실적', '전망']
 
 # - other
