@@ -13,10 +13,9 @@ from build.tools.ggl_news_feed import (
     close_google_news_browser,
     get_google_news_feed,
 )
+from build.models.settings import NEWS_CUTOFF_MONTHS, NUM_TO_CRAWL_DEFAULT, SHOW_CRAWL_RES
 
-CUTOFF_MONTHS=3 
-MAX_RESULT=10 
-SHOW_RES=True
+CUTOFF_MONTHS=NEWS_CUTOFF_MONTHS
 
 _CRAWL_RUNNERS = {}
 _CRAWL_RUNNERS_LOCK = RLock()
@@ -154,8 +153,8 @@ def crawl_news(
         query, 
         kr=True, 
         cutoff_months=CUTOFF_MONTHS, 
-        max_result=MAX_RESULT, 
-        show_res=SHOW_RES,
+        max_result=NUM_TO_CRAWL_DEFAULT, 
+        show_res=SHOW_CRAWL_RES,
         dest_dir=None,
     ):
     crawl = _crawl_news(

@@ -27,6 +27,7 @@ from build.models.settings import (
     REV_ANNUAL_THRES_2ND_SEGMENT_CREATION,
     SEGMENT_MIN_REVENUE_SHARE,
     PROFILE_SEARCH_THEME,
+    FORCE_LLM_TO_REGEN_BUSINESS,
 )
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 
@@ -177,6 +178,7 @@ Rules:
 - Return key_products as one string per segment, in segment order. Put multiple representative products or services in a comma-separated string.
 - Return competitors as one string per segment, in segment order. Put multiple direct competitor company names in a comma-separated string.
 - Keep segments, revenue_share, opmargin, trend, key_products, and competitors aligned by index and equal in length.
+- Set tags to exactly "#지주" only when the company is clearly a holding company and holding-company activities (owning/managing subsidiaries and receiving related income) are its main business. A minor share of revenue from the company's own operating businesses is acceptable, but holding-company activities should account for the major share. If it is primarily an operating company, or the evidence is unclear, leave tags empty.
 - Keep the answers concise and structured.
 - Use Korean terminology when it is standard in Korean business language; otherwise, use English.
 """
@@ -189,7 +191,8 @@ Rules:
             return None
 
         # ensure defaults again
-        bs.tags = ""
+        # Keep only the profile tag explicitly requested from the business model.
+        bs.tags = "#지주" if "#지주" in (bs.tags or "") else ""
         bs.notes = ""
         bs.create_segments = False
         bs.search_theme = PROFILE_SEARCH_THEME
@@ -474,7 +477,8 @@ class Profile(JsonModel):
                 and len(self.info_section.opmargin) != segment_count
             )
         )
-        if (
+        force_business_regeneration = FORCE_LLM_TO_REGEN_BUSINESS
+        if force_business_regeneration or (
             not self.info_section.reviewed
             and not _info_section
             and (overview_changed or research_changed or business_needs_refresh)

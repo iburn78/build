@@ -7,7 +7,9 @@ from pathlib import Path
 # Project parameters:
 #------------------------------------------------------------------
 
-OLLAMA_ACCOUNT = 'it' # 'it', 'cp', 'ak', 'hm' (hotmail)
+OLLAMA_ACCOUNT = 'cp' # 'it', (13 monthly)
+                      # 'cp', (19 monthly)
+                      # 'ak', 'hm' (hotmail)
 
 # LLMs: local, ollama, openai
 DEFAULT_BIZ_LLM = 'ollama' 
@@ -29,22 +31,25 @@ FORCE_FINANCIALS_REGENERATE = False
 # The .md research file follows separate refresh logic.
 
 # news
-NEWS_REFRESH_THRES = 4 # business days (excl. weekends and KR holidays)
-NEWS_REFRESH_THRES_HIGH_MARCAP = 4 # business days (excl. weekends and KR holidays)
-NEWS_REFRESH_THRES_LOW_MARCAP = 10 # business days (excl. weekends and KR holidays)
-NEWS_REFRESH_THRES_MARCAP = 5e11
+NEWS_CUTOFF_MONTHS = 6 # months (applied to crawl not to llm)
+NEWS_REFRESH_THRES = 7 # business days (excl. weekends and KR holidays) - applied to components and valuechains
+NEWS_REFRESH_THRES_HIGH_MARCAP = 3 # business days - to profiles and segments
+NEWS_REFRESH_THRES_LOW_MARCAP = 7 
+NEWS_REFRESH_THRES_MARCAP = 1e12
 NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
+NUM_TO_CRAWL_DEFAULT = 10 # max 10 articles
+SHOW_CRAWL_RES = True
 NUM_TO_FEED_LLM = 10 # number of articles to provide to LLM
 TRIGGER_LLM_WEB_SEARCH = 3 # run a news-focused LLM web search when this many or fewer relevant items remain
 # os.environ["BUILD_COLLECT_NEWS"] = "0" # to override defaults - True: 1 (mac), False: 0 (other)
-NEWS_WEB_SEARCH_TOOL_ENABLE = False # if not sufficient news is collected, then launch llm web seaerch for news (effective only when BIULD_COLLECT_NEWS is on)
+NEWS_WEB_SEARCH_TOOL_ENABLE = True # if not sufficient news is collected, then launch llm web seaerch for news (effective only when BIULD_COLLECT_NEWS is on)
 
 # research
 LLM_RESEARCH_REFRESH_THRES = 90 # days
 SEARCH_CONTEXT_SIZE = "medium" # openai setting
 MAX_RESULT_OLLAMA_WEB_SEARCH = 7  # None uses Ollama's maximum of 10 results
 OLLAMA_WEB_SEARCH_RESULT_CONTENT_CHARS = 5000  # Set to None to include full result content
-os.environ["BUILD_LLM_RESEARCH"] = "0" # to override defaults - True: 1 (mac), False: 0 (other)
+# os.environ["BUILD_LLM_RESEARCH"] = "0" # to override defaults - True: 1 (mac), False: 0 (other)
 
 # base-mearsure periods
 BASE_PERIOD = 120 # days
@@ -70,6 +75,11 @@ NUM_THREAD_TO_RUN = 8
 OVERVIEW_REFRESH_THRES = 90 # days
 
 # - business
+FORCE_LLM_TO_REGEN_BUSINESS = False # True: even without new info or within refresh cycle, this forces regenerate business. use when LLM command changed and leave False
+if FORCE_LLM_TO_REGEN_BUSINESS: 
+    print("====================================================")
+    print("FORCE_LLM_TO_REGEN_BUSINESS is ON ---> Shut this OFF")
+    print("====================================================")
 PROFILE_SEARCH_THEME = ['실적', '전망']
 
 # - other

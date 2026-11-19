@@ -37,7 +37,10 @@ from build.models.settings import (
     FINANCIALS_UPDATE_PERIOD_HR,
     FORCE_FINANCIALS_REGENERATE,
     NUM_THREAD_TO_RUN,
-    NEWS_REFRESH_THRES, 
+    NEWS_REFRESH_THRES,
+    NEWS_REFRESH_THRES_HIGH_MARCAP,
+    NEWS_REFRESH_THRES_LOW_MARCAP,
+    NEWS_REFRESH_THRES_MARCAP,
     NUM_TO_CRAWL, 
     NUM_TO_FEED_LLM,
     NEWS_WEB_SEARCH_TOOL_ENABLE,
@@ -74,14 +77,14 @@ class InfoSection(BaseModel):
 class NewsModel(BaseModel):
     updated: str = ""
 
-    def needs_refresh(self):
+    def needs_refresh(self, threshold=NEWS_REFRESH_THRES):
         if not self.updated:
             return True
         try:
             updated_at = datetime.fromisoformat(self.updated)
             if updated_at.tzinfo is not None:
                 return True
-            return business_days_elapsed(updated_at, datetime.now()) >= NEWS_REFRESH_THRES
+            return business_days_elapsed(updated_at, datetime.now()) >= threshold
         except (TypeError, ValueError):
             return True
 
@@ -511,7 +514,20 @@ class JsonModel(BaseModel, ABC):
         if not COLLECT_NEWS:
             return False
         news = getattr(self, "news", None)
-        if news is None or news.needs_refresh():
+        if news is None:
+            return True
+        threshold = NEWS_REFRESH_THRES
+        if type(self).__name__ in {"Profile", "Segment"}:
+            try:
+                marcap = float(self.financials["shape"]["financials"]["marcap"])
+            except (AttributeError, KeyError, TypeError, ValueError):
+                marcap = None
+            threshold = (
+                NEWS_REFRESH_THRES_HIGH_MARCAP
+                if marcap is not None and math.isfinite(marcap) and marcap >= NEWS_REFRESH_THRES_MARCAP
+                else NEWS_REFRESH_THRES_LOW_MARCAP
+            )
+        if news.needs_refresh(threshold):
             return True
         # A recent empty summary must not suppress collection retries after a
         # failed Google News redirect or an empty crawl.
