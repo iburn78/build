@@ -67,7 +67,7 @@ Articles:
 
     def _get_llm_research_request_text(self, target: JsonModel):
         return f"""
-Research the industry value chain for {target.key} using web search. Write a concise Korean
+Research the industry value chain for {target.get_search_key()} using web search. Write a concise Korean
 Markdown report describing the value chain stages, major participants and their roles,
 profit pools and bargaining power, recent structural changes, demand drivers, and key risks.
 Cite source URLs and distinguish reported facts from forecasts.

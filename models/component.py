@@ -66,7 +66,7 @@ Articles:
 
     def _get_llm_research_request_text(self, target: JsonModel):
         return f"""
-Research the current industry landscape for the sector: {target.key}.
+Research the current industry landscape for the sector: {target.get_search_key()}.
 Use web search and write a concise Korean Markdown report covering market size and growth,
 major demand drivers, technologies and trends, leading companies and competitive dynamics,
 and material risks. Cite source URLs and distinguish reported facts from forecasts.

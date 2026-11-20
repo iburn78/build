@@ -367,7 +367,8 @@ class LLM_Manager(ABC):
         if self.news_search_agent is None:
             print(f"Skipping LLM news web search for {target.key}: web search is unavailable for {self.news_mode}")
             return None
-        prompt = (f"Find recent news relevant to {target.key} ({target.get_search_key()}). "
+        search_key = target.get_search_key()
+        prompt = (f"Find recent news relevant to {search_key}. "
                   "Use web_search to find concrete news articles, prioritize the latest developments, "
                   "and write a concise Korean Markdown digest. Include article titles, dates, source URLs, "
                   "and factual summaries. Ignore ambiguous name matches unrelated to the subject.")
@@ -648,8 +649,12 @@ class JsonModel(BaseModel, ABC):
 
     @abstractmethod
     def get_search_key(self, sk) -> str:
+        # Model keys for components/value chains may begin with a numeric
+        # taxonomy code (for example, "1121 Semiconductors" or "0 KRX").
+        # Keep that identifier in storage, but omit it from search keywords.
+        sk = re.sub(r"^\s*\d+\s+", "", sk)
         # \w preserves letters, numbers, and underscores, \s preserves whitespace.
-        # replaces underscores and collapses multiple spaces into one.
+        # Replaces underscores and collapses multiple spaces into one.
         sk = re.sub(r'[^\w\s]', ' ', sk)
         sk = re.sub(r'[_\s]+', ' ', sk).strip()
         return sk
