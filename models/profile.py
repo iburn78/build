@@ -1,6 +1,7 @@
 import shutil
 import hashlib
 import math
+import json
 from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
@@ -14,7 +15,7 @@ from build.models.json_model import (
     LLM_Manager,
 )
 from build.models.segment import Segment
-from build.tools.tools import ListedCompany, get_id, get_name, get_FN_GUIDE_url
+from build.tools.tools import ListedCompany, df_krx, get_id, get_name, get_FN_GUIDE_url
 from build.models.settings import (
     PROFILES_DIR,
     PROFILE_NEWS_DIR,
@@ -544,6 +545,22 @@ class Profile(JsonModel):
         try:
             listed_company = ListedCompany.from_key(key)
         except ValueError:
+            code, _segment_id = get_id(str(key).strip())
+            if code and code not in df_krx.index:
+                existing_path = cls._get_json_path_from_prefix(code)
+                if existing_path is not None:
+                    try:
+                        existing_data = json.loads(existing_path.read_text(encoding="utf-8"))
+                    except (OSError, json.JSONDecodeError):
+                        existing_data = {}
+                    if existing_data.get("code") == code:
+                        profile_name = existing_data.get("name") or "Unknown name"
+                        print("------------------------------")
+                        print(f"Potentially delisted: {code} {profile_name}")
+                        print("------------------------------")
+                        from build.tools.tools import delete_stock_profile
+
+                        delete_stock_profile(code)
             listed_company = ListedCompany.from_name(key)
 
         code, id = get_id(listed_company.key)
