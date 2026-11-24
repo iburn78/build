@@ -19,7 +19,7 @@ KRW_UNIT_KR = {
     1e15: '1k jo',
 }
 
-def is_KRX_open(now=None, strict=False):
+def is_volume_cutoff_required(now=None, strict=False):
     """
     Returns True if KRX regular market is open now.
     
@@ -29,6 +29,9 @@ def is_KRX_open(now=None, strict=False):
     - 09:00 ~ 15:30 KST (if strict==True)
     - or ~ 12:00 KST (if strict==False)
     """
+    # this is introduced as today's volume data is incomplete during the market open.
+    # to disable this, just return False
+    return False
 
     kst = ZoneInfo("Asia/Seoul")
 

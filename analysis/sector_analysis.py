@@ -16,10 +16,10 @@ from matplotlib.ticker import FuncFormatter
 from data.tools import load
 from data.tools.tools import set_KoreanFonts
 from build.tools.tools import df_krx, get_id, get_name
-from build.tools.analysis_tools import DEFAULT_KRW_UNIT, KRW_UNIT_KR, is_KRX_open, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, add_dfs
+from build.tools.analysis_tools import DEFAULT_KRW_UNIT, KRW_UNIT_KR, is_volume_cutoff_required, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, add_dfs
 
 '''
-ma: MarCap (until last day if is_KRX_open == True; if strict False then include today if it is after 12:00), Amount
+ma: MarCap (until last day if is_volume_cutoff_required == True; if strict False then include today if it is after 12:00), Amount
 outshares: # shares outstanding
 volume: # shares traded 
 amount: money amount traded (in a period)
@@ -121,7 +121,7 @@ class FinancialsData:
         # Market-open handling excludes today's partial data. Include that
         # decision in the key so a long-running process doesn't reuse a frame
         # prepared under a different date/session state.
-        cache_key = (self.code, self.unit, (now.date(), is_KRX_open(now=now)))
+        cache_key = (self.code, self.unit, (now.date(), is_volume_cutoff_required(now=now)))
         with self._raw_data_lock:
             frames = self._raw_data_cache.get(cache_key)
             if frames is None:
@@ -163,7 +163,7 @@ class FinancialsData:
         # as volume is not a full day data
         # ----------------------------------------------------------------------------
         now = now or datetime.now()
-        if is_KRX_open(now=now):
+        if is_volume_cutoff_required(now=now):
             ma_data = ma_data[ma_data.index.date != now.date()]
 
         return ma_data
