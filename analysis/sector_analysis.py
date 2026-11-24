@@ -505,7 +505,11 @@ class SectorAnalysis:
         }
         r = self.fr_data[-4:].sum().iat[0]
         o = self.fr_data[-4:].sum().iat[1]
-        res['opmargin(%)']['ltm'] = round_sig(o/r*100, n=3)
+        res['opmargin(%)']['ltm'] = (
+            round_sig(o/r*100, n=3)
+            if pd.notna(r) and r != 0 and pd.notna(o)
+            else np.nan
+        )
 
         # ------------------------------------------------------------------
         # PER

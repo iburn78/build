@@ -1,4 +1,3 @@
-import errno
 import json
 import re
 import sys
@@ -9,14 +8,9 @@ from build.models.profile import Profile
 from build.models.component import Component
 from build.models.valuechain import ValueChain
 from build.models.segment import Segment
-from build.models.settings import (
-    PROFILES_DIR,
-    COMPONENTS_DIR,
-    VALUECHAINS_DIR,
-)
+from build.models.settings import PROFILES_DIR, COMPONENTS_DIR, VALUECHAINS_DIR
 from build.tools.tools import df_sector, sector_structure
-
-PROCESS_STEP = 20 
+from tqdm import tqdm
 
 @contextmanager
 def _cache_model_items_for_run():
@@ -64,16 +58,13 @@ def update_profiles() -> None:
         # processing those files here repeats the same work.
         if "profile_code" in data and "segment_name" in data:
             continue
-        profile_items.append((path, data))
+        profile_items.append(data['key'])
 
     total = len(profile_items)
     print(f"Profiles to check: {total}", file=sys.stderr, flush=True)
 
-    for index, (_path, data) in enumerate(profile_items, start=1):
-        key = data["key"]
+    for key in tqdm(profile_items, total=total):
         Profile.get_item(key)
-        if index % PROCESS_STEP == 0 or index == total:
-            print(f"({index}/{total}) checked", file=sys.stderr, flush=True)
 
 
 def update_unclassified_profiles() -> None:
@@ -94,49 +85,20 @@ def update_unclassified_profiles() -> None:
         if pd.isna(classification)
         and str(member_code).strip()
     })
-    print(
-        f"Unclassified profiles to check: {len(profile_keys)}",
-        file=sys.stderr,
-        flush=True,
-    )
-
     if not profile_keys:
         return
-
+    else: 
+        print(
+            f"Unclassified profiles to check: {len(profile_keys)}",
+            file=sys.stderr,
+            flush=True,
+        )
     total = len(profile_keys)
-    for index, key in enumerate(profile_keys, start=1):
+    for key in tqdm(profile_keys, total=total):
         try:
             Profile.get_item(key)
         except Exception as error:
-            if (
-                isinstance(error, OSError) and error.errno == errno.EMFILE
-            ) or "too many open files" in str(error).lower():
-                raise SystemExit(
-                    f"Open-file limit reached while processing {key}; stopping this run."
-                )
-
-            if _is_fnguide_dns_failure(error):
-                raise SystemExit(
-                    f"FnGuide DNS resolution failed for {key}; stopping after "
-                    f"{index - 1} completed profiles."
-                )
-
             print(f"Skipping {key}: {error}", file=sys.stderr, flush=True)
-
-        if index % PROCESS_STEP == 0 or index == total:
-            print(f"({index}/{total}) checked", file=sys.stderr, flush=True)
-
-
-def _is_fnguide_dns_failure(error: Exception) -> bool:
-    message = str(error).lower()
-    return (
-        "wcomp.fnguide.com" in message
-        and (
-            "nameresolutionerror" in message
-            or "failed to resolve" in message
-            or "nodename nor servname" in message
-        )
-    )
 
 
 def update_components() -> None:
@@ -144,11 +106,9 @@ def update_components() -> None:
     total = len(paths)
     print(f"Components to check: {total}", file=sys.stderr, flush=True)
 
-    for index, path in enumerate(paths, start=1):
+    for path in tqdm(paths, total=total):
         data = json.loads(path.read_text(encoding="utf-8"))
         Component.get_item(data["key"])
-        if index % PROCESS_STEP == 0 or index == total:
-            print(f"({index}/{total}) checked", file=sys.stderr, flush=True)
 
 
 def update_valuechains() -> None:
@@ -156,21 +116,9 @@ def update_valuechains() -> None:
     total = len(paths)
     print(f"Valuechains to check: {total}", file=sys.stderr, flush=True)
 
-    for index, path in enumerate(paths, start=1):
+    for path in tqdm(paths, total=total):
         data = json.loads(path.read_text(encoding="utf-8"))
         ValueChain.get_item(data["key"])
-        if index % PROCESS_STEP == 0 or index == total:
-            print(f"({index}/{total}) checked", file=sys.stderr, flush=True)
-
-    # creating all including valuechain: 0 KRX
-    sector_keys = [
-        f"{sector['code']} {sector['name']['ko']}"
-        for sector in sector_structure.get("sectors", [])
-    ]
-    ValueChain.get_item(
-        key="0 KRX",
-        valuechain_keys=sector_keys,
-    )
 
 
 def create_update_from_classification() -> None:
@@ -192,9 +140,19 @@ def create_update_from_classification() -> None:
             continue
         members_by_subindustry[classification_code].append(str(member_code).strip())
 
+    print(
+        "Classification-derived components and valuechains updates....",
+        file=sys.stderr,
+        flush=True,
+    )
     for sector in sector_structure.get("sectors", []):
+        print(
+            f"sector {sector['name']['ko']} ({sector['code']}):", 
+            file=sys.stderr,
+            flush=True,
+        )
         group_valuechains = []
-        for group in sector.get("groups", []):
+        for group in tqdm(sector.get("groups", []), total = len(sector.get("groups", []))):
             industry_valuechains = []
             group_name = f"{group['code']} {group['name']['ko']}"
             for industry in group.get("industries", []):
@@ -256,17 +214,25 @@ def create_update_from_classification() -> None:
             _exact_key_only=True,
         )
 
-    print(
-        "Classification-derived components and valuechains refreshed.",
-        file=sys.stderr,
-        flush=True,
+    # creating all including valuechain: 0 KRX
+    sector_keys = [
+        f"{sector['code']} {sector['name']['ko']}"
+        for sector in sector_structure.get("sectors", [])
+    ]
+    ValueChain.get_item(
+        key="0 KRX",
+        valuechain_keys=sector_keys,
     )
 
 
 if __name__ == "__main__":
     with _cache_model_items_for_run():
         update_unclassified_profiles()
+
         update_profiles()
         create_update_from_classification()
+
+        # update custom models
         update_components() # reuses profiles/segments updated in the first pass
         update_valuechains() # reuses components updated in the second pass
+

@@ -848,4 +848,4 @@ def render_html(target_class,
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text(html, encoding="utf-8")
-    print(f"Saved: {output_file.name}")
+    # print(f"Saved: {output_file.name}")

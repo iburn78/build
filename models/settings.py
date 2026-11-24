@@ -21,7 +21,7 @@ USAGE_REQUEST_LIMIT = 2 # maximum model requests per research run (minimum is 2:
 WEB_SEARCH_MAX_CALLS_PER_REQUEST = 1
 
 # financials
-FINANCIALS_UPDATE_PERIOD_HR = 6 # Hours 
+FINANCIALS_UPDATE_PERIOD_HR = 2 # Hours 
 # if set to 0, then financials eligible for recalculation on each update: if the recalculated financials are unchanged, the JSON and existing PNG are left alone.
 # The HTML can still be regenerated if child financials changed or the HTML is missing.
 # The .md research file follows separate refresh logic, so it isn’t automatically regenerated just because the financial update period is zero.
