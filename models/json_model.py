@@ -9,7 +9,7 @@ from pydantic_ai.capabilities import NativeTool
 from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
 from pydantic_ai.settings import ModelSettings
 from openai import AsyncOpenAI
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, ClassVar
 import requests
 import json
@@ -43,6 +43,7 @@ from build.models.settings import (
     NEWS_REFRESH_THRES_MARCAP,
     NUM_TO_CRAWL, 
     NUM_TO_FEED_LLM,
+    NEWS_WEB_SEARCH_RECENCY_DAYS,
     NEWS_WEB_SEARCH_TOOL_ENABLE,
     AGENT_RETRIES,
     SEARCH_CONTEXT_SIZE,
@@ -340,11 +341,21 @@ class LLM_Manager(ABC):
                     path.unlink(missing_ok=True)
 
         has_llm_search = any("LLM web search on news" in path.name for path, _ in kept)
+        latest_article_date = self._latest_news_article_date(kept)
+        news_is_stale = (
+            latest_article_date is None
+            or (datetime.now().date() - latest_article_date).days > NEWS_WEB_SEARCH_RECENCY_DAYS
+        )
         if (
             NEWS_WEB_SEARCH_TOOL_ENABLE
-            and len(kept) <= TRIGGER_LLM_WEB_SEARCH
+            and (len(kept) <= TRIGGER_LLM_WEB_SEARCH or news_is_stale)
             and not has_llm_search
         ):
+            if news_is_stale:
+                print(
+                    f"News for {target.key} has no source within "
+                    f"{NEWS_WEB_SEARCH_RECENCY_DAYS} days; trying web search"
+                )
             search_path = self._generate_news_search(target)
             # Make the fresh search note available in this summary run.
             if search_path is not None:
@@ -362,6 +373,35 @@ class LLM_Manager(ABC):
 
         res.updated = datetime.now().strftime("%Y-%m-%d %H:%M")
         return res
+
+    @staticmethod
+    def _latest_news_article_date(articles) -> date | None:
+        """Return the newest publication date among saved news articles."""
+        today = datetime.now().date()
+        dates = []
+        for path, content in articles:
+            candidates = []
+            published = re.search(
+                r"(?im)^\s*published:\s*(\d{4}-\d{2}-\d{2})\s*$", content
+            )
+            if published:
+                candidates.append(published.group(1))
+            elif "LLM web search on news" in path.name:
+                candidates.extend(re.findall(r"\b(20\d{2}-\d{2}-\d{2})\b", content))
+            else:
+                filename_date = re.match(r"^(\d{4}-\d{2}-\d{2})_", path.name)
+                if filename_date:
+                    candidates.append(filename_date.group(1))
+
+            for candidate in candidates:
+                try:
+                    published_date = datetime.strptime(candidate, "%Y-%m-%d").date()
+                except ValueError:
+                    continue
+                if published_date <= today:
+                    dates.append(published_date)
+
+        return max(dates) if dates else None
 
     def _generate_news_search(self, target: "JsonModel"):
         if self.news_search_agent is None:
@@ -521,6 +561,8 @@ class JsonModel(BaseModel, ABC):
         if type(self).__name__ in {"Profile", "Segment"}:
             try:
                 marcap = float(self.financials["shape"]["financials"]["marcap"])
+                unit = float(self.financials.get("meta", {}).get("unit", 1))
+                marcap *= unit
             except (AttributeError, KeyError, TypeError, ValueError):
                 marcap = None
             threshold = (

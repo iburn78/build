@@ -176,8 +176,12 @@ def build_model_plot_data(model_type: str, model_key: str) -> dict:
     points = []
     seen = set()
 
-    def append_component(component_data: dict, component_path: Path) -> None:
+    def append_component(
+        component_data: dict, component_path: Path, *, include_profiles: bool = True
+    ) -> None:
         _append_model_point(points, component_data, component_path, "Component", seen)
+        if not include_profiles:
+            return
         for listed in component_data.get("listed_companies", []):
             record = profiles.get(listed.get("key"))
             if not record:
@@ -211,7 +215,7 @@ def build_model_plot_data(model_type: str, model_key: str) -> dict:
                 if component_record is None:
                     continue
                 component_data, component_path = component_record
-                append_component(component_data, component_path)
+                append_component(component_data, component_path, include_profiles=False)
             for child_key in valuechain_data.get("valuechain_keys", []):
                 child_record = valuechains.get(child_key)
                 if child_record is None:

@@ -162,8 +162,31 @@ class Profile_LLM_Manager(LLM_Manager):
         self.business_agent = self._make_agent(llm_mode=biz_mode, output_type=Business)
         super().__init__(news_type=News, research_mode=llm_research_mode)
 
-    def gen_business(self, overview: Overview, llm_research: str = "") -> Business | None:
+    def gen_business(
+        self,
+        overview: Overview,
+        llm_research: str = "",
+        existing_business: Business | None = None,
+    ) -> Business | None:
 #----------------------------------------------------------------------------------------------------
+        reviewed_segments = ""
+        segment_instruction = (
+            f"- For segments, identify 1 to {MAX_SEGMENTS} of the company's core business areas. "
+            "Do not list products or competitors as segments."
+        )
+        if existing_business is not None and existing_business.reviewed:
+            reviewed_values = {
+                field: getattr(existing_business, field)
+                for field in ("tags", "notes", "segments", "create_segments", "reviewed")
+            }
+            reviewed_segments = (
+                "\nReviewed business values to preserve exactly:\n"
+                f"{json.dumps(reviewed_values, ensure_ascii=False)}\n"
+            )
+            segment_instruction = (
+                "- Use exactly the reviewed segment names and order shown above. Do not add, "
+                "remove, rename, or reorder segments."
+            )
         request_text = f"""
 Extract a company profile from the recent business summary below.
 
@@ -171,8 +194,9 @@ Extract a company profile from the recent business summary below.
 
 {llm_research}
 
+{reviewed_segments}
 Rules:
-- For segments, identify 1 to {MAX_SEGMENTS} of the company's core business areas. Do not list products or competitors as segments.
+{segment_instruction}
 - Return revenue_share as one numeric fraction per segment, in segment order, totaling 1. Estimate from the provided information when exact shares are unavailable.
 - Return opmargin as one operating-margin fraction per segment (for example, 0.12 means 12%). Use null when research does not support an estimate; do not use the company-wide margin.
 - Return trend as one brief outlook for each segment, in segment order, using concise phrases such as improving, stable, declining, or facing stronger competition.
@@ -229,6 +253,7 @@ Rules:
 - Use only information explicitly stated in the articles.
 - Merge duplicate points across articles.
 - Keep each fact specific to the company and time-bound.
+- Prefer the newest dated reporting; state dates and do not present older news as the latest development.
 - Use empty lists when the articles contain no supported facts or issues.
 - Write in Korean.
 
@@ -419,6 +444,25 @@ class Profile(JsonModel):
         self.info_section.recomm_segs = recommended
         return True
 
+    @staticmethod
+    def _merge_regenerated_business(
+        existing: Business, generated: Business
+    ) -> Business:
+        """Keep reviewed business controls while refreshing generated details."""
+        merged = generated.model_dump()
+        for field in ("tags", "notes", "segments", "create_segments", "reviewed"):
+            merged[field] = getattr(existing, field)
+
+        # Segment-indexed data must stay aligned with the preserved segment names.
+        # If generation returns a malformed list, keep that field's prior values.
+        segment_count = len(existing.segments)
+        for field in ("revenue_share", "opmargin", "trend", "key_products", "competitors"):
+            values = merged.get(field)
+            if values is not None and len(values) != segment_count:
+                merged[field] = getattr(existing, field)
+
+        return Business.model_validate(merged)
+
     def _update(self, **kwargs):
         overview_changed = False
         info_section_changed = False
@@ -484,9 +528,19 @@ class Profile(JsonModel):
             and not _info_section
             and (overview_changed or research_changed or business_needs_refresh)
         ):
-            generated_business = self.llm_manager.gen_business(self.overview, research)
+            existing_business = self.info_section
+            preserve_reviewed = existing_business.reviewed
+            generated_business = self.llm_manager.gen_business(
+                self.overview,
+                research,
+                existing_business=existing_business if preserve_reviewed else None,
+            )
             if generated_business:
-                self.info_section = generated_business
+                self.info_section = (
+                    self._merge_regenerated_business(existing_business, generated_business)
+                    if preserve_reviewed
+                    else generated_business
+                )
                 info_section_changed = True
 
         if overview_changed or self._news_needs_refresh():

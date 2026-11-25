@@ -31,16 +31,17 @@ FORCE_FINANCIALS_REGENERATE = False
 # The .md research file follows separate refresh logic.
 
 # news
-NEWS_CUTOFF_MONTHS = 6 # months (applied to crawl not to llm)
+NEWS_CUTOFF_MONTHS = 6 # Maximum age of Google News search results; not a freshness target.
 NEWS_REFRESH_THRES = 7 # business days (excl. weekends and KR holidays) - applied to components and valuechains
 NEWS_REFRESH_THRES_HIGH_MARCAP = 3 # business days - to profiles and segments
 NEWS_REFRESH_THRES_LOW_MARCAP = 7 
-NEWS_REFRESH_THRES_MARCAP = 1e12
+NEWS_REFRESH_THRES_MARCAP = 1e12 # KRW; financials marcap is scaled by meta.unit
+NEWS_WEB_SEARCH_RECENCY_DAYS = 7 # Calendar days; stale sources trigger web-search fallback.
 NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
 NUM_TO_CRAWL_DEFAULT = 10 # max 10 articles
 SHOW_CRAWL_RES = True
 NUM_TO_FEED_LLM = 10 # number of articles to provide to LLM
-TRIGGER_LLM_WEB_SEARCH = 3 # run a news-focused LLM web search when this many or fewer relevant items remain
+TRIGGER_LLM_WEB_SEARCH = 3 # Search when relevant items are few, or when all kept sources are stale.
 # os.environ["BUILD_COLLECT_NEWS"] = "0" # to override defaults - True: 1 (mac), False: 0 (other)
 NEWS_WEB_SEARCH_TOOL_ENABLE = True # if not sufficient news is collected, then launch llm web seaerch for news (effective only when BIULD_COLLECT_NEWS is on)
 
@@ -75,7 +76,11 @@ NUM_THREAD_TO_RUN = 8
 OVERVIEW_REFRESH_THRES = 90 # days
 
 # - business
-FORCE_LLM_TO_REGEN_BUSINESS = False # True: even without new info or within refresh cycle, this forces regenerate business. use when LLM command changed and leave False
+# Set True for a one-time business-schema refresh after adding/removing Business
+# fields, then set back to False. Reviewed profiles regenerate safely: reviewed
+# tags, notes, segments, create_segments, and reviewed are preserved, while
+# segment estimates and other generated fields can be refreshed.
+FORCE_LLM_TO_REGEN_BUSINESS = False
 if FORCE_LLM_TO_REGEN_BUSINESS: 
     print("====================================================", file=sys.stderr)
     print("FORCE_LLM_TO_REGEN_BUSINESS is ON ---> Shut this OFF", file=sys.stderr)
