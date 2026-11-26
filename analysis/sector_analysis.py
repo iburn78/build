@@ -1019,7 +1019,7 @@ class SectorAnalysis:
         # annotations
         # -----------------------------------------------------
         ax.annotate(
-            f"rm:{self._aggr_ma_plotdata.loc['recent_inc', 'marcap']:.0%}",
+            f"rm:{self._aggr_ma_plotdata.loc['recent_inc', 'marcap']:.1%}",
             xy=(x[-1], self._aggr_dataset['marcap'].iloc[-1]),
             xytext=(-3, 5),
             textcoords='offset points',
