@@ -744,6 +744,21 @@ def _render_mv_plot(code: str | None, target_type: str):
     '''
 
 
+def _render_fh_plot(code: str | None, target_type: str, target_key: str):
+    """Render a foreign-holding plot button for a profile or component."""
+    if target_type in {"Profile", "Segment"} and code:
+        return f'''
+        <button class="fh-plot-link" type="button" aria-haspopup="dialog"
+            data-code="{escape(str(code), quote=True)}" title="Foreign holding plot (f)">FH plot (f)</button>
+        '''
+    if target_type == "Component":
+        return f'''
+        <button class="fh-plot-link" type="button" aria-haspopup="dialog"
+            data-component="{escape(str(target_key), quote=True)}" title="Foreign holding plot (f)">FH plot (f)</button>
+        '''
+    return ""
+
+
 # list all news articles in the given folder newest first
 def _render_news(news_dir: Path, target_type: str, target_key: str):
     if not news_dir.exists():
@@ -819,6 +834,7 @@ def render_html(target_class,
     qual_section = _render_qualitative(qual_dict, target_class, target_key, info_section_validator)
     roma_markup = _render_roma_plot(roma_codes, target_key)
     mv_markup = _render_mv_plot(mv_plot_code, target_class)
+    fh_markup = _render_fh_plot(mv_plot_code, target_class, target_key)
     mp_markup = ""
     if target_class in {"Component", "ValueChain"}:
         mp_markup = f'''
@@ -833,7 +849,7 @@ def render_html(target_class,
         show_delete=show_research_delete,
         updated=llm_research_updated,
         target_type=target_class,
-        extra_action=roma_markup + mv_markup + mp_markup,
+        extra_action=roma_markup + mp_markup + mv_markup + fh_markup,
     ) + _render_news(news_dir, target_class, target_key)
 
     html = template_html.read_text(encoding="utf-8")

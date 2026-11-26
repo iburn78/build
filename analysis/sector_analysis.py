@@ -19,7 +19,7 @@ from build.tools.tools import df_krx, get_id, get_name
 from build.tools.analysis_tools import DEFAULT_KRW_UNIT, KRW_UNIT_KR, is_volume_cutoff_required, get_slope_intercept, round_sig, calc_increment, calc_alpha_beta, add_dfs
 
 '''
-ma: MarCap (until last day if is_volume_cutoff_required == True; if strict False then include today if it is after 12:00), Amount
+ma: Marcap (until last day if is_volume_cutoff_required == True; if strict False then include today if it is after 12:00), Amount
 outshares: # shares outstanding
 volume: # shares traded 
 amount: money amount traded (in a period)
@@ -389,7 +389,7 @@ class SectorAnalysis:
             - growth(%): slope / 같은 기간의 평균 quarterly opincome * 100 (percent per quarter)
 
         - volatility:
-            - Daily 절대 MarCap 수익률의 최근 Measure_Period 평균을 직전 baseline과 비교
+            - Daily 절대 Marcap 수익률의 최근 Measure_Period 평균을 직전 baseline과 비교
             - measure_to_base(%): 최근 평균 / 직전 baseline 평균 * 100 (100이면 동일)
 
         - amount:
@@ -427,7 +427,7 @@ class SectorAnalysis:
         
         - alpha_level:
             - alpha(%)가 +/- ALPHA_DAILY_THRESHOLD_PERCENT를 넘는지로 outperform/underperform 구분
-            - indplot_long, indplot_short: 각 기간 동안 individual item의 일별 MarCap 수익률을 MarCap 합계의 수익률에 대비하여 계산
+            - indplot_long, indplot_short: 각 기간 동안 individual item의 일별 Marcap 수익률을 Marcap 합계의 수익률에 대비하여 계산
                 * profile/segment level dedupe 수행하지 않은 단순 sum
 
         - category: 
@@ -1058,7 +1058,7 @@ class SectorAnalysis:
         # labels
         # -----------------------------------------------------
         ax.set_ylabel(
-            f"MarCap ({KRW_UNIT_KR[self.meta['unit']]} KRW)"
+            f"Marcap ({KRW_UNIT_KR[self.meta['unit']]} KRW)"
         )
 
         ax_r.set_ylabel(
@@ -1319,9 +1319,9 @@ class SectorAnalysis:
         first_date = min(series.index[0] for _, series in plot_data)
         ax.set_title(
             f"[Normalized as of {first_date:%Y-%m-%d}] "
-            f"MarCap trend ({period} days)"
+            f"Marcap trend ({period} days)"
         )
-        ax.set_ylabel("MarCap (first = 100)")
+        ax.set_ylabel("Marcap (first = 100)")
         ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:,.0f}"))
         ax.grid(True, linestyle="--", alpha=0.3)
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
