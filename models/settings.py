@@ -33,10 +33,10 @@ FORCE_FINANCIALS_REGENERATE = False
 # news
 NEWS_CUTOFF_MONTHS = 6 # Maximum age of Google News search results; not a freshness target.
 NEWS_REFRESH_THRES = 7 # business days (excl. weekends and KR holidays) - applied to components and valuechains
-NEWS_REFRESH_THRES_HIGH_MARCAP = 3 # business days - to profiles and segments
-NEWS_REFRESH_THRES_LOW_MARCAP = 7 
+NEWS_REFRESH_THRES_HIGH_MARCAP = 5 # business days - to profiles and segments
+NEWS_REFRESH_THRES_LOW_MARCAP = 12 
 NEWS_REFRESH_THRES_MARCAP = 1e12 # KRW; financials marcap is scaled by meta.unit
-NEWS_WEB_SEARCH_RECENCY_DAYS = 7 # Calendar days; stale sources trigger web-search fallback.
+NEWS_WEB_SEARCH_RECENCY_DAYS = 21 # Calendar days; stale sources trigger web-search fallback.
 NUM_TO_CRAWL = 3 # number of articles to crawl for each keyword
 NUM_TO_CRAWL_DEFAULT = 10 # max 10 articles
 SHOW_CRAWL_RES = True
@@ -127,7 +127,7 @@ VALUECHAIN_LIST_SCOPES = [
 COLLAPSED_PATHS = {
     'meta', 
     'assess_data.alpha_beta.from_start_date', 
-    'shape.financials'
+    # 'shape.financials'
 }
 NO_CHART_KEYS = {
     'key',

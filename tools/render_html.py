@@ -123,7 +123,8 @@ def _classification_button(label, level):
         f'{escape(str(label))}</a>'
     )
 
-def _value_row(key, values=None, level=0, chart=True, classification_level=None):
+def _value_row(key, values=None, level=0, chart=True, classification_level=None,
+               group_divider=False, group_end=False):
     values = values or []
 
     nums = []
@@ -188,7 +189,7 @@ def _value_row(key, values=None, level=0, chart=True, classification_level=None)
                             </td>''')
 
     return f"""
-                        <tr class="value-row level-{level}">
+                        <tr class="value-row level-{level}{' assess-group-divider' if group_divider else ''}{' assess-group-end' if group_end else ''}">
                             <td class="label">{escape(str(key))}</td>
                             {"".join(cells).strip()}
                         </tr>"""
@@ -204,7 +205,23 @@ def _render_rows(
     collapsed_paths = collapsed_paths or set()
     no_chart_keys = no_chart_keys or set()
     rows = []
-    for key, value in dict_list[0].items():
+    keys = list(dict_list[0])
+    if path == "assess_result":
+        preferred_order = [
+            "basics",
+            "financially_sound",
+            "PER_level",
+            "category",
+            "alpha_level",
+            "volatility_level",
+            "amount_level",
+            "market_sentiment",
+        ]
+        keys = [key for key in preferred_order if key in keys]
+        keys.extend(key for key in dict_list[0] if key not in preferred_order)
+
+    for key in keys:
+        value = dict_list[0][key]
         current_path = f"{path}.{key}" if path else str(key)
         values = [d[key] for d in dict_list]
         display_key = DISPLAY_KEY_DICT.get(
@@ -240,6 +257,12 @@ def _render_rows(
                 level=level,
                 chart=key not in no_chart_keys,
                 classification_level=classification_level,
+                group_divider=current_path in {
+                    "assess_result.basics",
+                    "assess_result.alpha_level",
+                    "assess_result.volatility_level",
+                },
+                group_end=current_path == "assess_result.market_sentiment",
             ))
 
     return rows

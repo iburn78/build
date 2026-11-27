@@ -93,12 +93,12 @@ A result of `100` means the recent mean equals the baseline mean.
 
 Market sentiment combines the movement labels:
 
-| Trading amount | Volatility | Sentiment |
+| Amount | Volatility | Sentiment |
 | --- | --- | --- |
 | Up | Dn | `confidence` |
 | Up | Up | `unstable` |
 | Dn | Dn | `consumed` |
-| Dn | Up | `speculators` |
+| Dn | Up | `speculation` |
 
 Other combinations are labeled `-`.
 

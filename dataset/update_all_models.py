@@ -63,7 +63,7 @@ def update_profiles() -> None:
     total = len(profile_items)
     print(f"Profiles to check: {total}", file=sys.stderr, flush=True)
 
-    for key in tqdm(profile_items, total=total):
+    for key in tqdm(profile_items, colour='#404040', total=total):
         Profile.get_item(key)
 
 
@@ -94,7 +94,7 @@ def update_unclassified_profiles() -> None:
             flush=True,
         )
     total = len(profile_keys)
-    for key in tqdm(profile_keys, total=total):
+    for key in tqdm(profile_keys, colour='#404040', total=total):
         try:
             Profile.get_item(key)
         except Exception as error:
@@ -106,7 +106,7 @@ def update_components() -> None:
     total = len(paths)
     print(f"Components to check: {total}", file=sys.stderr, flush=True)
 
-    for path in tqdm(paths, total=total):
+    for path in tqdm(paths, colour='#404040', total=total):
         data = json.loads(path.read_text(encoding="utf-8"))
         Component.get_item(data["key"])
 
@@ -116,7 +116,7 @@ def update_valuechains() -> None:
     total = len(paths)
     print(f"Valuechains to check: {total}", file=sys.stderr, flush=True)
 
-    for path in tqdm(paths, total=total):
+    for path in tqdm(paths, colour='#404040', total=total):
         data = json.loads(path.read_text(encoding="utf-8"))
         ValueChain.get_item(data["key"])
 
@@ -152,7 +152,7 @@ def create_update_from_classification() -> None:
             flush=True,
         )
         group_valuechains = []
-        for group in tqdm(sector.get("groups", []), total = len(sector.get("groups", []))):
+        for group in tqdm(sector.get("groups", []), colour='#404040', total = len(sector.get("groups", []))):
             industry_valuechains = []
             group_name = f"{group['code']} {group['name']['ko']}"
             for industry in group.get("industries", []):

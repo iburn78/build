@@ -606,9 +606,9 @@ class SectorAnalysis:
         # Choose Representative Categories
         market_sentiment = '-'
         if amount == 'Up' and volatility == 'Dn': market_sentiment = 'confidence' # confidence created
-        elif amount == 'Up' and volatility == 'Up': market_sentiment = 'unstable' 
+        elif amount == 'Up' and volatility == 'Up': market_sentiment = 'unstable'
         elif amount == 'Dn' and volatility == 'Dn': market_sentiment = 'consumed' # events consumed
-        elif amount == 'Dn' and volatility == 'Up': market_sentiment = 'speculators' # speculators remained
+        elif amount == 'Dn' and volatility == 'Up': market_sentiment = 'speculation' # speculation present
 
         # --------------------------------------------
         # categorization
@@ -627,10 +627,10 @@ class SectorAnalysis:
             'basics': basics,
             'financially_sound': financially_sound,
             'PER_level': PER_level,
+            'category': category,
+            'alpha_level': alpha_level,
             'volatility_level': volatility,
             'amount_level': amount,
-            'alpha_level': alpha_level,
-            'category': category,
             'market_sentiment': market_sentiment,
         }
     
