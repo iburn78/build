@@ -1,6 +1,6 @@
 # Build process
 
-Last edited: 2026-10-21
+Last edited: 2026-11-27
 
 ## Data locations
 
@@ -21,6 +21,13 @@ Python model JSON, charts, and HTML reports are written into these directories. 
 - **ValueChain** (`key`): an ordered list of components and/or child valuechains. Its financials sum its direct members additively.
 
 Each persisted model has a JSON file, an `info_section`, and optional generated `financials`. Components store references in `listed_companies`; value chains store member references in `component_keys` and `valuechain_keys`. The in-memory `_sub_items` map is not serialized.
+
+## Profile and segment classification
+
+- `dataset/refs/krics_*/summary.pkl` is the working classification table. A profile or segment reassignment updates its `sector_group` and/or `classification` fields through `tools/tools.py`.
+- `dataset/refs/classification_structure.json` is the taxonomy tree and a synchronized member index. `sync_classification_structure()` refreshes each subindustry's `companies` from `summary.pkl`; do not edit the member lists in this JSON directly.
+- `dataset/update_all_models.py` reads the classification table to build taxonomy Components, and uses the JSON tree for taxonomy names and hierarchy. It also globs saved Profile, Component, and ValueChain JSON records to refresh existing/custom models.
+- Profile/segment page Class actions update the table and its JSON mirror, then rebuild taxonomy components/valuechains so member links follow the reassignment. Existing taxonomy components remain in the tree when emptied, with their membership cleared.
 
 ## Creating or refreshing models
 

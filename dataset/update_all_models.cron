@@ -1,2 +1,0 @@
-# Add this line using `crontab -e` to preserve other scheduled jobs.
-30 23 * * 1-5 /Users/andy/projects/build/dataset/run_update_all_models.sh

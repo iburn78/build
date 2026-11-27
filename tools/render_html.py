@@ -397,6 +397,9 @@ def _render_financials(target_type, target_key, financials_names: list, financia
     images = _render_images(output_file, meta_dict)
     charts_panel = f'<div class="charts-panel">{images}</div>' if images else ""
     ext_links = _get_ext_links(meta_dict.get('code'))
+    classification_markup = _render_classification_control(
+        target_type, target_key, financials_names, meta_dict
+    )
 
     return f"""<h3 class="financials-heading">
         <span class="financials-heading-label">
@@ -404,6 +407,7 @@ def _render_financials(target_type, target_key, financials_names: list, financia
             <span class="table-controls">
                 <button onclick="expandAll()">+</button>
                 <button onclick="collapseAll()">-</button>
+                {classification_markup}
             </span>
         </span>
         <span class="model-instance-actions">
@@ -416,6 +420,7 @@ def _render_financials(target_type, target_key, financials_names: list, financia
                 data-object-id="{escape(str(target_key), quote=True)}">Update</button>
         </span>
     </h3>
+    { _render_classification_dialog(target_type, target_key, financials_names, meta_dict) }
     <div class="dashboard">
         <div class="table-panel">
             <div class="table-scrollbar" aria-label="Scroll financials table horizontally" tabindex="0">
@@ -429,6 +434,51 @@ def _render_financials(target_type, target_key, financials_names: list, financia
         </div>
         {charts_panel}
     </div>"""
+
+
+def _render_classification_control(target_type, target_key, financials_names, meta_dict):
+    if target_type not in {"Profile", "Segment"}:
+        return ""
+    return f'''<button class="classification-edit-open" type="button"
+        data-classification-open title="Reassign profile or segment classification"
+        aria-haspopup="dialog">Class</button>'''
+
+
+def _render_classification_dialog(target_type, target_key, financials_names, meta_dict):
+    if target_type not in {"Profile", "Segment"}:
+        return ""
+    name = financials_names[0].get("name") or target_key
+    segment_name = financials_names[0].get("segment_name")
+    target_label = f"{name} — {segment_name}" if target_type == "Segment" and segment_name else name
+    classification = meta_dict.get("classification") or {}
+    sector = classification.get("sector", "(sector unavailable)") if isinstance(classification, dict) else "(sector unavailable)"
+    group = classification.get("group", "(group unavailable)") if isinstance(classification, dict) else "(group unavailable)"
+    subindustry = classification.get("subindustry", "") if isinstance(classification, dict) else ""
+    match = re.search(r"\((\d{4})\)$", str(subindustry))
+    current_code = match.group(1) if match else ""
+    return f'''<dialog class="classification-edit-dialog" data-classification-dialog
+        data-object-type="{escape(str(target_type), quote=True)}"
+        data-object-id="{escape(str(target_key), quote=True)}">
+        <div class="classification-edit-content">
+            <h3>Class reassignment</h3>
+            <p><strong>{'Segment' if target_type == 'Segment' else 'Profile'}:</strong>
+                <span>{escape(str(target_label))}</span></p>
+            <p><strong>Sector:</strong> <span>{escape(str(sector))}</span></p>
+            <p><strong>Group:</strong> <span>{escape(str(group))}</span></p>
+            <label for="classification-code">4-digit subindustry code</label>
+            <div class="classification-reassign-row">
+                <input id="classification-code" type="text" inputmode="numeric"
+                    maxlength="4" pattern="[0-9]{{4}}" value="{escape(current_code, quote=True)}"
+                    data-classification-code autocomplete="off">
+                <button type="button" data-classification-reassign>Reassign</button>
+            </div>
+            <p class="classification-edit-message" data-classification-message role="status" aria-live="polite"></p>
+            <div class="classification-edit-actions">
+                <button type="button" data-classification-auto>Auto</button>
+                <button type="button" data-classification-cancel>Cancel</button>
+            </div>
+        </div>
+    </dialog>'''
 
 def _render_qualitative_value(value):
     """Recursively render dict, list, and scalar values as HTML."""

@@ -7,6 +7,7 @@ from build.models.segment import Segment
 from build.analysis.sector_analysis import FinancialsData, SectorAnalysis
 from typing import Any, ClassVar
 from pathlib import Path
+from datetime import datetime
 
 class Traits(InfoSection):
     competition: str = "" # Market share, leaders, and competitive advantages
@@ -135,10 +136,24 @@ class Component(JsonModel):
         return changed
 
     def _get_financials(self, **kwargs):
+        fd_list = self._get_fd_list()
+        if not fd_list:
+            meta = dict((self.financials or {}).get("meta", {}))
+            meta.update({"name": self.key, "updated": datetime.now().isoformat(timespec="seconds")})
+            self.financials = {
+                "meta": meta,
+                "shape": {},
+                "assess_data": {},
+                "assess_result": {},
+            }
+            self._subitems_financials_processed = []
+            self._pending_financials_analysis = None
+            self.get_json_path().with_suffix(".png").unlink(missing_ok=True)
+            return
+
         _sa = SectorAnalysis()
         _sa.meta['name'] = self.key
 
-        fd_list = self._get_fd_list()
         _sa.process(fd_list,
                     subitems_financials=self._get_subitems_financials(),
                     individual_plot_fds=fd_list,
@@ -168,7 +183,7 @@ class Component(JsonModel):
         changed = False
         listed_companies = Component._build_listed_company_list(self.key, **kwargs)
 
-        if listed_companies:
+        if "keylist" in kwargs or "namelist" in kwargs:
             # Pydantic model instances do not support set-based comparison.
             if len(self.listed_companies) != len(listed_companies) or not all(
                 x in listed_companies for x in self.listed_companies

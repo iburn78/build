@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pydantic import Field
 from build.models.settings import VALUECHAINS_DIR, VALUECHAIN_NEWS_DIR, VALUECHAIN_SEARCH_THEME
 from build.tools.tools import remove_nonlanguage_parentheticals
@@ -227,10 +228,24 @@ class ValueChain(JsonModel):
         return member_series
 
     def _get_financials(self, **kwargs):
+        fd_list = self._get_fd_list(fd_cache={})
+        if not fd_list:
+            meta = dict((self.financials or {}).get("meta", {}))
+            meta.update({"name": self.key, "updated": datetime.now().isoformat(timespec="seconds")})
+            self.financials = {
+                "meta": meta,
+                "shape": {},
+                "assess_data": {},
+                "assess_result": {},
+            }
+            self._subitems_financials_processed = self._get_subitems_financials()
+            self._pending_financials_analysis = None
+            self.get_json_path().with_suffix(".png").unlink(missing_ok=True)
+            return
+
         _sa = SectorAnalysis()
         _sa.meta['name'] = self.key
 
-        fd_list = self._get_fd_list(fd_cache={})
         _sa.process(fd_list,
                     subitems_financials=self._get_subitems_financials(),
                     individual_plot_fds=fd_list,

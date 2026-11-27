@@ -9,6 +9,7 @@ from build.models.component import Component
 from build.models.valuechain import ValueChain
 from build.models.segment import Segment
 from build.models.settings import PROFILES_DIR, COMPONENTS_DIR, VALUECHAINS_DIR
+from build.models.json_model import sanitized_filename
 from build.tools.tools import df_sector, sector_structure
 from tqdm import tqdm
 
@@ -160,9 +161,6 @@ def create_update_from_classification() -> None:
                 for subindustry in industry.get("subindustries", []):
                     subindustry_code = str(subindustry.get("code", ""))
                     member_codes = sorted(set(members_by_subindustry.get(subindustry_code, [])))
-                    if not member_codes:
-                        continue
-
                     # A profile and its segment rows can share a leaf; represent
                     # that issuer through its segment rows only.
                     segment_parents = {
@@ -175,6 +173,11 @@ def create_update_from_classification() -> None:
                         if re.search(r"\([A-Za-z]\)$", code) or code not in segment_parents
                     ]
                     component_name = f"{subindustry_code} {subindustry['name']['ko']}"
+                    component_path = COMPONENTS_DIR / f"{sanitized_filename(component_name)}.json"
+                    # Keep an existing empty component in the taxonomy. It is
+                    # needed so a reassignment can clear its previous members.
+                    if not member_codes and not component_path.is_file():
+                        continue
                     component = Component.get_item(
                         component_name,
                         keylist=member_codes,

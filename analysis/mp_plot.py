@@ -116,7 +116,7 @@ def make_mp_point(label: str, code: str, financials: dict | None, page_path: Pat
         x, y = float(margin), float(per)
     except (TypeError, ValueError):
         return None
-    if category not in CATEGORY_COLORS or y > PER_BOUND or x > OPMARGIN_BOUND:
+    if category not in CATEGORY_COLORS:
         return None
 
     relative_page = page_path.with_suffix(".html").relative_to(DATA_DIR).as_posix()
@@ -299,6 +299,7 @@ def draw_mp_plot(points: list[dict], title: str):
         xaxis={
             "title": {"text": "X: Operating margin (LTM)", "standoff": 14},
             "tickformat": ".0%",
+            "range": [0, OPMARGIN_BOUND],
             "automargin": True,
         },
         yaxis={

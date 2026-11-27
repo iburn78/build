@@ -1,0 +1,4 @@
+- recalssification pop-up logic/shape check 
+- check classification reassign of segments: HD현대 for example the only member
+- review other classifications too
+- make node restart, git pull remotely? how? 
